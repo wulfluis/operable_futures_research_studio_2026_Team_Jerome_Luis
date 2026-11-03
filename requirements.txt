@@ -10,6 +10,9 @@ torchvision==0.26.0
 segmentation-models-pytorch==0.6.0
 opencv-python-headless==5.0.0.93  # measurement
 scikit-image==0.26.0  # skeleton for width
+streamlit==1.66.1  # class demo (spec/features/class_demo.md)
+qrcode[pil]==8.2
+# class demo link: Cloudflare quick tunnel, installed with  winget install --id Cloudflare.cloudflared
 
 # Planned (add pinned versions when each is first used)
 # ultralytics   (YOLO, only if element boxes are needed later; AGPL-3.0, decision D9)

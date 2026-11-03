@@ -86,3 +86,14 @@ def test_end_to_end_on_fake_sets(tmp_path):
         assert img.size == (416, 416) and mask.shape == (416, 416)
         assert set(np.unique(mask)) <= {0, 255}
     assert all(len(s) == 1 for s in splits.values())  # no source photo in two splits
+
+
+def test_training_set_can_leave_out_and_repeat_sets(tmp_path):
+    from segmentation.train import CrackSet
+    for sub in ("images", "masks"):
+        (tmp_path / "train" / sub).mkdir(parents=True)
+    for name in ("cs9k_a.png", "metu_1.png", "darb_x.png"):
+        for sub in ("images", "masks"):
+            Image.new("RGB" if sub == "images" else "L", (32, 32)).save(tmp_path / "train" / sub / name)
+    s = CrackSet(tmp_path, "train", exclude=("metu_",), repeat={"darb_": 3})
+    assert sorted(f.name for f in s.files) == ["cs9k_a.png"] + ["darb_x.png"] * 3
