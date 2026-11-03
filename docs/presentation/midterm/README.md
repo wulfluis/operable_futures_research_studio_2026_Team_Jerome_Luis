@@ -10,4 +10,4 @@ This folder is a copy of its source, saved on 31 Oct 2026:
 - `crack_progress.py`: makes the cover crack and the red-progress cracks from `src/app/background.py`, both ends faded into the black as in the app; set `N` to the number of slides.
 
 Facts and numbers on the slides are cited by number from `docs/sources.md` ([15], [41], [57] to [63]).
-Still open: the QR on the live-demo slide (it changes at each app launch) and the news clip.
+Still open: the news clip. The QR is not on the slides: after the talk it is shown full screen from the app (`localhost:8501/?qr`), since it changes at each app launch.
