@@ -1,7 +1,5 @@
 """Class demo logic without the web page: consent, the live wall, the tunnel link, the QR. Spec: spec/features/class_demo.md."""
 
-from __future__ import annotations  # "threading.Lock | None" needs this before Python 3.13
-
 import hmac
 import io
 import re
