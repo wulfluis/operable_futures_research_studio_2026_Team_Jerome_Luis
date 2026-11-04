@@ -39,7 +39,9 @@ The confusion tables (true and false positives and negatives, with missed Catego
 The quality gate (`src/quality/`) ran as a first test on real images from five public datasets. It found and fixed a resolution bug in the blur check, and showed that the blur check confuses smooth plaster and concrete with blur (decision D12) (`docs/experiments/`). Since 30 Oct a photo counts as blurred only when two blur measures agree, which stopped most sharp crack close-ups being sent to retake (D33; thresholds still to calibrate).
 **Crack model, in use (v3, 30 Oct):** a U-Net with a ResNet-34 encoder (pre-trained on ImageNet) marks the crack pixels in a photo. It was trained for 25 rounds on 8,241 photos (8,082 public crack close-ups from CrackSeg9k [25] and crack-seg [33], plus 159 brick walls without cracks from Darbhanga [30]), on a laptop GPU. A written rule then says "Crack found", "No crack found" or "Expert needed" (`src/segmentation/decide.py`). Details: `docs/experiments/2026-10-29_unet_first_training.md`, decisions D31 and D32.
 **App, working (class demo):** a phone page where anyone sends a crack photo and gets the answer with the crack marked in red, and a live wall for the projector that collects the shared results (`src/app/`, `spec/features/class_demo.md`). See "Run the app" below.
-**Not trained yet:** the material model (concrete or not), the element model (column, beam, slab, wall), the crack-pattern model and a "close-up of a surface?" check. Width in mm is not measured yet, so the risk categories are not in the app.
+**Width in mm, in the app (Luis, 4 Nov, D41, D42, D46):** lay a bank card (85.60 x 53.98 mm) flat on the wall next to the crack. The app finds the card, checks the camera tilt (straight up to 10°, retake above 20°) and gives the width at the widest point and the median (± uncertainty), the length, the pixels across the crack and the crack's shape, with a white ring at the widest point (`src/measure/`, `spec/features/measurement.md`, `spec/features/app_measure.md`). Each photo on the live wall opens its own page with these numbers. Without a card the answer is as before. Tested on synthetic photos and a few field photos, not calibrated yet. The measurement alone: `streamlit run src/measure/app.py` or `python src/measure/measure_crack.py --demo`.
+**Not trained yet:** the material model (concrete or not), the element model (column, beam, slab, wall), the crack-pattern model and a "close-up of a surface?" check. Without the pattern and the element, the risk categories are not in the app.
+A first draft of written rules suggests the crack pattern from the crack's direction and form and the element, for a field worker to confirm (`spec/features/pattern_rules.md`, D43).
 Decisions are logged in `spec/decisions.md`. The plan to the final presentation (17 Dec) is in `spec/constitution/roadmap.md`; this week's tasks in `docs/weekly_todo.md`.
 
 ## Results
@@ -59,8 +61,9 @@ Public crack data is mostly concrete and pavement.
 - `docs/`: segmentation tree, data map, sources, experiments, literature notes (`docs/literature/`), weekly to-do (`docs/weekly_todo.md`)
 - `src/triage/`: risk matrix, decision logic, dispatch rule and evaluation tables
 - `src/quality/`: photo quality gate; `src/segmentation/`: crack model (prepare, train, predict, decide, evaluate)
-- `src/app/`: the app (phone page, live wall, QR page, launcher, word mark)
+- `src/app/`: the app (phone page with bank-card measurement, live wall with a page per result, QR page, launcher, word mark)
 - `docs/presentation/midterm/`: midterm deck source (6 Nov)
+- `src/measure/`: bank-card detection, tilt check, crack width and length in mm, local app
 - `tests/`: tests (the comparison against the non-AI baseline runs once engineer-labelled photos exist)
 - `notebook/`, `figures/`, `models/`, `data/`: notebooks, plots, model files, local data (large files are not committed)
 - `branding/logos/`: logo ideas (SVG)

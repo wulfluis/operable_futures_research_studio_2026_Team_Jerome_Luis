@@ -12,8 +12,9 @@ opencv-python-headless==5.0.0.93  # measurement
 scikit-image==0.26.0  # skeleton for width
 streamlit==1.66.1  # class demo (spec/features/class_demo.md)
 qrcode[pil]==8.2
+scipy==1.18.1  # crack measurement with the bank card (src/measure/)
+transformers==5.22.1  # Grounding DINO for the element-model test (no language model in the pipeline)
 # class demo link: Cloudflare quick tunnel, installed with  winget install --id Cloudflare.cloudflared
 
 # Planned (add pinned versions when each is first used)
 # ultralytics   (YOLO, only if element boxes are needed later; AGPL-3.0, decision D9)
-# streamlit     (prototype interface)

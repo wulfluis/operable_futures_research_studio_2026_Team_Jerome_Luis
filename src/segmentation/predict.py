@@ -86,7 +86,7 @@ def run(photo: Image.Image, model: torch.nn.Module, device: str = "cpu") -> Resu
     d = decide(prob, scale=max(w, h) / 416)
     line = f"{d.reason} Confidence {d.confidence:.0%}." if d.confidence else d.reason
     if d.statement != "No crack found":
-        line += " Width unknown: add the scale card."
+        line += " Width unknown: add a bank card (or the scale card) next to the crack."
     return Result(d.statement, line, d.confidence, draw_overlay(img.crop((0, 0, w, h)), d.mask, d.statement, line), d)
 
 

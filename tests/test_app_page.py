@@ -53,8 +53,10 @@ def test_wall_shows_photos_only_when_a_result_is_clicked(page, monkeypatch):
     from app.core import STATEMENTS, Wall
     buf = io.BytesIO()
     Image.new("RGB", (40, 30), "grey").save(buf, "JPEG")
-    fake = [(s, buf.getvalue()) for s, n in zip(STATEMENTS, (7, 3, 1, 2)) for _ in range(n)]
-    monkeypatch.setattr(Wall, "items", lambda self: fake)
+    from app.core import WallEntry
+    fake = [WallEntry(i, st_, buf.getvalue(), buf.getvalue(), {}) for i, st_ in enumerate(
+        [s for s, n in zip(STATEMENTS, (7, 3, 1, 2)) for _ in range(n)], 1)]
+    monkeypatch.setattr(Wall, "entries", lambda self: fake)
     monkeypatch.setattr(Wall, "counts", lambda self: {s: n for s, n in zip(STATEMENTS, (7, 3, 1, 2))})
     page.query_params["wall"] = "right-key"
     at = page.run()
@@ -63,10 +65,15 @@ def test_wall_shows_photos_only_when_a_result_is_clicked(page, monkeypatch):
     assert not any("Reading cracks" in b.label for b in at.button)  # it sits by the title, not the buttons
     assert not any("Click a result" in m.value for m in at.markdown)
     assert sum('class="crack-rule"' in m.value for m in at.markdown) == 1  # one line under all four buttons
-    assert len(at.get("image")) == 0  # no photo until a result is clicked
+    assert _photos(at) == 0  # no photo until a result is clicked
     at.button[0].click().run()
-    assert len(at.get("image")) == 7  # "Crack found" opened: its 7 photos
+    assert _photos(at) == 7  # "Crack found" opened: its 7 photos, each a link to its page
     at.button[1].click().run()
-    assert len(at.get("image")) == 3  # another result replaces it
+    assert _photos(at) == 3  # another result replaces it
     at.button[1].click().run()
-    assert len(at.get("image")) == 0  # a second click closes it
+    assert _photos(at) == 0  # a second click closes it
+
+
+def _photos(at) -> int:
+    """Wall photos in the opened collection: links to each result's page (D46)."""
+    return sum(m.value.count('class="wall-photo"') for m in at.markdown)
