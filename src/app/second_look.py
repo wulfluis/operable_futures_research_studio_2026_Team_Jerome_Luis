@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT / "src") not in sys.path:
     sys.path.insert(0, str(ROOT / "src"))
 from app.background import background_css, crack_underline_css, model_line
+from app.logo import LOGO_CSS, logo_title
 from app.core import (NOT_A_SAFETY_CHECK, STATEMENTS, ConsentMissing, PhotoRejected, Wall, analyse, make_qr,
                       wall_key_ok)
 from segmentation.train import load_checkpoint
@@ -33,7 +34,7 @@ MODEL_LINE = ("Model: U-Net crack segmentation, ResNet-34 encoder (crack model v
               "and brick walls without cracks, plus written rules for the statement")  # update with models/unet_crack.pt
 
 STYLE = """<style>
-""" + background_css() + """
+""" + background_css() + LOGO_CSS + """
 [data-testid="stHeader"] { background: transparent; }
 .stApp, .stApp p, .stApp label, .stApp li { color: #f2f2f2; }
 h1, h2, h3 { color: #ffffff !important; font-weight: 800 !important; text-transform: uppercase; letter-spacing: 0.01em; }
@@ -84,12 +85,12 @@ def shared():
 
 
 def phone_page() -> None:
-    st.title("Second Look")
+    st.markdown(f"<h1>{logo_title()}</h1>", unsafe_allow_html=True)
     st.markdown(f'<p class="quote">{WALL_QUOTE}</p>', unsafe_allow_html=True)  # wraps: a phone is too narrow
     st.markdown("Photograph a crack in concrete or plaster. Second Look marks the crack in red and says what it sees.")
     st.markdown("**Get close:** hold the phone 20 to 40 cm from the wall so the wall fills the whole photo. "
                 "No windows, edges, sky or people: the model only knows close-ups and reads other lines as cracks.")
-    share = st.checkbox("Show results")
+    share = st.checkbox("Share results")
     # one tick only (D34): sending the photo is the consent, so its terms stand right above the upload
     st.markdown('<p class="note">By sending a photo you confirm you took it, it shows no faces, house numbers or '
                 'addresses, and you agree it is analysed.</p>', unsafe_allow_html=True)
@@ -147,7 +148,7 @@ def wall_page() -> None:
                 ".stApp [data-testid='stElementContainer'], .stApp [data-testid='stMarkdown'], "
                 ".stApp [data-testid='stMarkdownContainer'] { overflow: visible; }</style>",
                 unsafe_allow_html=True)  # equal sides: buttons centred on the screen, photos clear of the QR corner
-    st.markdown(f'<div class="wall-head"><h1 class="wall-title">Second Look <span class="wall-version">{APP_VERSION}'
+    st.markdown(f'<div class="wall-head"><h1 class="wall-title">{logo_title()} <span class="wall-version">{APP_VERSION}'
                 '<span class="reading"><span>Reading cracks...</span></span></span></h1>'
                 f'<p class="quote wall-quote">{WALL_QUOTE}</p></div>', unsafe_allow_html=True)
     st.markdown(model_line(MODEL_LINE), unsafe_allow_html=True)

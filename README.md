@@ -37,10 +37,15 @@ Raw data is not committed; `data/` stays empty in the repository.
 The risk matrix and decision rules are implemented in `src/triage/` with tests, and so is the dispatch rule that decides when a field worker visits after a resident's report (`spec/features/dispatch.md`, D27). Thresholds are illustrative until calibrated with a structural engineer.
 The confusion tables (true and false positives and negatives, with missed Category 3 as the key error) are defined in `spec/features/evaluation.md` and coded in `src/triage/evaluate.py`.
 The quality gate (`src/quality/`) ran as a first test on real images from five public datasets. It found and fixed a resolution bug in the blur check, and showed that the blur check confuses smooth plaster and concrete with blur (decision D12) (`docs/experiments/`). Since 30 Oct a photo counts as blurred only when two blur measures agree, which stopped most sharp crack close-ups being sent to retake (D33; thresholds still to calibrate).
-First model trained: crack or no crack with a U-Net, tested on 721 unseen public photos (`docs/experiments/2026-10-29_unet_first_training.md`). Model v3 (30 Oct) adds no-crack brick photos (D32). Class demo: `py src/app/launch.py` (`spec/features/class_demo.md`). The other models are not trained yet. Decisions are logged in `spec/decisions.md`. The plan to the final presentation (17 Dec) is in `spec/constitution/roadmap.md`; this week's tasks in `docs/weekly_todo.md`.
+**Crack model, in use (v3, 30 Oct):** a U-Net with a ResNet-34 encoder (pre-trained on ImageNet) marks the crack pixels in a photo. It was trained for 25 rounds on 8,241 photos (8,082 public crack close-ups from CrackSeg9k [25] and crack-seg [33], plus 159 brick walls without cracks from Darbhanga [30]), on a laptop GPU. A written rule then says "Crack found", "No crack found" or "Expert needed" (`src/segmentation/decide.py`). Details: `docs/experiments/2026-10-29_unet_first_training.md`, decisions D31 and D32.
+**App, working (class demo):** a phone page where anyone sends a crack photo and gets the answer with the crack marked in red, and a live wall for the projector that collects the shared results (`src/app/`, `spec/features/class_demo.md`). See "Run the app" below.
+**Not trained yet:** the material model (concrete or not), the element model (column, beam, slab, wall), the crack-pattern model and a "close-up of a surface?" check. Width in mm is not measured yet, so the risk categories are not in the app.
+Decisions are logged in `spec/decisions.md`. The plan to the final presentation (17 Dec) is in `spec/constitution/roadmap.md`; this week's tasks in `docs/weekly_todo.md`.
 
 ## Results
-None yet. Success means beating the non-AI baseline (an engineer's visual check) on held-out, engineer-labelled photos, while missing almost no Category 3 cases (a target, not a result).
+**Crack model v3, on 1,203 public test photos it never saw in training:** 538 of 550 cracks found (12 missed), 7 false alarms on 653 photos without a crack (none on brick), pixel F1 0.63 (`docs/experiments/2026-10-29_unet_first_training.md`).
+**Known failure:** it only knows close-ups. On 30 photos of whole damaged buildings (Haiti 2010, local only) it still said "Crack found" 28 times: it reads window frames, wires and edges as cracks. Next: a "close-up of a surface?" check before the model.
+These are scores on public close-ups, not on our own photos, and not yet against the non-AI baseline. Success means beating the baseline (an engineer's visual check) on held-out, engineer-labelled photos, while missing almost no Category 3 cases (a target, planned for 3 Dec).
 We stop or redesign if the tool misses Category 3 cases that engineers would flag.
 
 ## Limitations
@@ -53,6 +58,9 @@ Public crack data is mostly concrete and pavement.
 - `spec/features/`: triage and evaluation specs; `spec/decisions.md`: decisions log
 - `docs/`: segmentation tree, data map, sources, experiments, literature notes (`docs/literature/`), weekly to-do (`docs/weekly_todo.md`)
 - `src/triage/`: risk matrix, decision logic, dispatch rule and evaluation tables
+- `src/quality/`: photo quality gate; `src/segmentation/`: crack model (prepare, train, predict, decide, evaluate)
+- `src/app/`: the app (phone page, live wall, QR page, launcher, word mark)
+- `docs/presentation/midterm/`: midterm deck source (6 Nov)
 - `tests/`: tests (the comparison against the non-AI baseline runs once engineer-labelled photos exist)
 - `notebook/`, `figures/`, `models/`, `data/`: notebooks, plots, model files, local data (large files are not committed)
 - `branding/logos/`: logo ideas (SVG)
@@ -64,6 +72,15 @@ This repository was set up with help from Claude (Anthropic). Review everything 
 ## Run the tests
     pip install -r requirements.txt
     pytest
+
+## Run the app
+1. Python 3.10 or newer. With an NVIDIA GPU, install torch first with the CUDA build named in `requirements.txt`; without one the app runs on the CPU, slower (a few seconds per photo).
+2. `pip install -r requirements.txt`
+3. Put the model file `unet_crack.pt` (v3, about 98 MB) in `models/`. It is not in this public repository: ask the team for it.
+4. On this laptop only: `py -m streamlit run src/app/second_look.py`, then open `http://localhost:8501` (phone page) and `http://localhost:8501/?wall` (live wall).
+5. With a public link for phones (class demo): install cloudflared (`winget install --id Cloudflare.cloudflared`), then `py src/app/launch.py`. It prints the phone link, the wall link for a teammate, and the QR page (`http://localhost:8501/?qr`). The links change at every start and stop when the laptop sleeps.
+
+Photos are analysed in memory and never saved; the wall forgets them when the app stops.
 
 ## License
 Code under the MIT License (see `LICENSE`). Datasets follow their own terms.

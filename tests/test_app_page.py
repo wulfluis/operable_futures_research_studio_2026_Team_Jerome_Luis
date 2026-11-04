@@ -16,7 +16,7 @@ def page(monkeypatch):
 def test_phone_page_has_one_tick_and_states_the_consent_terms(page):
     at = page.run()
     assert not at.exception
-    assert len(at.checkbox) == 1 and at.checkbox[0].label == "Show results" and not at.checkbox[0].disabled
+    assert len(at.checkbox) == 1 and at.checkbox[0].label == "Share results" and not at.checkbox[0].disabled
     text = " ".join(m.value for m in at.markdown)
     assert "temporary disguise" in text  # the team's quote under the title
     assert "By sending a photo you confirm you took it" in text and "no faces" in text  # consent is the upload (D34)

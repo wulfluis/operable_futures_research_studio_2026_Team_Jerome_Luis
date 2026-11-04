@@ -145,3 +145,6 @@ The team tried two "electric" versions of the red flash on the background crack:
 
 ## D37 (2026-11-01): the QR leaves the wall and gets its own page
 The team took the QR off the live wall so the wall shows only the title, the results and the model line. The QR now has its own page, `/?qr`, with the code alone in the middle of the screen, and is shown on the projector when students should scan it. The launcher prints that link with the others.
+
+## D38 (2026-11-04): the deck cover's word mark goes into the app
+The midterm deck cover shows "SECOND LOOK" with its two O's drawn as scan frames: the second slides out of the first and a red crack draws through it. The team wanted the same mark on the phone page and the live wall, so the app and the deck share one identity. It plays once on load, like the cover; the wall's refresh does not replay it, because the title sits outside the refreshing part.
