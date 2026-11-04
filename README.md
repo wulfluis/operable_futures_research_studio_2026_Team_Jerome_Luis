@@ -37,6 +37,8 @@ Raw data is not committed; `data/` stays empty in the repository.
 The risk matrix and decision rules are implemented in `src/triage/` with tests, and so is the dispatch rule that decides when a field worker visits after a resident's report (`spec/features/dispatch.md`, D27). Thresholds are illustrative until calibrated with a structural engineer.
 The confusion tables (true and false positives and negatives, with missed Category 3 as the key error) are defined in `spec/features/evaluation.md` and coded in `src/triage/evaluate.py`.
 The quality gate (`src/quality/`) ran as a first test on real images from five public datasets. It found and fixed a resolution bug in the blur check, and showed that the blur check confuses smooth plaster and concrete with blur (open, decision D12) (`docs/experiments/`).
+Crack width and length in mm are measured by `src/measure/` from a bank card next to the crack. The card is found automatically and the camera tilt is checked (`spec/features/measurement.md`, D30, D31). Tested on synthetic photos, not yet on real ones. Try it: `streamlit run src/measure/app.py` (upload a photo or use the demo) or `python src/measure/measure_crack.py --demo`.
+A first draft of written rules suggests the crack pattern from the crack's direction and form and the element, for a field worker to confirm (`spec/features/pattern_rules.md`, D32).
 Models are not trained yet. Decisions are logged in `spec/decisions.md`. The plan to the final presentation (17 Dec) is in `spec/constitution/roadmap.md`; this week's tasks in `docs/weekly_todo.md`.
 
 ## Results
@@ -53,6 +55,7 @@ Public crack data is mostly concrete and pavement.
 - `spec/features/`: triage and evaluation specs; `spec/decisions.md`: decisions log
 - `docs/`: segmentation tree, data map, sources, experiments, literature notes (`docs/literature/`), weekly to-do (`docs/weekly_todo.md`)
 - `src/triage/`: risk matrix, decision logic, dispatch rule and evaluation tables
+- `src/measure/`: bank-card detection, tilt check, crack width and length in mm, local app
 - `tests/`: tests (the comparison against the non-AI baseline runs once engineer-labelled photos exist)
 - `notebook/`, `figures/`, `models/`, `data/`: notebooks, plots, model files, local data (large files are not committed)
 - `branding/logos/`: logo ideas (SVG)

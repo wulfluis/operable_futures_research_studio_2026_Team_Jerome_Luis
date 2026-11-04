@@ -1,9 +1,12 @@
 # Currently used
 pytest
 matplotlib==3.11.2  # figures (src/viz/figures.py)
+scipy==1.18.1  # crack measurement (src/measure/)
+opencv-python-headless==5.0.0.93  # bank-card detection (src/measure/card.py)
+streamlit==1.66.1  # measurement app (src/measure/app.py)
+torch==2.15.0  # element model experiment (src/experiments/element_baseline.py); U-Net later
+torchvision==0.29.2  # ResNet-18 for the element model
+transformers==5.22.1  # Grounding DINO for the element model (no language model in the pipeline)
 
 # Planned (add pinned versions when each is first used)
 # ultralytics   (YOLO, only if element boxes are needed later; AGPL-3.0, decision D9)
-# torch         (U-Net segmentation)
-# opencv-python (measurement)
-# streamlit     (prototype interface)
