@@ -9,3 +9,6 @@ __pycache__/
 *.pt
 *.pth
 .env
+
+# real photos under third-party licences (PHI-Net CC BY-NC-SA, Wikimedia Commons): kept local, not published
+figures/02b_real_examples.png

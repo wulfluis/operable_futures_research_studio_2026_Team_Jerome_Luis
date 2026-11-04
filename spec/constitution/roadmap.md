@@ -32,39 +32,32 @@ Final deliverables: problem & data brief, project repository (with the baseline 
 
 ![Timeline](../../figures/09_timeline.png)
 
-Weeks start on Monday. "At risk" means the task depends on the engineering partners.
+Weeks start on Monday; the figure labels each week with its Thursday. The plan follows the pipeline story (figure `01d_pipeline_story.png`): [n] is box n there. We build the crack line of the pipeline and the prototype around it; the field worker's app, the facade model and the element model are designed, not built (D30). "At risk" means the task depends on the engineering partners.
 
-| Workstream | Task | Weeks | At risk |
+| Group | Task | Weeks | At risk |
 |---|---|---|---|
-| Deliverables | 29 Oct: tree, data map, repo, first real-data test (done) | 1 | |
-| Deliverables | State-of-the-art review based on the reference thesis | 1 | |
-| Deliverables | Expert package to the professor: review, pipeline, material test, one-page pitch (send Mon 2 Nov) | 1 | |
-| Deliverables | Midterm deck and problem & data brief (submit 5 Nov) | 1 to 2 | |
-| Deliverables | Lean Canvas | 6 to 7 | |
-| Deliverables | 10-slide pitch deck, final presentation | 7 to 8 | |
-| Deliverables | Blog post (by 24 Dec) | 8 to 9 | |
-| Data | Quality gate on public sets (done) | 1 | |
-| Data | Material model: concrete vs not concrete, first training test | 1 | |
-| Data | Map public labels to the 7 patterns | 2 to 3 | |
-| Pilot | Collect pilot photos at the S, O and P scales (about 30 cracks, `spec/features/photo_protocol.md`) | 2 | |
-| Pilot | Prepare, label, tune the quality gate | 2 to 3 | |
-| Pilot | Scale card and width with its uncertainty: first feature against the baseline (12 Nov) | 3 to 4 | |
-| Models | U-Net on CrackSeg9k and crack-seg | 3 to 4 | |
-| Models | Pattern model, pre-trained on PHI-Net tasks 3 and 8 | 4 to 5 | |
-| Models | Element model, pre-trained on PHI-Net task 6 | 3 to 4 | |
-| Agent and MCP | First MCP: OpenStreetMap building data into the building case (12 Nov) | 3 | |
-| Agent and MCP | Plan/build harness, MCP connectors to all mapped sources (26 Nov) | 4 to 5 | |
-| Engineering partners | Agree scope with Engineers Without Borders and the structural engineer | 1 to 2 | |
-| Engineering partners | Calibration: matrix, thresholds, protocol | 3 to 5 | yes |
-| Engineering partners | Engineer-labelled photos and baseline ratings | 4 to 6 | yes |
-| Integration | Engineer review screen (mock-up) | 1 to 2 | |
-| Integration | Building questionnaire and building risk score in code (`spec/features/building_score.md`) | 2 to 3 | |
-| Integration | Beta: end-to-end pipeline on pilot photos (hackathon) | 4 | |
-| Integration | Monitoring: crack IDs, stickers, revisit flow (`spec/features/monitoring.md`) | 5 | |
-| Integration | Corrections logged and retraining loop (human-in-the-loop learning) | 5 to 6 | yes |
-| Integration | Comparison against the non-AI baseline (3 Dec) | 6 | yes |
-| Integration | Proof of concept, limits and ethics check (10 Dec) | 7 | |
-| Integration | Streamlit UI, testing in realistic conditions | 7 to 8 | |
+| Photos | [2] Quality gate on public sets (done) | 1 | |
+| Photos | [5] Pilot photos with the scale card, S, O and P (about 30 cracks, `spec/features/photo_protocol.md`) | 2 | |
+| Photos | [2] Tune the quality gate on the pilot photos | 2 to 3 | |
+| Models | [6] U-Net crack segmentation (CrackSeg9k, crack-seg) | 3 to 4 | |
+| Models | [6] Width in mm from the scale card, with its uncertainty: first feature against the baseline (12 Nov) | 3 to 4 | |
+| Models | [6] Pattern model, pre-trained on PHI-Net tasks 3 and 8 (stretch goal) | 4 to 5 | |
+| Written rules | [4] [7] Dispatch rule and risk matrix v3 in code (done) | 1 | |
+| Written rules | [8] Building risk score in code (`spec/features/building_score.md`) | 2 to 3 | |
+| Written rules | [7] Calibrate the matrix and thresholds with the engineer | 3 to 5 | yes |
+| Engineer | [9] Agree scope with Engineers Without Borders and the structural engineer | 1 to 2 | |
+| Engineer | [9] Engineer-labelled photos and baseline ratings | 4 to 6 | yes |
+| Engineer | [9] Comparison against the non-AI baseline (3 Dec) | 6 | yes |
+| Prototype | First MCP: OpenStreetMap building data into the building case (12 Nov) | 3 | |
+| Prototype | Beta: end to end on the pilot photos (hackathon, 16 to 20 Nov) | 4 | |
+| Prototype | Plan/build harness, MCP to all mapped sources (26 Nov) | 5 | |
+| Prototype | Recheck loop (crack IDs, overlay) and learn loop (corrections logged) | 5 to 6 | yes |
+| Prototype | Proof of concept, limits and ethics check (10 Dec) | 7 | |
+| Prototype | UI, testing in realistic conditions (10 to 14 Dec) | 7 to 8 | |
+| Syllabus | Midterm deck and problem & data brief (submit 5 Nov, present 6 Nov) | 1 to 2 | |
+| Syllabus | Lean Canvas | 6 to 7 | |
+| Syllabus | 10-slide pitch deck, final presentation (17 Dec) | 7 to 8 | |
+| Syllabus | Blog post (by 24 Dec) | 8 to 9 | |
 
 Fallback: if no engineer ratings exist by 26 Nov, the 3 Dec comparison uses the pilot photos against our own width measurements only, the triage matrix stays illustrative, and the report says so.
 

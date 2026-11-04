@@ -20,13 +20,15 @@ if __package__ in (None, ""):
 from triage.matrix import (_ESCALATOR_EFFECT, _LOCATION_RULE, BAND_NAMES, BANDS, BASIS, ELEMENT_RAISE, ELEMENTS,
                            ESCALATORS, MATRIX, PATTERN_NAMES, PATTERNS, VERSION)
 
-# Palette: reference instance of the dataviz skill (light mode).
-SURFACE, INK, INK_2, MUTED, GRID = "#fcfcfb", "#0b0b0b", "#52514e", "#898781", "#e1e0d9"
-BLUE, AQUA, VIOLET = "#2a78d6", "#1baf7a", "#6250d6"
-SEQ = {"covered": "#1c5cab", "partial": "#5598e7", "planned": "#b7d3f6", "none": SURFACE}
+# Palette: black, white and greys only (the user's house style); differences also carried by labels, line styles
+# or hatching, never by grey alone.
+SURFACE, INK, INK_2, MUTED, GRID = "#ffffff", "#111111", "#4d4d4d", "#8a8a8a", "#e0e0e0"
+BLUE, AQUA, VIOLET = "#333333", "#8c8c8c", "#5c5c5c"
+SEQ = {"covered": "#262626", "partial": "#7a7a7a", "planned": "#cfcfcf", "none": SURFACE}
 # Status colours are reserved for triage levels, always with a text label.
-LEVEL = {"Category 1": "#0ca30c", "Category 2": "#fab219", "Category 3": "#d03b3b", "Expert needed": "#ec835a", "Retake": MUTED}
-ON_FILL = {"Category 2": INK}  # dark text on the yellow fill, white elsewhere
+LEVEL = {"Category 1": "#e6e6e6", "Category 2": "#a6a6a6", "Category 3": "#111111", "Expert needed": "#595959", "Retake": MUTED}
+ON_FILL = {"Category 1": INK, "Category 2": INK}
+SLIDE_PX = 4800  # every figure is 16:9 and saved 4800 px wide (4800 x 2700), to drop straight into a slide  # dark text on the light fills, white elsewhere
 
 plt.rcParams.update({
     "font.family": "sans-serif",
@@ -41,6 +43,30 @@ plt.rcParams.update({
     "axes.facecolor": SURFACE,
     "savefig.facecolor": SURFACE,
 })
+
+
+def _house_title(fig, title, subtitle=None):
+    """The title every figure carries: bold capitals, 38 pt on a 24 in wide figure (no number: added in the deck)."""
+    H, W = fig.get_figheight(), fig.get_figwidth()
+    fig.text(0.02, 1 - 0.5 / H, title, fontsize=38 * W / 24, weight="bold", color=INK, va="center")
+    if subtitle:
+        fig.text(0.02, 1 - 1.0 / H, subtitle, fontsize=18 * W / 24, weight="bold", color=INK_2, va="center")
+
+
+def _house_legend(fig, handles, labels):
+    """The legend every figure carries: one line, top right, level with the title, same size on every slide."""
+    H, W = fig.get_figheight(), fig.get_figwidth()
+    fig.legend(handles, labels, loc="center right", bbox_to_anchor=(0.985, 1 - 0.5 / H), ncol=len(handles),
+               frameon=False, prop={"size": 13 * W / 24, "weight": "bold"}, handlelength=1.8, handleheight=1.0,
+               handletextpad=0.6, columnspacing=1.8, borderaxespad=0)
+
+
+def _flow_key(fig):
+    """Colour key of the flow figures: white = people and photos, grey = written rules, black = learned models."""
+    _house_legend(fig, [Patch(facecolor="white", edgecolor=FLOW_INK, lw=1.6),
+                        Patch(facecolor=FLOW_RULE, edgecolor=FLOW_RULE),
+                        Patch(facecolor=FLOW_MODEL, edgecolor=FLOW_MODEL)],
+                  ["PEOPLE AND PHOTOS", "WRITTEN RULES", "LEARNED MODELS"])
 
 
 def _box(ax, x, y, w, h, text, fill, edge, size=9.5, color=INK, weight="normal", lw=1.2):
@@ -90,14 +116,14 @@ PIPE_BOXES = {
     (2, 3): ("rule", "Crack level + growth", "matrix v3 → level, reason, next step\ngrowth counts only if larger\nthan the measurement uncertainty", "partly"),
     (2, 4): ("human", "Resident", "level, reason, next step,\nrecheck date\nnever 'safe', never a clearance", "partly"),
 }
-PIPE_STATUS = {"code": ("in code", "#2F4B7C", "#2F4B7C", "white"),
-               "partly": ("partly in code", "#dfe6f2", "#2F4B7C", "#2F4B7C"),
+PIPE_STATUS = {"code": ("in code", "#262626", "#262626", "white"),
+               "partly": ("partly in code", "#e6e6e6", "#262626", "#262626"),
                "spec": ("specified", "#FFFFFF", MUTED, INK_2)}
 
 
 def pipeline():
     """Pipeline v3: three scales (S, O, P) x five phases, scene check, monitoring and learning loops, status."""
-    kinds = {"learned": (VIOLET, "#ecebfb"), "rule": (AQUA, "#e3f5ee"), "human": (MUTED, "#f0efec")}
+    kinds = {"learned": (VIOLET, "#ececec"), "rule": (AQUA, "#f2f2f2"), "human": (MUTED, "#efefef")}
     x0, w, y0, h = [0, 4.1, 9.35, 13.45, 17.55], 3.5, [7.0, 4.25, 1.5], 2.05
     rx, rw = 8.0, 0.95  # scene check
     fig, ax = plt.subplots(figsize=(21, 12.6))
@@ -123,7 +149,7 @@ def pipeline():
                                     facecolor=TREE_NAVY, edgecolor="none"))
         ax.text(-1.375, y + h - 0.5, code, ha="center", va="center", color=TREE_YELLOW, fontsize=26, weight="bold")
         ax.text(-1.375, y + h / 2 - 0.15, name, ha="center", va="center", color="white", fontsize=10, weight="bold")
-        ax.text(-1.375, y + 0.42, what, ha="center", va="center", color="#dfe6f2", fontsize=9, linespacing=1.2)
+        ax.text(-1.375, y + 0.42, what, ha="center", va="center", color="#e6e6e6", fontsize=9, linespacing=1.2)
     for (r, c), (kind, title, body, status) in PIPE_BOXES.items():
         edge, fill = kinds[kind]
         x, y = x0[c], y0[r]
@@ -202,7 +228,7 @@ def pipeline():
 # Decisions and players: five players as lifelines, time going down, numbered hand-offs between them.
 # Decisions are diamonds on the lifeline of the player who decides (written rules, engineer); models only measure.
 # Sources: src/triage/dispatch.py, src/triage/matrix.py, spec/features/building_score.md, spec/features/pipeline.md.
-PLAYERS = {"R": 12.0, "M": 35.0, "W": 58.0, "F": 81.0, "E": 104.0}  # lifeline x
+PLAYERS = {"R": 15.0, "M": 43.0, "W": 71.0, "F": 99.0, "E": 127.0}  # lifeline x
 PLAYER_ICON = {"RESIDENT": "person", "APP · MODELS": "network", "APP · WRITTEN RULES": "rulebook",
                "FIELD WORKER": "worker", "ENGINEER": "hardhat"}
 PLAYER_HEADS = [("R", "photo", "RESIDENT", "any phone"), ("M", "model", "APP · MODELS", "measure + confidence"),
@@ -359,9 +385,10 @@ WHO_DECIDES = [
 
 def decisions_and_players():
     """Who decides what, and when: players as lifelines, hand-offs as numbered arrows, decisions as diamonds."""
-    fig = plt.figure(figsize=(28.2, 19.2), facecolor="white")
+    W = 19.2 * 16 / 9  # 16:9 like every figure, drawn across the full width (171 units of 0.2 in)
+    fig = plt.figure(figsize=(W, 19.2), facecolor="white")
     ax = fig.add_axes([0, 0, 1, 1])
-    ax.set_xlim(0, 141)
+    ax.set_xlim(0, W / 0.2)
     ax.set_ylim(0, 96)
     ax.set_axis_off()
     t = _flow_tools(ax)
@@ -372,9 +399,9 @@ def decisions_and_players():
     def white_diamond(cx, cy, hw, hh, text):  # a decision taken by a person
         ax.add_patch(matplotlib.patches.Polygon([(cx - hw, cy), (cx, cy + hh), (cx + hw, cy), (cx, cy - hh)],
                                                 closed=True, facecolor="white", edgecolor=FLOW_INK, lw=2.0, zorder=4))
-        label(cx, cy, text, size=10, weight="bold")
+        label(cx, cy, text, size=13, weight="bold")
 
-    def head(kind, cx, cy, w, h, name, sub="", size=11.5):
+    def head(kind, cx, cy, w, h, name, sub="", size=15):
         if kind == "photo":
             photo_box(cx, cy, w, h, "")
         elif kind == "rule":
@@ -388,44 +415,37 @@ def decisions_and_players():
             terminal(cx, cy, w, h, "")
         ink = "white" if kind.startswith("model") else FLOW_INK
         paper = FLOW_MODEL if kind.startswith("model") else ("#d2d2d2" if kind == "rule" else "white")
-        icon_s = min(h * 0.72, 4.2)
+        icon_s = min(h * 0.72, 4.6)
         _handoff_icon(ax, PLAYER_ICON[name], cx - w / 2 + 1.0 + icon_s / 2, cy, s=icon_s, ink=ink, paper=paper)
         tx = cx + (icon_s + 1.0) / 2
         if sub:
-            label(tx, cy + 0.9, name, size=size, colour=ink, weight="bold")
-            label(tx, cy - 1.1, sub, size=10.5, colour=ink)
+            label(tx, cy + 1.0, name, size=size, colour=ink, weight="bold")
+            label(tx, cy - 1.3, sub, size=13, colour=ink)
         else:
             label(tx, cy, name, size=size, colour=ink, weight="bold")
 
     # title, heading, colour key
-    label(1.5, 92.6, "DECISIONS AND PLAYERS", size=38 * 28.2 / 24, weight="bold", ha="left")
-    label(139.5, 92.6, "02", size=40 * 28.2 / 24, weight="bold", ha="right")
-    label(1.5, 87.0, "Who decides what, and what passes between players", size=18 * 28.2 / 24, colour=FLOW_TEXT, weight="bold",
+    label(2.0, 93.5, "DECISIONS AND PLAYERS", size=38 * W / 24, weight="bold", ha="left")
+    label(2.0, 87.0, "Who decides what, and what passes between players", size=18 * W / 24, colour=FLOW_TEXT, weight="bold",
           ha="left")
-    kx = 72.0
-    for fill, edge, name in (("white", FLOW_INK, "PEOPLE AND PHOTOS"), (FLOW_RULE, FLOW_RULE, "WRITTEN RULES (CODE)"),
-                             (FLOW_MODEL, FLOW_MODEL, "LEARNED MODELS (WITH A CONFIDENCE)")):
-        ax.add_patch(FancyBboxPatch((kx, 86.8), 2.6, 1.6, boxstyle="round,pad=0,rounding_size=0.3", facecolor=fill,
-                                    edgecolor=edge, lw=1.6, zorder=4))
-        label(kx + 3.3, 87.6, name, size=11.5, weight="bold", ha="left")
-        kx += 4.6 + 0.62 * len(name)
+    _flow_key(fig)
 
     # players and lifelines
     for key, kind, name, sub in PLAYER_HEADS:
-        head(kind, X[key], 80.6, 17.0, 5.6, name, sub)
+        head(kind, X[key], 80.6, 24.0, 6.2, name, sub)
         if key == "M":  # the models: a solid black lifeline, so they stand out
             ax.plot([X[key], X[key]], [6.4, 77.8], color=FLOW_MODEL, lw=3.2, zorder=1)
         else:
             ax.plot([X[key], X[key]], [6.4, 77.8], color="#9a9a9a", lw=1.6, ls=(0, (6, 4)), zorder=1)
     # phases (time goes down)
     for top, bottom, name in PHASES:
-        ax.plot([1.0, 116.0], [bottom, bottom], color="#e0e0e0", lw=1.2, zorder=0)
-        label(3.2, (top + bottom) / 2, name, size=10.5, weight="bold", colour=FLOW_SOFT, rotation=90)
+        ax.plot([1.0, 141.0], [bottom, bottom], color="#e0e0e0", lw=1.2, zorder=0)
+        label(3.0, (top + bottom) / 2, name, size=13, weight="bold", colour=FLOW_SOFT, rotation=90)
     # models at work: black bars on the models lifeline
     for y0, y1 in ((73.4, 69.9), (45.4, 40.8)):
         ax.add_patch(FancyBboxPatch((X["M"] - 1.5, y1 - 0.4), 3.0, y0 - y1 + 0.8, boxstyle="round,pad=0,rounding_size=0.5",
                                     facecolor=FLOW_MODEL, edgecolor="white", lw=1.5, zorder=3))
-        _handoff_icon(ax, "network", X["M"], (y0 + y1) / 2, s=2.4, ink="white", paper=FLOW_MODEL)
+        _handoff_icon(ax, "network", X["M"], (y0 + y1) / 2, s=2.6, ink="white", paper=FLOW_MODEL)
     # hand-offs
     for n, (y, a, b, icon, word, _meaning, dashed) in enumerate(HANDOFFS, start=1):
         x0, x1 = X[a], X[b]
@@ -433,47 +453,47 @@ def decisions_and_players():
         gap0, gap1 = (1.8 if a == "M" else 0.7), (1.8 if b == "M" else 0.7)  # clear of the models' work boxes
         line([(x0 + sign * gap0, y), (x1 - sign * gap1, y)], ls="--" if dashed else "-", lw=2.2)
         # step number, symbol and one word, on a white tab above the arrow
-        width = 1.8 + 0.8 + 2.8 + 0.8 + 0.62 * len(word)
+        width = 2.4 + 0.8 + 3.3 + 0.8 + 0.8 * len(word)
         mid = (X["F"] + X["E"]) / 2 if word == "Alert" else (x0 + x1) / 2  # clear of arrow 4's head
         left, ym = mid - width / 2, y + 1.75
-        ax.add_patch(FancyBboxPatch((left - 0.5, ym - 1.45), width + 1.0, 2.9, boxstyle="round,pad=0,rounding_size=0.4",
+        ax.add_patch(FancyBboxPatch((left - 0.5, ym - 1.6), width + 1.0, 3.2, boxstyle="round,pad=0,rounding_size=0.4",
                                     facecolor="white", edgecolor="none", zorder=5))
-        ax.add_patch(plt.Circle((left + 0.9, ym), 0.9, color=FLOW_INK, zorder=6))
-        label(left + 0.9, ym, str(n), size=9, colour="white", weight="bold", zorder=7)
-        _handoff_icon(ax, icon, left + 1.8 + 0.8 + 1.4, ym, s=2.8)
-        label(left + 1.8 + 0.8 + 2.8 + 0.8, ym, word, size=12.5, weight="bold", ha="left")
+        ax.add_patch(plt.Circle((left + 1.2, ym), 1.2, color=FLOW_INK, zorder=6))
+        label(left + 1.2, ym, str(n), size=12, colour="white", weight="bold", zorder=7)
+        _handoff_icon(ax, icon, left + 2.4 + 0.8 + 1.65, ym, s=3.3)
+        label(left + 2.4 + 0.8 + 3.3 + 0.8, ym, word, size=16, weight="bold", ha="left")
     # decisions: only on the written rules and the engineer
-    diamond(X["W"], 64.4, 8.0, 3.0, "DISPATCH RULE\nV1 · V2 · V3 · RETAKE")
-    diamond(X["W"], 32.8, 11.0, 3.6, "TRIAGE RULES + BUILDING SCORE\nRetake · Expert needed · Category 1 · Category 2 · Category 3\n"
+    diamond(X["W"], 64.4, 10.0, 3.2, "DISPATCH RULE\nV1 · V2 · V3 · RETAKE")
+    diamond(X["W"], 32.8, 15.0, 3.8, "TRIAGE RULES + BUILDING SCORE\nRetake · Expert needed · Category 1 · Category 2 · Category 3\n"
             "building priority P1 · P2 · P3")
-    white_diamond(X["E"], 20.0, 8.0, 3.0, "CONFIRMS OR\nCORRECTS")
-    label(X["E"] + 8.8, 20.0, "visits P1, P2\nbuildings", size=9.5, colour=FLOW_TEXT, ha="left")
+    white_diamond(X["E"], 20.0, 9.5, 3.2, "CONFIRMS OR\nCORRECTS")
+    label(X["E"] + 10.3, 20.0, "visits P1, P2\nbuildings", size=12, colour=FLOW_TEXT, ha="left")
 
     # who decides what
-    label(129.0, 80.6, "WHO DECIDES WHAT", size=14, weight="bold")
-    ax.plot([118.5, 118.5], [8.0, 83.5], color="#cfcfcf", lw=1.2, zorder=0)
+    label(157.0, 80.6, "WHO DECIDES WHAT", size=17, weight="bold")
+    ax.plot([143.5, 143.5], [8.0, 83.5], color="#cfcfcf", lw=1.2, zorder=0)
     for k, (kind, name, decides, never) in enumerate(WHO_DECIDES):
         top = 76.4 - k * 13.6
-        head("model_flat" if kind == "model" else kind, 129.0, top - 1.2, 20.0, 2.6, name, size=11)
-        label(119.6, top - 3.3, decides, size=10.5, colour=FLOW_INK, ha="left", va="top")
-        label(119.6, top - 8.4, never, size=10.5, colour=FLOW_TEXT, ha="left", va="top", style="italic")
+        head("model_flat" if kind == "model" else kind, 157.0, top - 1.2, 25.0, 3.0, name, size=13.5)
+        label(145.0, top - 3.4, decides, size=12.5, colour=FLOW_INK, ha="left", va="top")
+        label(145.0, top - 9.0, never, size=12.5, colour=FLOW_TEXT, ha="left", va="top", style="italic")
     # legend
     ly0 = 2.8
     ax.add_patch(matplotlib.patches.Polygon([(2.2, ly0), (3.5, ly0 + 0.95), (4.8, ly0), (3.5, ly0 - 0.95)],
                                             closed=True, facecolor=FLOW_RULE, edgecolor="none", zorder=4))
-    label(5.6, ly0, "DECISION BY A WRITTEN RULE", size=10, ha="left")
-    ax.add_patch(matplotlib.patches.Polygon([(28.2, ly0), (29.5, ly0 + 0.95), (30.8, ly0), (29.5, ly0 - 0.95)],
+    label(5.6, ly0, "DECISION BY A WRITTEN RULE", size=13, ha="left")
+    ax.add_patch(matplotlib.patches.Polygon([(34.2, ly0), (35.5, ly0 + 0.95), (36.8, ly0), (35.5, ly0 - 0.95)],
                                             closed=True, facecolor="white", edgecolor=FLOW_INK, lw=1.6, zorder=4))
-    label(31.6, ly0, "DECISION BY A PERSON", size=10, ha="left")
-    line([(48.5, ly0), (53.5, ly0)], lw=2.0)
-    label(54.4, ly0, "WHAT PASSES BETWEEN PLAYERS", size=10, ha="left")
-    line([(75.5, ly0), (80.5, ly0)], ls="--", lw=2.0)
-    label(81.4, ly0, "LOOP (RECHECK, RETRAINING)", size=10, ha="left")
-    ax.add_patch(FancyBboxPatch((100.4, ly0 - 1.3), 2.6, 2.6, boxstyle="round,pad=0,rounding_size=0.4",
+    label(37.6, ly0, "DECISION BY A PERSON", size=13, ha="left")
+    line([(59.5, ly0), (64.5, ly0)], lw=2.0)
+    label(65.4, ly0, "WHAT PASSES BETWEEN PLAYERS", size=13, ha="left")
+    line([(93.5, ly0), (98.5, ly0)], ls="--", lw=2.0)
+    label(99.4, ly0, "LOOP (RECHECK, RETRAINING)", size=13, ha="left")
+    ax.add_patch(FancyBboxPatch((124.4, ly0 - 1.3), 2.6, 2.6, boxstyle="round,pad=0,rounding_size=0.4",
                                 facecolor=FLOW_MODEL, edgecolor="none", zorder=3))
-    _handoff_icon(ax, "network", 101.7, ly0, s=2.0, ink="white", paper=FLOW_MODEL)
-    label(103.6, ly0, "A MODEL AT WORK (MEASURES ONLY)", size=10, ha="left")
-    label(139.5, 0.9, "Sources: src/triage/dispatch.py, src/triage/matrix.py, spec/features/building_score.md · "
+    _handoff_icon(ax, "network", 125.7, ly0, s=2.0, ink="white", paper=FLOW_MODEL)
+    label(128.6, ly0, "A MODEL AT WORK (MEASURES ONLY)", size=13, ha="left")
+    label(169.0, 0.9, "Sources: src/triage/dispatch.py, src/triage/matrix.py, spec/features/building_score.md · "
           "27 Oct 2026 · thresholds illustrative until calibrated", size=9, colour=FLOW_SOFT, ha="right")
     return fig
 
@@ -548,13 +568,14 @@ def risk_matrix():
     """Matrix v3 in black, white and grey: base category per pattern (drawn symbol) x width band, and what raises it.
     Values read from src/triage/risk_matrix_v3.json; pattern symbol key in spec/features/figures.md."""
     K, GREY_TXT = "#111111", "#555555"
-    fig = plt.figure(figsize=(18, 10.4), facecolor="white")
+    W = 10.4 * 16 / 9  # 16:9 like every figure
+    pad = (W / 0.1 - 180) / 2
+    fig = plt.figure(figsize=(W, 10.4), facecolor="white")
     ax = fig.add_axes([0, 0, 1, 1])
-    ax.set_xlim(0, 180)
+    ax.set_xlim(-pad, 180 + pad)
     ax.set_ylim(0, 104)
     ax.set_axis_off()
-    ax.text(3, 98.5, "RISK MATRIX", fontsize=38 * 18 / 24, weight="bold", color=K, va="center")
-    ax.text(177, 98.5, "03", fontsize=40 * 18 / 24, weight="bold", color=K, va="center", ha="right")
+    ax.text(3 - pad, 99.0, "RISK MATRIX", fontsize=38 * W / 24, weight="bold", color=K, va="center")
     ax.text(3, 92.6, f"Reinforced concrete, v{VERSION}. Base category from the crack pattern × width; the element, the "
             "location on the element and warning signs can only raise it. Values illustrative until calibrated with "
             "the engineering partners.", fontsize=11, color=GREY_TXT, va="center")
@@ -650,7 +671,7 @@ TREE = [
         ("D2", "No crack labels by engineers", "context", "", "measured: data map"),
     ]),
 ]
-TREE_YELLOW, TREE_NAVY, TREE_GREY = "#F2C14E", "#2F4B7C", "#a8a7a1"
+TREE_YELLOW, TREE_NAVY, TREE_GREY = "#c4c4c4", "#262626", "#8c8c8c"
 TREE_PATH = {"crack": TREE_YELLOW, "building": TREE_NAVY, "context": TREE_GREY}
 
 
@@ -688,10 +709,10 @@ def segmentation_tree():
     path converges into the atomic problem and the building path into the building risk score."""
     import textwrap
 
-    fig, ax = plt.subplots(figsize=(22, 11.6))
+    fig, ax = plt.subplots(figsize=(22, 22 * 9 / 16))
     ax.set_axis_off()
-    fig.suptitle("Problem segmentation tree", x=0.02, ha="left", fontsize=16, weight="bold")
-    fig.text(0.02, 0.915, "Macro problem → four branches → causes and needs → the atomic problem (one crack) and the "
+    _house_title(fig, "PROBLEM SEGMENTATION TREE")
+    fig.text(0.02, 1 - 1.45 / fig.get_figheight(), "Macro problem → four branches → causes and needs → the atomic problem (one crack) and the "
              "building risk score (one building). Under each node: its evidence, as a source number (docs/sources.md),"
              "\nexpert input (studio professor, 27 Oct), measured (our data map) or an assumption still to test. "
              "S, O, P: the scale of the photo, as in PHI-Net task 1 (structural, object, pixel).", fontsize=11,
@@ -765,16 +786,14 @@ def segmentation_tree():
             "P1 · P2 · P3", ha="center", va="center", fontsize=11, weight="bold", color="white", zorder=4)
     ax.text(centre, y_build - 0.22, "crack levels and growth from the atomic problem + building data (age, added floors, "
             "structure or use changed) + damage spread across elements", ha="center", va="center", fontsize=9.5,
-            color="#dfe6f2", zorder=4)
+            color="#e6e6e6", zorder=4)
 
-    ax.legend(handles=[Line2D([], [], color=TREE_YELLOW, lw=4, label="Crack path → atomic problem (scales P, O)"),
-                       Line2D([], [], color=TREE_NAVY, lw=4, label="Building path → building risk score (scale S)"),
-                       Line2D([], [], color=TREE_GREY, lw=4, label="Context: why the need exists, not an input")],
-              loc="lower center", bbox_to_anchor=(0.5, -0.02), ncol=3, frameon=False, fontsize=11)
+    _house_legend(fig, [Line2D([], [], color=c, lw=5) for c in (TREE_YELLOW, TREE_NAVY, TREE_GREY)],
+                  ["CRACK PATH", "BUILDING PATH", "CONTEXT"])
     ax.set_xlim(-1.0, width + 1.0)
     ax.set_ylim(0.9, 12.9)
     ax.set_aspect("equal")
-    fig.subplots_adjust(left=0.01, right=0.99, top=0.86, bottom=0.03)
+    fig.subplots_adjust(left=0.01, right=0.99, top=1 - 2.1 / fig.get_figheight(), bottom=0.03)
     return fig
 
 
@@ -802,7 +821,7 @@ COVERAGE_LABEL = {"covered": "covers", "partial": "partly", "planned": "planned"
 
 
 def data_coverage():
-    fig, ax = plt.subplots(figsize=(21, 7.8))
+    fig, ax = plt.subplots(figsize=(21, 21 * 9 / 16))
     for r, row in enumerate(COVERAGE):
         for c, state in enumerate(row):
             ax.add_patch(FancyBboxPatch((c + 0.04, r + 0.08), 0.92, 0.84, boxstyle="round,pad=0,rounding_size=0.05",
@@ -817,14 +836,12 @@ def data_coverage():
     ax.tick_params(length=0)
     for s in ax.spines.values():
         s.set_visible(False)
-    ax.legend(handles=[Patch(facecolor=SEQ[k], edgecolor=GRID, label=l) for k, l in
-                       [("covered", "Covers the need"), ("partial", "Partly"), ("planned", "Planned, does not exist yet"),
-                        ("none", "Nothing")]],
-              loc="upper center", bbox_to_anchor=(0.5, -0.02), ncol=4, frameon=False)
-    fig.suptitle("Data map: which source feeds which pipeline stage", x=0.02, ha="left", fontsize=14, weight="bold")
-    fig.text(0.02, 0.905, "Public data covers only crack segmentation (P); every other stage needs our own photos or an "
+    _house_legend(fig, [Patch(facecolor=SEQ[k], edgecolor="#9a9a9a") for k in ("covered", "partial", "planned", "none")],
+                  ["COVERS", "PARTLY", "PLANNED", "NOTHING"])
+    _house_title(fig, "DATA MAP", "Which source feeds which pipeline stage")
+    fig.text(0.02, 1 - 1.4 / fig.get_figheight(), "Public data covers only crack segmentation (P); every other stage needs our own photos or an "
              "engineer. From docs/data_map.md, section 1 (27 Oct 2026).", fontsize=10, color=INK_2)
-    fig.subplots_adjust(left=0.13, right=0.99, top=0.76, bottom=0.1)
+    fig.subplots_adjust(left=0.13, right=0.99, top=1 - 2.3 / fig.get_figheight(), bottom=0.1)
     return fig
 
 
@@ -850,7 +867,7 @@ DATASETS = [
 def dataset_sizes():
     """What data exists and what each set can be used for (train, test, measure), in black and white."""
     K = "#111111"
-    fig, ax = plt.subplots(figsize=(17, 8.6))
+    fig, ax = plt.subplots(figsize=(17, 17 * 9 / 16))
     names = [d[0] for d in DATASETS]
     ys = range(len(DATASETS))
     ax.barh(ys, [d[1] for d in DATASETS], height=0.5, color=K)
@@ -899,7 +916,7 @@ def dataset_sizes():
 
 
 def confusion_template():
-    fig, (a1, a2) = plt.subplots(1, 2, figsize=(14, 5.4), gridspec_kw={"width_ratios": [1, 1.6]})
+    fig, (a1, a2) = plt.subplots(1, 2, figsize=(14, 14 * 9 / 16), gridspec_kw={"width_ratios": [1, 1.6]})
     cells = [  # (row, col, title, meaning, colour)
         (0, 0, "TP", "danger caught,\nengineer visits", LEVEL["Category 1"]),
         (0, 1, "FN", "missed danger:\nwrong all-clear. Stop condition", LEVEL["Category 3"]),
@@ -909,20 +926,20 @@ def confusion_template():
     for r, c, title, meaning, colour in cells:
         a1.add_patch(FancyBboxPatch((c + 0.04, r + 0.04), 0.92, 0.92, boxstyle="round,pad=0,rounding_size=0.05",
                                     facecolor=colour, edgecolor="none"))
-        ink = INK if colour == LEVEL["Category 2"] else "white"
+        ink = "white" if colour == LEVEL["Category 3"] else INK
         a1.text(c + 0.5, r + 0.36, title, ha="center", va="center", fontsize=18, weight="bold", color=ink)
         a1.text(c + 0.5, r + 0.66, meaning, ha="center", va="center", fontsize=9, color=ink)
     a1.set_xlim(0, 2)
     a1.set_ylim(2, 0)
     a1.set_xticks([0.5, 1.5], ["Tool flags\n(Category 3 or Expert needed)", "Tool does not flag\n(Category 1 or Category 2)"])
-    a1.set_yticks([0.5, 1.5], ["Engineer:\nHigh", "Engineer:\nLow or Category 2"])
+    a1.set_yticks([0.5, 1.5], ["Engineer:\nCategory 3", "Engineer:\nCategory 1 or 2"])
     a1.xaxis.tick_top()
     a1.set_title("Table 1: the safety question", loc="left", weight="bold", pad=44)
 
-    kinds = {"correct": ("#e3f5ee", INK), "over-cautious": ("#fdf0d0", INK), "false alarm": ("#fdf0d0", INK),
-             "referral": ("#fbe3d9", INK), "retake": ("#f0efec", INK_2),
+    kinds = {"correct": ("#f2f2f2", INK), "over-cautious": ("#d9d9d9", INK), "false alarm": ("#d9d9d9", INK),
+             "referral": ("#bfbfbf", INK), "retake": ("#efefef", INK_2),
              "false all-clear": (LEVEL["Category 3"], "white"), "missed danger": (LEVEL["Category 3"], "white"),
-             "missed danger\n(worst)": ("#9e2424", "white")}
+             "missed danger\n(worst)": ("#111111", "white")}
     grid = [["correct", "over-cautious", "false alarm", "referral", "retake"],
             ["false all-clear", "correct", "over-cautious", "referral", "retake"],
             ["missed danger\n(worst)", "missed danger", "correct", "referral", "retake"]]
@@ -946,95 +963,96 @@ def confusion_template():
         ax.tick_params(length=0)
         for s in ax.spines.values():
             s.set_visible(False)
-    fig.suptitle("How the tool will be scored", x=0.02, ha="left", fontsize=14, weight="bold")
+    _house_title(fig, "CONFUSION MATRIX", "How the tool will be scored")
     fig.text(0.02, 0.02, "Template: counts come from a held-out set of engineer-labelled photos, which does not "
              "exist yet. The non-AI baseline (engineer looks at the photo only) is scored the same way. "
              "spec/features/evaluation.md", fontsize=9, color=INK_2)
-    fig.subplots_adjust(left=0.08, right=0.98, top=0.74, bottom=0.1, wspace=0.25)
+    fig.subplots_adjust(left=0.1, right=0.98, top=1 - 2.2 / fig.get_figheight(), bottom=0.09, wspace=0.25)
     return fig
 
 
 # From spec/constitution/roadmap.md. (workstream, task, first week, last week, at risk)
-PLAN = [
-    ("Deliverables", "29 Oct deliverables + real-data test (done)", 1, 1, False),
-    ("Deliverables", "State-of-the-art review (reference thesis)", 1, 1, False),
-    ("Deliverables", "Expert package to the professor (Mon 2 Nov)", 1, 1, False),
-    ("Deliverables", "Midterm deck + problem & data brief", 1, 2, False),
-    ("Deliverables", "Lean Canvas", 6, 7, False),
-    ("Deliverables", "Pitch deck, final presentation", 7, 8, False),
-    ("Deliverables", "Blog post", 8, 9, False),
-    ("Data", "Quality gate on public sets (done)", 1, 1, False),
-    ("Data", "Material model: concrete vs not, first test", 1, 1, False),
-    ("Data", "Map public labels to the 7 patterns", 2, 3, False),
-    ("Pilot", "Collect pilot photos: S, O, P scales", 2, 2, False),
-    ("Pilot", "Prepare, label, tune quality gate", 2, 3, False),
-    ("Pilot", "Scale card + width ± uncertainty (1st feature)", 3, 4, False),
-    ("Models", "U-Net on CrackSeg9k + crack-seg", 3, 4, False),
-    ("Models", "Element model (PHI-Net task 6)", 3, 4, False),
-    ("Models", "Pattern model (PHI-Net tasks 3, 8)", 4, 5, False),
-    ("Agent and MCP", "First MCP: OpenStreetMap building data", 3, 3, False),
-    ("Agent and MCP", "Plan/build harness, MCP to all sources", 4, 5, False),
-    ("Engineering partners", "Scope with EWB + structural engineer", 1, 2, False),
-    ("Engineering partners", "Calibration: matrix, thresholds", 3, 5, True),
-    ("Engineering partners", "Engineer-labelled photos + baseline", 4, 6, True),
-    ("Integration", "Engineer review screen (mock-up)", 1, 2, False),
-    ("Integration", "Building questionnaire + risk score (code)", 2, 3, False),
-    ("Integration", "Beta: end-to-end on pilot photos", 4, 4, False),
-    ("Integration", "Monitoring: crack IDs, stickers, revisit", 5, 5, False),
-    ("Integration", "Corrections logged + retraining loop", 5, 6, True),
-    ("Integration", "Comparison vs non-AI baseline", 6, 6, True),
-    ("Integration", "Proof of concept, limits + ethics", 7, 7, False),
-    ("Integration", "Streamlit UI, realistic testing", 7, 8, False),
+PLAN = [  # (group, task, first week, last week, at risk); [n] = box n of the pipeline story (figure 01d); scope D30
+    ("Photos", "[2] Quality gate (done)", 1, 1, False),
+    ("Photos", "[5] Pilot photos + scale card", 2, 2, False),
+    ("Photos", "[2] Tune the gate on pilot photos", 2, 3, False),
+    ("Models", "[6] U-Net crack segmentation", 3, 4, False),
+    ("Models", "[6] Width in mm (1st feature)", 3, 4, False),
+    ("Models", "[6] Pattern model (stretch)", 4, 5, False),
+    ("Written rules", "[4] [7] Dispatch + risk matrix (done)", 1, 1, False),
+    ("Written rules", "[8] Building score", 2, 3, False),
+    ("Written rules", "[7] Calibrate with the engineer", 3, 5, True),
+    ("Engineer", "[9] Partner scoping", 1, 2, False),
+    ("Engineer", "[9] Engineer labels", 4, 6, True),
+    ("Engineer", "[9] Baseline comparison", 6, 6, True),
+    ("Prototype", "First MCP: building data", 3, 3, False),
+    ("Prototype", "Beta, end to end", 4, 4 - 2 / 7, False),  # hackathon, Monday 16 to Friday 20 Nov
+    ("Prototype", "Harness + MCP to all sources", 5, 5, False),
+    ("Prototype", "Recheck + learn loops", 5, 6, True),
+    ("Prototype", "Proof of concept + ethics", 7, 7, False),
+    ("Prototype", "UI + realistic tests", 7, 8, False),
+    ("Syllabus", "Midterm deck", 1, 2, False),
+    ("Syllabus", "Lean Canvas", 6, 7, False),
+    ("Syllabus", "Final pitch", 7, 8, False),
+    ("Syllabus", "Blog post", 8, 9, False),
 ]
-# (x in weeks from Monday 26 Oct, label, at risk); x = (days after 26 Oct + 0.5) / 7, from the syllabus.
-MILESTONES = [(0.5, "29 Oct\ndata map", False), (1.07, "2 Nov\nexpert package", False), (1.64, "6 Nov\nmidterm", False),
-              (2.5, "12 Nov\n1st feature", False), (3.64, "20 Nov\nbeta", False),
-              (4.5, "26 Nov\nharness + MCP", False), (5.5, "3 Dec\nbaseline", True),
-              (6.5, "10 Dec\nPoC + ethics", False), (7.5, "17 Dec\nfinal", False), (8.5, "24 Dec\nblog", False)]
-WORKSTREAM_COLOURS = {"Deliverables": BLUE, "Data": "#eb6834", "Pilot": AQUA, "Models": "#eda100",
-                      "Agent and MCP": VIOLET, "Engineering partners": "#e87ba4", "Integration": "#008300"}
-WEEK_STARTS = ["26 Oct", "2 Nov", "9 Nov", "16 Nov", "23 Nov", "30 Nov", "7 Dec", "14 Dec", "21 Dec"]
+# One date per week: the Thursday at the centre of each Monday-to-Sunday column, from 29 Oct.
+# One milestone per week, from the syllabus (the 2 Nov expert package is a task bar, the midterm is Fri 6 Nov).
+WEEK_DATES = ["29 Oct", "5 Nov", "12 Nov", "19 Nov", "26 Nov", "3 Dec", "10 Dec", "17 Dec", "24 Dec"]
+WEEK_MILESTONES = [("data map", False), ("midterm", False), ("1st feature", False), ("beta", False),
+                   ("harness + MCP", False), ("baseline", True), ("PoC + ethics", False), ("final", False),
+                   ("blog", False)]
+# One look per group, following the pipeline's colour logic (white = photos, black = models, grey = written rules)
+# plus red, green and blue (the user's pick for the roadmap). (fill, hatch); every edge is black.
+WORKSTREAM_STYLE = {"Photos": ("white", None), "Models": ("#111111", None), "Written rules": ("#9a9a9a", None),
+                    "Engineer": ("#d03b3b", None), "Prototype": ("#2e9e44", None), "Syllabus": ("#1f5fbf", None)}
+# At risk (needs the engineering partners): dark-red hatch, unlike any workstream; the row still shows the stream.
+RISK_STYLE = dict(facecolor="white", edgecolor="#9e1b1b", hatch="\\\\\\\\", lw=1.6)
 
 
 def timeline():
-    weeks = len(WEEK_STARTS)
-    fig, ax = plt.subplots(figsize=(14, 10.9))
+    weeks = len(WEEK_DATES)
+    fig, ax = plt.subplots(figsize=(10.9 * 16 / 9, 10.9))
     n = len(PLAN)
-    ax.axvspan(3, 4, color="#f0efec", zorder=0)
-    ax.text(3.5, n - 0.9, "hackathon\n(no studio)", ha="center", va="center", fontsize=8.5, color=INK_2)
+    ax.axvspan(3, 3 + 5 / 7, color="#e6e6e6", zorder=0)  # hackathon: Monday 16 to Friday 20 Nov (columns run Mon-Sun)
+    ax.text(3 + 2.5 / 7, n - 0.9, "HACKATHON\nMon 16 - Fri 20 Nov", ha="center", va="center", fontsize=10.5,
+            weight="bold", color=INK_2)
     previous = None
+    plt.rcParams["hatch.linewidth"] = 1.3
     for i, (stream, task, start, end, risk) in enumerate(PLAN):
-        colour = WORKSTREAM_COLOURS[stream]
+        fill, hatch = WORKSTREAM_STYLE[stream]
         if stream != previous and previous is not None:
             ax.axhline(i - 0.5, color=GRID, lw=0.8, zorder=1)
         previous = stream
-        ax.add_patch(FancyBboxPatch((start - 1 + 0.06, i - 0.26), end - start + 1 - 0.12, 0.52,
+        ax.add_patch(FancyBboxPatch((start - 1 + 0.06, i - 0.36), end - start + 1 - 0.12, 0.72,
                                     boxstyle="round,pad=0,rounding_size=0.12", zorder=2,
-                                    facecolor=colour if not risk else "white", edgecolor=colour,
-                                    hatch="///" if risk else None, lw=1.6))
-    for k, (x, label, risk) in enumerate(MILESTONES):
-        ax.plot(x, -0.8, marker="D", ms=10, color=LEVEL["Category 3"] if not risk else "white",
-                markeredgecolor=LEVEL["Category 3"], mew=1.8, zorder=3)
-        ax.text(x, -1.85 if k % 2 == 0 else -2.75, label, ha="center", va="center", fontsize=8.5, color=INK)
+                                    **(RISK_STYLE if risk else dict(facecolor=fill, edgecolor=INK, hatch=hatch, lw=1.4))))
+    for w, (label, risk) in enumerate(WEEK_MILESTONES):  # one milestone per week, on one row
+        ax.text(w + 0.5, -0.95, label + (" (at risk)" if risk else ""), ha="center", va="center", fontsize=10.5,
+                color=INK_2 if risk else INK, style="italic" if risk else "normal")
     ax.set_xlim(0, weeks)
-    ax.set_ylim(n - 0.4, -3.3)
-    ax.set_xticks([w + 0.5 for w in range(weeks)], [f"W{w + 1}\n{d}" for w, d in enumerate(WEEK_STARTS)])
-    ax.set_yticks(range(n), [t[1] for t in PLAN])
+    ax.set_ylim(n - 0.4, -1.6)
+    ax.set_xticks([w + 0.5 for w in range(weeks)], WEEK_DATES, fontsize=13, weight="bold", color=INK)
+    ax.set_yticks(range(n), [t[1] for t in PLAN], fontsize=12.5)
     ax.xaxis.tick_top()
     for w in range(weeks + 1):
         ax.axvline(w, color=GRID, lw=0.6, zorder=0)
     ax.tick_params(length=0)
     for s in ax.spines.values():
         s.set_visible(False)
-    handles = [Patch(facecolor=c, edgecolor=c, label=s) for s, c in WORKSTREAM_COLOURS.items()]
-    handles.append(Patch(facecolor="white", edgecolor=INK_2, hatch="///", label="At risk: needs engineering partners"))
-    ax.legend(handles=handles, loc="upper center", bbox_to_anchor=(0.4, -0.01), ncol=4, frameon=False)
-    fig.suptitle("Plan to the final presentation, 26 Oct to 24 Dec 2026", x=0.02, ha="left", fontsize=14,
-                 weight="bold")
-    fig.text(0.02, 0.9, "Milestones from the studio syllabus. Engineering partners: Engineers Without Borders and a "
-             "third-party structural engineer.\nFallback if no engineer ratings by 26 Nov: compare on pilot photos "
-             "only; the matrix stays illustrative. Source: spec/constitution/roadmap.md", fontsize=9.5, color=INK_2)
-    fig.subplots_adjust(left=0.25, right=0.98, top=0.8, bottom=0.11)
+    handles = [Patch(facecolor=fill, edgecolor=INK, hatch=hatch, lw=1.4, label=s)
+               for s, (fill, hatch) in WORKSTREAM_STYLE.items()]
+    handles.append(Patch(label="At risk", **RISK_STYLE))
+    _house_legend(fig, handles, [h.get_label().upper() for h in handles])
+    H, W = fig.get_figheight(), fig.get_figwidth()  # title as in the other figures: 38 pt on a 24 in figure
+    fig.text(0.02, 1 - 0.45 / H, "PROJECT ROADMAP", fontsize=38 * W / 24, weight="bold", color=INK, va="center")
+    fig.text(0.02, 1 - 0.95 / H, "Plan to the final presentation, 29 Oct to 24 Dec 2026", fontsize=18 * W / 24,
+             weight="bold", color=INK_2, va="center")
+    fig.text(0.02, 1 - 1.25 / H, "We build the crack line of the pipeline: [n] = box n of the pipeline story (01d). Designed, "
+             "not built: the field worker's app, the facade and element models (the field worker picks the element, D30).\n"
+             "At risk = needs Engineers Without Borders or the structural engineer. Fallback if no engineer ratings by 26 Nov: "
+             "compare on pilot photos only. Source: spec/constitution/roadmap.md", fontsize=11, color=INK_2, va="top")
+    fig.subplots_adjust(left=0.15, right=0.98, top=0.8, bottom=0.04)
     return fig
 
 
@@ -1075,7 +1093,7 @@ HELD_MISSING = {"CrackSeg9k": "zip not extracted"}
 
 def dataset_comparison():
     n = len(HELD)
-    fig, ax = plt.subplots(figsize=(19, 0.62 * n + 2.6))
+    fig, ax = plt.subplots(figsize=((0.62 * n + 3.3) * 16 / 9, 0.62 * n + 3.3))
     # x layout: name | fit | images bar | gate bar | labels | trains | licence
     x_fit, x_img, w_img, x_gate, w_gate, x_lab, x_use, x_lic, x_end = 3.3, 4.6, 3.0, 8.3, 1.6, 10.6, 13.6, 16.4, 18.2
     top = 40_000
@@ -1083,13 +1101,10 @@ def dataset_comparison():
              (x_gate, "Pass the quality gate", "left"), (x_lab, "Labels it gives", "left"),
              (x_use, "What it can train for us", "left"), (x_lic, "Licence", "left")]
     for x, h, ha in heads:
-        ax.text(x, -0.75, h, ha=ha, va="center", fontsize=10, weight="bold", color=INK)
+        ax.text(x, -0.75, h.upper(), ha=ha, va="center", fontsize=15.5, weight="bold", color=INK)
+    ax.axhline(-0.42, color=INK, lw=1.4)  # one line, under the column titles only
     for r, (name, fit, images, gate, labels, use, licence) in enumerate(HELD):
-        if r and HELD[r - 1][1] != fit:
-            ax.axhline(r - 0.5, color=INK_2, lw=0.9)
-        elif r:
-            ax.axhline(r - 0.5, color=GRID, lw=0.6)
-        ax.text(0, r, name, va="center", fontsize=10, color=INK)
+        ax.text(0, r, name.upper(), va="center", fontsize=12, weight="bold", color=INK)
         ax.add_patch(FancyBboxPatch((x_fit, r - 0.2), 1.05, 0.4, boxstyle="round,pad=0,rounding_size=0.08",
                                     facecolor=FIT_FILL[fit], edgecolor=GRID if fit == "off-concept" else "none"))
         ax.text(x_fit + 0.525, r, fit, ha="center", va="center", fontsize=8.5,
@@ -1112,19 +1127,21 @@ def dataset_comparison():
                                         boxstyle="round,pad=0,rounding_size=0.04", facecolor=BLUE, edgecolor="none"))
             ax.text(x_gate + w_gate + 0.08, r, f"{gate}%", va="center", fontsize=9.5, color=INK)
         ax.text(x_lab, r, labels, va="center", fontsize=8.8, color=INK_2, linespacing=1.05)
-        ax.text(x_use, r, use, va="center", fontsize=8.8, color=INK, linespacing=1.05)
+        ax.text(x_use, r, use.upper(), va="center", fontsize=12, weight="bold", color=INK, linespacing=1.1)
         ax.text(x_lic, r, licence, va="center", fontsize=8.8, color=INK_2)
     ax.set_xlim(-0.1, x_end)
     ax.set_ylim(n - 0.4, -1.2)
     ax.set_axis_off()
-    fig.suptitle("Every dataset we hold, compared: fit to informal buildings, size, quality, labels, use",
-                 x=0.01, ha="left", fontsize=14, weight="bold")
-    fig.text(0.01, 1 - 0.95 / fig.get_figheight(),
-             "Ordered by fit to the concept (D14). Image bars capped at 40,000. Category 1 gate rates on METU and SDNET "
+    H, W = fig.get_figheight(), fig.get_figwidth()  # title as in the other figures: 38 pt on a 24 in figure
+    fig.text(0.01, 1 - 0.6 / H, "DATASET LABELS AND TRAINING OBJECTIVES", fontsize=38 * W / 24, weight="bold", color=INK, va="center")
+    fig.text(0.01, 1 - 1.25 / H, "Every dataset we hold, compared: fit to the concept, size, quality, labels, use",
+             fontsize=18 * W / 24, weight="bold", color=INK_2, va="center")
+    fig.text(0.01, 1 - 1.6 / H,
+             "Ordered by fit to the concept (D14). Image bars capped at 40,000. Low gate rates on METU and SDNET "
              "come from smooth concrete read as blur (open issue D12), not from bad photos. PHI-Net is post-earthquake "
              "damage, research use only;\nits images are 224 px crops. Sources: docs/data_map.md, sections 0 and 6.",
              fontsize=9.5, color=INK_2, va="top")
-    fig.subplots_adjust(left=0.01, right=0.99, top=1 - 1.5 / fig.get_figheight(), bottom=0.02)
+    fig.subplots_adjust(left=0.01, right=0.99, top=1 - 2.2 / H, bottom=0.02)
     return fig
 
 
@@ -1239,9 +1256,11 @@ def _flow_tools(ax):
 
 def pipeline_flow():
     """Pipeline v3 drawn as a task flow: phases as columns, scales as lanes; colour = photo, rule or model."""
-    fig = plt.figure(figsize=(24, 17.6), facecolor="white")
+    W = 17.6 * 16 / 9  # 16:9 like every figure; the 120-unit drawing sits in the middle
+    pad = (W / 0.2 - 120) / 2
+    fig = plt.figure(figsize=(W, 17.6), facecolor="white")
     ax = fig.add_axes([0, 0, 1, 1])
-    ax.set_xlim(0, 120)
+    ax.set_xlim(-pad, 120 + pad)
     ax.set_ylim(0, 88)
     ax.set_axis_off()
 
@@ -1275,16 +1294,10 @@ def pipeline_flow():
         label(cx, cy - 1.4, title, size=14, weight="bold")
 
     # title, section heading, colour key, columns
-    label(1.5, 84.6, "SYSTEM ARCHITECTURE", size=38, weight="bold", ha="left")
-    label(118.5, 84.6, "01", size=40, weight="bold", ha="right")
-    label(1.5, 79.2, "The triage mechanism: from a resident's photo to an engineer's decision", size=18, colour=FLOW_TEXT, weight="bold", ha="left")
-    kx = 61.5
-    for fill, edge, name in (("white", FLOW_INK, "PHOTOS AND PEOPLE"), (FLOW_RULE, FLOW_RULE, "WRITTEN RULES (CODE)"),
-                             (FLOW_MODEL, FLOW_MODEL, "LEARNED MODELS (WITH A CONFIDENCE)")):
-        ax.add_patch(FancyBboxPatch((kx, 78.4), 2.6, 1.6, boxstyle="round,pad=0,rounding_size=0.3", facecolor=fill,
-                                    edgecolor=edge, lw=1.6, zorder=4))
-        label(kx + 3.3, 79.2, name, size=11.5, weight="bold", ha="left")
-        kx += 4.6 + 0.62 * len(name)
+    label(1.5 - pad, 85.5, "SYSTEM ARCHITECTURE", size=38 * W / 24, weight="bold", ha="left")
+    label(1.5 - pad, 79.2, "The triage mechanism: from a resident's photo to an engineer's decision", size=18 * W / 24,
+          colour=FLOW_TEXT, weight="bold", ha="left")
+    _flow_key(fig)
     for x in FLOW_SEPARATORS:
         ax.plot([x, x], [3.6, 60], color="#cfcfcf", lw=1.2, ls=(0, (5, 4)), zorder=0)
     edges = FLOW_SEPARATORS + [120.0]  # each numbered phase sits midway between its two dotted lines
@@ -1436,9 +1449,277 @@ def pipeline_flow():
     return fig
 
 
+# Figure 01b as a summary: the same rows (report, building, element, crack), phases, stops and loops, with one
+# symbol and one or two words per box. Same colour logic: white = photos and people, grey = written rules,
+# black = learned models. Statuses, thresholds and the long notes stay in 01b.
+SIMPLE_COLS = {"cap": 52, "chk": 88, "per": 124, "dec": 162, "act": 206}
+SIMPLE_HEADS = [("cap", "1", "CAPTURE"), ("chk", "2", "CHECK"), ("per", "3", "PERCEIVE"), ("dec", "4", "DECIDE"),
+                ("act", "5", "ACT")]
+SIMPLE_ROWS = [  # (y, pill icon, pill word, capture, check (word, stop), model (word, stop), decide, act)
+    (67, "house", "BUILDING", ("clipboard", "QUESTIONS"), ("ANSWERED?", None), ("FACADE\nMODEL (later)", None),
+     ("bars", "BUILDING\nSCORE"), ("hardhat", "ENGINEER")),
+    (46, "column", "ELEMENT", ("camera", "ELEMENT\nPHOTO"), ("CARD +\nANGLE?", "RETAKE"),
+     ("MATERIAL +\nELEMENT", "EXPERT NEEDED"), ("rulebook", "ELEMENT\nRULES"), None),
+    (25, "crack", "CRACK", ("ruler", "CLOSE-UP"), ("SHARP?", "RETAKE"), ("U-NET +\nPATTERN", "EXPERT NEEDED"),
+     ("rulebook", "CATEGORY\n1 · 2 · 3"), ("person", "RESIDENT")),
+]
+
+
+def pipeline_simple():
+    """Figure 01b in summary: report and dispatch, then building, element and crack lanes; stops and loops."""
+    fig = plt.figure(figsize=(24, 13.5), facecolor="white")
+    ax = fig.add_axes([0, 0, 1, 1])  # units of 0.1 inch
+    ax.set_xlim(0, 240)
+    ax.set_ylim(0, 135)
+    ax.set_axis_off()
+    t = _flow_tools(ax)
+    K, GREY, C = FLOW_INK, FLOW_RULE, SIMPLE_COLS
+    w, h = 26, 13
+
+    def arrow(points, ls="-", lw=2.4):
+        xs, ys = zip(*points)
+        ax.plot(xs[:-1], ys[:-1], color=K, lw=lw, ls=ls, zorder=2, solid_capstyle="round")
+        ax.annotate("", xy=points[-1], xytext=points[-2], zorder=2,
+                    arrowprops=dict(arrowstyle="-|>", color=K, lw=lw, ls="-", shrinkA=0, shrinkB=0,
+                                    mutation_scale=20))
+
+    def card(cx, cy, kind, icon, word):
+        fill, edge, ink = {"photo": ("white", K, K), "rule": (GREY, GREY, K), "model": (K, K, "white")}[kind]
+        if kind == "model":  # stacked, as in 01b
+            ax.add_patch(FancyBboxPatch((cx - w / 2, cy - h / 2 - 1.0), w, h, boxstyle="round,pad=0,rounding_size=1.2",
+                                        facecolor="#4a4a4a", edgecolor="white", lw=1.4, zorder=3))
+        ax.add_patch(FancyBboxPatch((cx - w / 2, cy - h / 2), w, h, boxstyle="round,pad=0,rounding_size=1.2",
+                                    facecolor=fill, edgecolor=edge, lw=2.0, zorder=4))
+        _handoff_icon(ax, icon, cx - w / 2 + 5.5, cy, s=7.5, ink=ink, paper=fill)
+        t.label(cx + 3.6, cy, word, size=13, colour=ink, weight="bold")
+
+    def check(cx, cy, word):
+        ax.add_patch(matplotlib.patches.Polygon([(cx - 10, cy), (cx, cy + 6.8), (cx + 10, cy), (cx, cy - 6.8)],
+                                                closed=True, facecolor=GREY, edgecolor="none", zorder=4))
+        t.label(cx, cy, word, size=12, weight="bold")
+
+    def stop(cx, top, word):
+        ax.plot([cx, cx], [top, top - 2.4], color=K, lw=2.0, zorder=2)
+        t.mark(cx, top - 4.0, False, r=1.6)
+        t.label(cx + 2.4, top - 4.0, word, size=12, weight="bold", ha="left")
+
+    def start(cy, icon, word):
+        t.pill(19, cy, 26, 10, "")
+        _handoff_icon(ax, icon, 11.5, cy, s=6.5)
+        t.label(22.5, cy, word, size=17, weight="bold")
+
+    t.label(2.4, 130.0, "SYSTEM ARCHITECTURE", size=38, weight="bold", ha="left")
+    t.label(2.4, 119.5, "The triage mechanism in summary: from a resident's photo to an engineer's decision", size=18,
+            colour=FLOW_TEXT, weight="bold", ha="left")
+    _flow_key(fig)
+    for key, num, word in SIMPLE_HEADS:
+        ax.add_patch(plt.Circle((C[key] - 6.5, 111.5), 2.2, color=K, zorder=4))
+        t.label(C[key] - 6.5, 111.5, num, size=15, colour="white", weight="bold")
+        t.label(C[key] - 3.4, 111.5, word, size=15, weight="bold", ha="left")
+
+    # row 0: the resident reports a crack; a written rule decides if and when a field worker visits (D27)
+    ry = 96
+    start(ry, "person", "REPORT")
+    card(C["cap"], ry, "photo", "camera", "CRACK\nPHOTO")
+    check(C["chk"], ry, "USABLE?")
+    stop(C["chk"], ry - 6.8, "RETAKE")
+    card(C["per"], ry, "model", "network", "U-NET")
+    card(C["dec"], ry, "rule", "rulebook", "DISPATCH")
+    for x0, x1 in (("pill", "cap"), ("cap", "chk"), ("chk", "per"), ("per", "dec")):
+        a = 32 if x0 == "pill" else C[x0] + (10 if x0 == "chk" else w / 2)
+        b = C[x1] - (10 if x1 == "chk" else w / 2)
+        arrow([(a, ry), (b - 0.6, ry)])
+    visits = [(ry + 6, "V3 · RECHECK IN 1 MONTH"), (ry, "V2 · VISIT IN 1 MONTH"), (ry - 6, "V1 · VISIT IN 1 WEEK")]
+    for vy, text_ in visits:
+        t.para(C["act"], vy, 24, 4.6, text_, size=10.5)
+        arrow([(C["dec"] + w / 2, ry), (C["act"] - 13.4, vy)], lw=1.8)
+    # V3: the resident's recheck is a new report
+    arrow([(C["act"] + 13, ry + 6), (233, ry + 6), (233, 106.5), (19, 106.5), (19, ry + 5.6)], ls=(0, (4, 3)), lw=2.0)
+    # V1 and V2: a field worker visits and photographs the building, every cracked element and every crack
+    for vy in (ry, ry - 6):
+        ax.plot([C["act"] + 12.6, 236.5], [vy, vy], color=K, lw=2.4, zorder=2)
+    ax.plot([236.5, 236.5, 3.5, 3.5], [ry, 81.5, 81.5, 25], color=K, lw=2.8, zorder=2, solid_joinstyle="round")
+    for y, *_ in SIMPLE_ROWS:
+        arrow([(3.5, y), (5.4, y)], lw=2.8)
+    ax.add_patch(FancyBboxPatch((36, 79.2), 48, 4.6, boxstyle="round,pad=0,rounding_size=2.3", facecolor="white",
+                                edgecolor=K, lw=2.0, zorder=5))
+    _handoff_icon(ax, "worker", 40, 81.5, s=4.0)
+    t.label(62, 81.5, "FIELD VISIT  (V1, V2)", size=13, weight="bold")
+
+    # rows 1-3: building, element, crack
+    for y, icon, word, cap, chk, per, dec, act in SIMPLE_ROWS:
+        start(y, icon, word)
+        card(C["cap"], y, "photo", *cap)
+        check(C["chk"], y, chk[0])
+        if chk[1]:
+            stop(C["chk"], y - 6.8, chk[1])
+        card(C["per"], y, "model", "network", per[0])
+        if per[1]:
+            stop(C["per"], y - 7.5, per[1])
+        card(C["dec"], y, "rule", *dec)
+        arrow([(32, y), (C["cap"] - w / 2 - 0.6, y)])
+        arrow([(C["cap"] + w / 2, y), (C["chk"] - 10.6, y)])
+        arrow([(C["chk"] + 10, y), (C["per"] - w / 2 - 0.6, y)])
+        arrow([(C["per"] + w / 2, y), (C["dec"] - w / 2 - 0.6, y)])
+        if act:
+            card(C["act"], y, "photo", *act)
+            arrow([(C["dec"] + w / 2, y), (C["act"] - w / 2 - 0.6, y)])
+    yB, yE, yC = (row[0] for row in SIMPLE_ROWS)
+    # between the lanes: material and element feed the crack category; crack categories feed the building score
+    arrow([(C["dec"] - 6, yE - h / 2), (C["dec"] - 6, yC + h / 2 + 0.6)], lw=2.0)
+    t.label(C["dec"] - 7.5, (yE + yC) / 2, "material,\nelement", size=10.5, weight="bold", ha="right")
+    arrow([(C["dec"] + w / 2, yC + 3), (180, yC + 3), (180, yB - 3), (C["dec"] + w / 2 + 0.6, yB - 3)], lw=2.0)
+    t.label(181.5, yE, "crack\ncategories", size=10.5, weight="bold", ha="left")
+
+    # loops: learning (engineer -> models) and monitoring (resident -> the same crack again)
+    arrow([(C["act"], yB + h / 2), (C["act"], 75.5), (C["per"], 75.5), (C["per"], yB + h / 2 + 0.6)],
+          ls=(0, (4, 3)), lw=2.0)
+    t.label(165, 77.4, "LEARN: corrections retrain the models", size=12, weight="bold")
+    arrow([(C["act"], yC - h / 2), (C["act"], 7.5), (19, 7.5), (19, yC - 5.6)], ls=(0, (4, 3)), lw=2.0)
+    t.label(70, 9.6, "RECHECK: the same crack again; growth raises the category", size=12, weight="bold")
+
+    t.label(237.6, 2.6, "Summary of figure 01b (statuses, scene check, thresholds). Never a safety clearance. "
+            "Times illustrative until calibrated.", size=10, colour=FLOW_SOFT, ha="right")
+    return fig
+
+
+# Figure 01d: the two-minute explanation of the pipeline, drawn as a pipeline with its own words.
+# Same colour logic as 01b and 01c: white = photos and people, grey = written rules, black = learned models.
+def pipeline_story():
+    """The spoken pipeline in three rows: report, field visit, decision; stops, categories and loops."""
+    fig = plt.figure(figsize=(24, 13.5), facecolor="white")
+    ax = fig.add_axes([0, 0, 1, 1])  # units of 0.1 inch
+    ax.set_xlim(0, 240)
+    ax.set_ylim(0, 135)
+    ax.set_axis_off()
+    t = _flow_tools(ax)
+    K, GREY = FLOW_INK, FLOW_RULE
+    styles = {"photo": ("white", K, K), "rule": (GREY, GREY, K), "model": (K, K, "white")}
+
+    def arrow(points, ls="-", lw=2.4):
+        xs, ys = zip(*points)
+        ax.plot(xs[:-1], ys[:-1], color=K, lw=lw, ls=ls, zorder=2, solid_capstyle="round")
+        ax.annotate("", xy=points[-1], xytext=points[-2], zorder=2,
+                    arrowprops=dict(arrowstyle="-|>", color=K, lw=lw, ls="-", shrinkA=0, shrinkB=0,
+                                    mutation_scale=20))
+
+    def card(cx, cy, w, h, kind, icon, head, body, num=None):
+        fill, edge, ink = styles[kind]
+        ax.add_patch(FancyBboxPatch((cx - w / 2, cy - h / 2), w, h, boxstyle="round,pad=0,rounding_size=1.4",
+                                    facecolor=fill, edgecolor=edge, lw=2.0, zorder=4))
+        left = cx - w / 2
+        if icon:
+            _handoff_icon(ax, icon, left + 5.2, cy, s=6.5, ink=ink, paper=fill)
+            left += 9.6
+        else:
+            left += 2.4
+        t.label(left, cy + h / 2 - 3.6, head, size=15, colour=ink, weight="bold", ha="left")
+        t.label(left, cy + h / 2 - 7.0, body, size=12, colour=ink, ha="left", va="top")
+        if num:
+            ax.add_patch(plt.Circle((cx - w / 2, cy + h / 2), 2.3, color=K, zorder=6))
+            t.label(cx - w / 2, cy + h / 2, num, size=13, colour="white", weight="bold", zorder=7)
+
+    def chip(cx, cy, w, h, kind, text, size=11.5, bold=True):
+        fill, edge, ink = styles[kind]
+        ax.add_patch(FancyBboxPatch((cx - w / 2, cy - h / 2), w, h, boxstyle="round,pad=0,rounding_size=1.0",
+                                    facecolor=fill, edgecolor=edge, lw=1.6, zorder=4))
+        t.label(cx, cy, text, size=size, colour=ink, weight="bold" if bold else "normal")
+
+    def stop(cx, top, word, why):
+        ax.plot([cx, cx], [top, top - 2.4], color=K, lw=2.0, zorder=2)
+        t.mark(cx, top - 4.2, False, r=1.8)
+        t.label(cx + 2.8, top - 4.2, word, size=14, weight="bold", ha="left")
+        t.label(cx + 2.8 + 1.3 * len(word) + 1.5, top - 4.2, why, size=12, colour=FLOW_TEXT, ha="left")
+
+    _house_title(fig, "SYSTEM ARCHITECTURE")
+    t.label(2.4, 119.5, "Second Look in plain words. The system never says \"safe\": it decides who looks next, and how "
+            "soon.", size=18, colour=FLOW_TEXT, weight="bold", ha="left")
+    _flow_key(fig)
+
+    # row 1: the report
+    y1, h1 = 97, 24
+    card(25, y1, 40, h1, "photo", "person", "RESIDENT", "Notices a crack, opens the app,\ntakes one photo and answers a\n"
+         "few simple questions. Never\nasked the material, the element\nor the type of crack.", "1")
+    card(67, y1, 34, h1, "rule", "check", "PHOTO CHECK", "Blurred or too dark?\nWe never guess from\na bad photo.", "2")
+    stop(67, y1 - h1 / 2, "RETAKE", "")
+    card(105, y1, 26, h1, "model", "network", "MODEL", "Finds the\ncrack.", "3")
+    card(144, y1, 36, h1, "rule", "rulebook", "WRITTEN RULE", "Not the AI: decides\nwhether someone\nneeds to go.", "4")
+    arrow([(45.6, y1), (49.4, y1)])
+    arrow([(84.6, y1), (91.4, y1)])
+    arrow([(118.6, y1), (125.4, y1)])
+    visits = [(106.5, "V1", "a field worker within a week,\nthe engineer is told today"),
+              (97, "V2", "a visit within a month"),
+              (87.5, "V3", "no visit yet; the resident\nrechecks in a month")]
+    for vy, code_, text_ in visits:
+        ax.add_patch(FancyBboxPatch((180, vy - 4.0), 54, 8.0, boxstyle="round,pad=0,rounding_size=1.0",
+                                    facecolor="white", edgecolor=K, lw=1.6, zorder=4))
+        t.label(182.2, vy, code_, size=15, weight="bold", ha="left")
+        t.label(190, vy, text_, size=11.5, ha="left")
+        arrow([(162.6, y1), (179.4, vy)], lw=1.8)
+    t.label(203, 80.8, "We can't send someone to every crack, so this rule decides where people go first.", size=11.5,
+            colour=FLOW_TEXT, style="italic")
+
+    # row 2: the field visit (V1 or V2)
+    y2, h2 = 58, 24
+    ax.plot([234.6, 237.5, 237.5], [106.5, 106.5, 76.5], color=K, lw=2.6, zorder=2)
+    ax.plot([234.6, 237.5], [97, 97], color=K, lw=2.6, zorder=2)
+    arrow([(237.5, 76.5), (25, 76.5), (25, y2 + h2 / 2 + 2.6)], lw=2.6)
+    t.label(130, 78.3, "V1 OR V2", size=12, weight="bold")
+    card(25, y2, 40, h2, "photo", "worker", "FIELD WORKER", "Brings a reliable phone and\na scale card, and looks at\n"
+         "three scales:", "5")
+    for cx, icon, head, body in ((70, "house", "BUILDING", "A short case\nfile, answered\nonce."),
+                                 (104, "column", "ELEMENT", "A photo of each\ncracked beam,\ncolumn or wall."),
+                                 (138, "crack", "CRACK", "A close-up\nof each one.")):
+        card(cx, y2, 30, h2, "photo", icon, head, body)
+    arrow([(45.6, y2), (54.4, y2)])
+    arrow([(85.6, y2), (88.4, y2)])
+    arrow([(119.6, y2), (122.4, y2)])
+    arrow([(153.6, y2), (163.4, y2)])
+    ax.add_patch(FancyBboxPatch((164, y2 - h2 / 2), 70, h2, boxstyle="round,pad=0,rounding_size=1.4",
+                                facecolor="white", edgecolor=K, lw=2.0, ls=(0, (4, 3)), zorder=3))
+    t.label(199, y2 + 7.5, "EVERY SCALE, THE SAME FIVE STEPS", size=14, weight="bold")
+    for k, (kind, word) in enumerate((("photo", "CAPTURE"), ("rule", "CHECK"), ("model", "PERCEIVE"),
+                                      ("rule", "DECIDE"), ("photo", "ACT"))):
+        chip(171.5 + k * 13.75, y2 - 2.5, 12.0, 8.0, kind, word, size=10.5)
+
+    # row 3: perceive, decide, act, and the engineer at the end
+    y3, h3 = 24, 22
+    arrow([(199, y2 - h2 / 2), (199, 40), (31, 40), (31, y3 + h3 / 2 + 0.6)], lw=2.6)
+    card(31, y3, 46, h3, "model", "network", "MODELS PERCEIVE", "They find the crack, measure\nits width in mm and "
+         "recognise\nits pattern, each with a\nconfidence.", "6")
+    stop(14, y3 - h3 / 2, "EXPERT NEEDED", "")
+    t.label(16.8, 5.2, "if a model is unsure: never \"fine\"", size=12, colour=FLOW_TEXT, ha="left")
+    card(80, y3, 40, h3, "rule", "rulebook", "DECISION", "A written, auditable\nrisk matrix gives\nCategory 1, 2 or 3.",
+         "7")
+    arrow([(54.6, y3), (59.4, y3)])
+    cats = [(31.0, "CATEGORY 1 · monitor", "photo"), (24.0, "CATEGORY 2 · low-cost advice + recheck", "rule"),
+            (17.0, "CATEGORY 3 · an engineer must confirm", "model")]
+    for cy, text_, kind in cats:
+        chip(129, cy, 44, 6.0, kind, text_, size=10.5)
+        arrow([(100.6, y3), (104, y3), (104, cy), (106.4, cy)], lw=1.8)
+    card(176, y3, 38, h3, "rule", "bars", "BUILDING SCORE", "Crack categories add\nup to a building score:\n"
+         "the engineer's\npriority list.", "8")
+    arrow([(151.6, y3), (156.4, y3)])
+    card(218, y3, 36, h3, "photo", "hardhat", "ENGINEER", "Confirms every\nCategory 3 and\nevery Expert\nneeded, on site.",
+         "9")
+    arrow([(195.6, y3), (199.4, y3)])
+
+    # learn: the engineer's corrections go back to the models (dashed)
+    arrow([(218, y3 - h3 / 2), (218, 4.2), (47, 4.2), (47, y3 - h3 / 2 - 0.6)], ls=(0, (4, 3)), lw=2.2)
+    t.label(132, 6.6, "LEARN: every correction the engineer makes retrains the models, for better accuracy and "
+            "precision", size=12.5, weight="bold")
+    # recheck: categories 1 and 2 bring the same crack back to the resident (dashed)
+    arrow([(129, 34.0), (129, 37.9), (2.6, 37.9), (2.6, y1), (4.4, y1)], ls=(0, (4, 3)), lw=2.2)
+    t.label(4.8, 43.2, "RECHECK: the same crack is photographed again; if it grows, its category goes up", size=11.5,
+            weight="bold", ha="left")
+    return fig
+
+
 FIGURES = {
     "01_pipeline.png": pipeline,
     "01b_pipeline_flow.png": pipeline_flow,
+    "01c_pipeline_simple.png": pipeline_simple,
+    "01d_pipeline_story.png": pipeline_story,
     "02_decisions_and_players.png": decisions_and_players,
     "03_risk_matrix.png": risk_matrix,
     "04_segmentation_tree.png": segmentation_tree,
@@ -1456,7 +1737,7 @@ def main(out_dir: Path = Path(__file__).resolve().parents[2] / "figures") -> lis
     for name, make in FIGURES.items():
         fig = make()
         path = out_dir / name
-        fig.savefig(path, dpi=200)
+        fig.savefig(path, dpi=SLIDE_PX / fig.get_figwidth())  # 16:9 figures come out at 4800 x 2700 px
         plt.close(fig)
         paths.append(path)
     return paths

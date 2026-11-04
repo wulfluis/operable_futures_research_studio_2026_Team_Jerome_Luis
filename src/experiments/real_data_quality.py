@@ -173,49 +173,54 @@ def histogram(rows: list[dict], path: Path) -> None:
     import matplotlib.pyplot as plt
     import numpy as np
 
-    from viz.figures import BLUE, GRID, INK_2, LEVEL
+    from viz.figures import GRID, INK_2
 
     rank = {g: i for i, (g, _) in enumerate(FIT_ORDER)}
     fit = dict(FIT_ORDER)
     groups = sorted({r["group"] for r in rows}, key=lambda g: (rank.get(g, len(rank)), g))
-    cols = min(3, len(groups))
+    cols = min(4, len(groups))  # landscape; panels keep their order, read left to right
     nrows = -(-len(groups) // cols)
-    fig, axes = plt.subplots(nrows, cols, figsize=(max(11, 4.4 * cols), 3.3 * nrows + 1.6), squeeze=False)
+    height = 13.5  # 16:9 like every figure (24 x 13.5 in, 4800 x 2700 px)
+    fig, axes = plt.subplots(nrows, cols, figsize=(24, height), squeeze=False)
     for ax in axes.flat[len(groups):]:
         ax.set_axis_off()
     bins = np.logspace(0, 4.5, 37)
     for ax, group in zip(axes.flat, groups):
-        for label, colour in (("crack", BLUE), ("no crack", "#eb6834"), ("unlabelled", "#1baf7a"),
+        # this figure keeps its colours (user's choice, 28 Oct 2026); all other figures are black, white and grey
+        for label, colour in (("crack", "#2a78d6"), ("no crack", "#eb6834"), ("unlabelled", "#1baf7a"),
                               ("engineer: light", "#86b6ef"), ("engineer: moderate", "#3987e5"),
                               ("engineer: severe", "#184f95"), ("not linked to a building", "#898781"),
-                              ("damaged", BLUE), ("undamaged", "#eb6834"), ("spalling", BLUE),
+                              ("damaged", "#2a78d6"), ("undamaged", "#eb6834"), ("spalling", "#2a78d6"),
                               ("no spalling", "#eb6834")):
             vals = [max(r["sharpness"], 1) for r in rows if r["group"] == group and r["label"] == label]
             if vals:
                 ax.hist(vals, bins=bins, histtype="step", lw=2, color=colour, label=label)
-        ax.legend(frameon=False, fontsize=8.5, loc="upper right")
-        ax.axvline(MIN_SHARPNESS, color=LEVEL["Category 3"], lw=1.2)
+        handles = ax.get_legend_handles_labels()[0]  # legend above the plot, never on the data
+        ax.legend(frameon=False, fontsize=10.5, loc="lower left", bbox_to_anchor=(0, 1.0), borderaxespad=0.3,
+                  ncol=2 if len(handles) > 3 else len(handles), handlelength=1.6, columnspacing=1.2)
+        ax.axvline(MIN_SHARPNESS, color="#d03b3b", lw=1.2)
         ax.set_xscale("log")
         members = [r for r in rows if r["group"] == group]
         accepted = sum(r["image_ok"] for r in members) / len(members)
-        ax.set_title(f"{groups.index(group) + 1} · {group}", loc="left", fontsize=10.5, weight="bold", pad=18)
-        ax.text(0, 1.02, f"fit to concept: {fit.get(group, 'not ranked')}  ·  {accepted:.0%} accepted",
-                transform=ax.transAxes, fontsize=8.5, color=INK_2, va="bottom")
+        ax.set_title(f"{groups.index(group) + 1} · {group}", loc="left", fontsize=12.5, weight="bold", pad=56)
+        ax.annotate(f"fit to concept: {fit.get(group, 'not ranked')}  ·  {accepted:.0%} accepted", (0, 1),
+                    xycoords="axes fraction", xytext=(0, 38), textcoords="offset points", fontsize=10, color=INK_2,
+                    va="bottom")
         ax.set_xlabel("Sharpness (Laplacian variance, log)")
         ax.grid(axis="y", color=GRID, lw=0.8)
         for s in ("top", "right"):
             ax.spines[s].set_visible(False)
-    axes[0][0].text(MIN_SHARPNESS / 1.12, 0.97, "blur limit\n(illustrative)", transform=axes[0][0].get_xaxis_transform(),
-                    va="top", ha="right", fontsize=8, color=INK_2)
     for row in axes:
         row[0].set_ylabel("Images")
-    fig.suptitle("Quality gate on real images: public dataset samples", x=0.02, ha="left", fontsize=14, weight="bold")
-    top = 1 - 1.3 / (3.3 * nrows + 1.6)
-    fig.text(0.02, top + 0.02, f"Panels ordered by fit to our concept, best first (docs/data_map.md). "
-             f"Images left of the red line would be asked to retake. Brightness limits "
+    width = 24  # title as in the other figures: bold capitals, 38 pt on a 24 in figure
+    fig.text(0.02, 1 - 0.6 / height, "QUALITY GATE ASSESSMENT ON IMAGERY DATABASE", fontsize=38 * width / 24, weight="bold",
+             color="#111111", va="center")
+    top = 1 - 1.75 / height
+    fig.text(0.02, top + 0.015, f"Public dataset samples. Panels ordered by fit to our concept, best first (docs/data_map.md). "
+             f"Red line: blur limit (illustrative); images left of it would be asked to retake. Brightness limits "
              f"{MIN_BRIGHTNESS:g} to {MAX_BRIGHTNESS:g}.\nNot phone photos: tests the code, does not calibrate "
-             "thresholds. PHI-Net images are 224 px crops, measured as they are (never scaled up).", fontsize=9.5, color=INK_2, va="bottom")
-    fig.subplots_adjust(left=0.07, right=0.98, top=top - 0.04, bottom=0.08, wspace=0.18, hspace=0.62)
+             "thresholds. PHI-Net images are 224 px crops, measured as they are (never scaled up).", fontsize=11, color=INK_2, va="bottom")
+    fig.subplots_adjust(left=0.05, right=0.985, top=top - 0.075, bottom=0.06, wspace=0.16, hspace=0.78)
     fig.savefig(path, dpi=200)
     plt.close(fig)
 
