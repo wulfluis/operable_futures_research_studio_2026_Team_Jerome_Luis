@@ -6,6 +6,30 @@ Owner: J = Jerome, L = Luis, C = coding agent (Claude). Fill in the blanks.
 
 ---
 
+## Week 2: 2 to 8 Nov (midterm: submit Wed 5 Nov on Google Drive, present Fri 6 Nov)
+
+### Done
+- [x] Midterm deck, 12 slides, with Surfside and Rana Plaza as 3D animations (J + L, C, 31 Oct to 4 Nov)
+- [x] App: QR on its own page (D37), wall link for a teammate, word mark from the deck cover (D38), "Share results" tick (C, 1 to 4 Nov)
+- [x] Repo pushed with the app, model v3 and its results; README brought up to date (C, 3 and 4 Nov)
+
+### Before the submission (Wed 5 Nov)
+- [ ] Choose the final deck (Luis's copy with the risk matrix) and finish the text (J + L)
+- [ ] Fix in the deck: Surfside title "Ignored until 2021" (sources say documented, not ignored); the "12 missed" line describes the first model's misses; "Show results" is now "Share results" (J + L or C)
+- [ ] Export: animated slides recorded as MP4, deck to Google Slides with the videos, PDF backup; upload to Google Drive (C, then J)
+- [ ] Rehearse once against 7 minutes, with the animations playing (J + L)
+
+### On the day (Fri 6 Nov)
+- [ ] Start the app shortly before (`py src/app/launch.py`); keep the laptop plugged in and awake (J)
+- [ ] After the talk: QR full screen (`localhost:8501/?qr`), then the live wall (`localhost:8501/?wall`) (J)
+
+### Open from week 1
+- [ ] Width in mm from the mask, the "close-up of a surface?" check, pilot photos with the scale card (C, J + L)
+- [ ] Engineering partners: requests to Engineers Without Borders and the structural engineer (__)
+- [ ] Decide what to do with the deleted logo files and `figures/01_pipeline.png` (still on GitHub) (J)
+
+---
+
 ## Week 1: 26 Oct to 1 Nov (studio Thu 29 Oct: tree, data map, repo, first real-data test)
 
 ### Done
