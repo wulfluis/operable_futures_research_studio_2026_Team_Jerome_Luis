@@ -12,7 +12,7 @@ Owner: J = Jerome, L = Luis, C = coding agent (Claude). Fill in the blanks.
 - [x] Midterm deck, 12 slides, with Surfside and Rana Plaza as 3D animations (J + L, C, 31 Oct to 4 Nov)
 - [x] App: QR on its own page (D37), wall link for a teammate, word mark from the deck cover (D38), "Share results" tick (C, 1 to 4 Nov)
 - [x] Repo pushed with the app, model v3 and its results; README brought up to date (C, 3 and 4 Nov)
-- [x] Width in mm with a bank card: card found automatically, camera tilt, width (widest and median), length; in the class app and on the wall's result pages (L, merged by C, 4 Nov, D41 to D46). First real photo: card found, 9° tilt, widest 1.14 mm, median 0.28 mm
+- [x] Width in mm with a bank card: card found automatically, camera tilt, width (widest and median), length; in the class app and on the wall's result pages (L, merged by C, 4 Nov, D41 to D46)
 - [x] Deck fixes in Luis's copy: Surfside title "Documented in 2018. Collapsed in 2021.", "12 missed" no longer described with v1's analysis, "Share results" (C, 4 Nov)
 - [x] PowerPoint with every animation as an autoplay video, one click per slide, speaker notes (C, 4 Nov; in Downloads, not in git)
 
@@ -29,7 +29,7 @@ Owner: J = Jerome, L = Luis, C = coding agent (Claude). Fill in the blanks.
 - [ ] After the talk: QR full screen (`localhost:8501/?qr`), then the live wall (`localhost:8501/?wall`) (J)
 
 ### Open from week 1
-- [ ] Calibrate the width: photograph known widths (printed 0.1 to 3 mm lines or a crack-width gauge) with the bank card and compare; why "widest" runs high at corners and trims (L, C, 12 Nov)
+- [ ] Calibrate the width: photograph known widths (printed 0.1 to 3 mm lines or a crack-width gauge) with the bank card and compare (L, C, 12 Nov)
 - [ ] The "close-up of a surface?" check; pilot photos with a bank card (C, J + L)
 - [ ] Engineering partners: requests to Engineers Without Borders and the structural engineer (__)
 - [ ] Decide what to do with the deleted logo files and `figures/01_pipeline.png` (still on GitHub) (J)

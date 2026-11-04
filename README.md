@@ -47,7 +47,6 @@ Decisions are logged in `spec/decisions.md`. The plan to the final presentation 
 ## Results
 **Crack model v3, on 1,203 public test photos it never saw in training:** 538 of 550 cracks found (12 missed), 7 false alarms on 653 photos without a crack (none on brick), pixel F1 0.63 (`docs/experiments/2026-10-29_unet_first_training.md`).
 **Known failure:** it only knows close-ups. On 30 photos of whole damaged buildings (Haiti 2010, local only) it still said "Crack found" 28 times: it reads window frames, wires and edges as cracks. Next: a "close-up of a surface?" check before the model.
-**First width on a real photo (4 Nov, one wall crack, Luis's phone, bank card):** card found, camera tilt 9° (straight), 11.2 px across the crack; widest 1.14 ± 0.10 mm, median 0.28 mm, length 309 mm. The widest point sits where the crack meets a door trim whose edge the model also marks, so it is likely too large; the median is the safer number until the widths are calibrated against known widths (planned 12 Nov). One photo, not a test.
 These are scores on public close-ups, not on our own photos, and not yet against the non-AI baseline. Success means beating the baseline (an engineer's visual check) on held-out, engineer-labelled photos, while missing almost no Category 3 cases (a target, planned for 3 Dec).
 We stop or redesign if the tool misses Category 3 cases that engineers would flag.
 
