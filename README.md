@@ -66,7 +66,7 @@ Public crack data is mostly concrete and pavement.
 - `src/measure/`: bank-card detection, tilt check, crack width and length in mm, local app
 - `tests/`: tests (the comparison against the non-AI baseline runs once engineer-labelled photos exist)
 - `notebook/`, `figures/`, `models/`, `data/`: notebooks, plots, model files, local data (large files are not committed)
-- `branding/logos/`: logo ideas (SVG)
+- The logo is the "SECOND LOOK" word mark with the two O's as scan frames, in `src/app/logo.py` (D38, D47)
 - `requirements.txt`: Python packages
 
 ## AI usage disclosure

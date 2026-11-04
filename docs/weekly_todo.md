@@ -32,7 +32,8 @@ Owner: J = Jerome, L = Luis, C = coding agent (Claude). Fill in the blanks.
 - [ ] Calibrate the width: photograph known widths (printed 0.1 to 3 mm lines or a crack-width gauge) with the bank card and compare (L, C, 12 Nov)
 - [ ] The "close-up of a surface?" check; pilot photos with a bank card (C, J + L)
 - [ ] Engineering partners: requests to Engineers Without Borders and the structural engineer (__)
-- [ ] Decide what to do with the deleted logo files and `figures/01_pipeline.png` (still on GitHub) (J)
+- [x] Old logo ideas removed from `branding/` (D47) (J, C, 4 Nov)
+- [ ] Decide what to do with the deleted `figures/01_pipeline.png` (still on GitHub) (J)
 
 ---
 

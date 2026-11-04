@@ -39,7 +39,7 @@ Every output carries a one-sentence reason. Never output "safe", a clearance or 
 - `docs/`: segmentation tree, data map (ranked by fit to the concept), sources, experiments, literature notes (reference thesis: `docs/literature/corres_sojo_2024.md`), weekly to-do.
 - `src/triage/matrix.py`: risk matrix and decision rules. `src/triage/evaluate.py`: confusion tables and metrics.
 - `src/quality/gate.py`: photo quality gate. `src/pilot/prepare.py`: strips photo metadata. `src/experiments/`: tests on real data. `src/viz/figures.py`: figures.
-- `branding/logos/`: logo ideas. `data/`: local datasets, never committed.
+- `src/app/logo.py`: the logo (word mark, D38). `data/`: local datasets, never committed.
 
 ## Data rules
 - The concept is buildings in slum-like, informal neighbourhoods (`spec/decisions.md` D14). Judge every dataset by its fit to that case; bridge, road and pavement data are off-concept.

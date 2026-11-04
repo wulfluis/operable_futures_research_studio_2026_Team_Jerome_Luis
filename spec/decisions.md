@@ -172,3 +172,7 @@ Luis wants to try the width in mm inside the class demo without changing the tea
 
 ## D46 (2026-11-04): Luis's bank-card measurement goes into the class demo itself
 Jerome took Luis's `measurement` branch (D41 to D45) into the team's app instead of keeping a second copy: the measuring logic of `src/app_measure/core_measure.py` became `src/app/core.py` and its page became `src/app/second_look.py`. The interface stays the team's (word mark, quote, crack background, version "v1.0") and so do the launcher, the fixed ngrok link and the QR in the slides (D40); the copy's own launcher (port 8503, self-signed certificate on the local Wi-Fi) was removed so there is one app on one link. Without a bank card the answer is as before; with one the phone page adds the measurement block and each wall photo opens a page with the numbers. Supersedes D45's "copy, not the original". Thresholds stay illustrative until calibrated on real photos.
+
+## D47 (2026-11-04): the early logo ideas are removed
+The four logo ideas in `branding/logos/` (two lenses, stairstep, coin lens, crack path) and their generator are deleted: the team's logo is the word mark from the deck cover, "SECOND LOOK" with the two O's as scan frames and a red crack (D38), in `src/app/logo.py`. They stay in the git history.
+
