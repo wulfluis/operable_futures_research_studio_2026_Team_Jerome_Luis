@@ -1,6 +1,8 @@
 # Models
 
-Trained weights (`*.pt`, `*.pth`) are not committed: this repository is public, and one training set (crack-seg [33]) has an unclear licence (Public Domain on its page, AGPL-3.0 in its file header). Ask the team for the file and put it in this folder.
+**Download the model in use:** [unet_crack.pt](https://github.com/iaac-maai/operable_futures_research_studio_2026_Team_Jerome_Luis/releases/download/model-v3/unet_crack.pt) (release [model-v3](https://github.com/iaac-maai/operable_futures_research_studio_2026_Team_Jerome_Luis/releases/tag/model-v3), SHA-256 `c387030e7a2fc21253565cdd9f51268b7faca8b50681be621b3676444afc8860`) and put it in this folder.
+
+Weights are attached to GitHub Releases, never committed to the repository (D39). Note: one training set (crack-seg [33]) has an unclear licence (Public Domain on its page, AGPL-3.0 in its file header); the release notes say so.
 
 ## In use
 | File | Model | Trained on | Test result | Details |

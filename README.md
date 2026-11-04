@@ -76,7 +76,7 @@ This repository was set up with help from Claude (Anthropic). Review everything 
 ## Run the app
 1. Python 3.10 or newer. With an NVIDIA GPU, install torch first with the CUDA build named in `requirements.txt`; without one the app runs on the CPU, slower (a few seconds per photo).
 2. `pip install -r requirements.txt`
-3. Put the model file `unet_crack.pt` (v3, about 98 MB) in `models/`. It is not in this public repository: ask the team for it.
+3. Download the model file [unet_crack.pt](https://github.com/iaac-maai/operable_futures_research_studio_2026_Team_Jerome_Luis/releases/download/model-v3/unet_crack.pt) (v3, about 98 MB, release `model-v3`) and put it in `models/`.
 4. On this laptop only: `py -m streamlit run src/app/second_look.py`, then open `http://localhost:8501` (phone page) and `http://localhost:8501/?wall` (live wall).
 5. With a public link for phones (class demo): install cloudflared (`winget install --id Cloudflare.cloudflared`), then `py src/app/launch.py`. It prints the phone link, the wall link for a teammate, and the QR page (`http://localhost:8501/?qr`). The links change at every start and stop when the laptop sleeps.
 

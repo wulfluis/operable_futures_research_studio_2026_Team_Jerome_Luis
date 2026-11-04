@@ -148,3 +148,6 @@ The team took the QR off the live wall so the wall shows only the title, the res
 
 ## D38 (2026-11-04): the deck cover's word mark goes into the app
 The midterm deck cover shows "SECOND LOOK" with its two O's drawn as scan frames: the second slides out of the first and a red crack draws through it. The team wanted the same mark on the phone page and the live wall, so the app and the deck share one identity. It plays once on load, like the cover; the wall's refresh does not replay it, because the title sits outside the refreshing part.
+
+## D39 (2026-11-04): the crack model is published as a GitHub Release file
+So that Luis, and anyone else, can run the app without the training data, the team published `unet_crack.pt` (v3) on the public repository as the file of release `model-v3`, not committed to git. The release notes give the training sets and their licences (CrackSeg9k CC0 1.0, Darbhanga CC BY 4.0, crack-seg Public Domain on its page but AGPL-3.0 in its file header: unclear, chosen knowingly), the test result, the SHA-256 and that it is a research prototype that never says a building is safe.
