@@ -12,19 +12,25 @@ Owner: J = Jerome, L = Luis, C = coding agent (Claude). Fill in the blanks.
 - [x] Midterm deck, 12 slides, with Surfside and Rana Plaza as 3D animations (J + L, C, 31 Oct to 4 Nov)
 - [x] App: QR on its own page (D37), wall link for a teammate, word mark from the deck cover (D38), "Share results" tick (C, 1 to 4 Nov)
 - [x] Repo pushed with the app, model v3 and its results; README brought up to date (C, 3 and 4 Nov)
+- [x] Width in mm with a bank card: card found automatically, camera tilt, width (widest and median), length; in the class app and on the wall's result pages (L, merged by C, 4 Nov, D41 to D46). First real photo: card found, 9° tilt, widest 1.14 mm, median 0.28 mm
+- [x] Deck fixes in Luis's copy: Surfside title "Documented in 2018. Collapsed in 2021.", "12 missed" no longer described with v1's analysis, "Share results" (C, 4 Nov)
+- [x] PowerPoint with every animation as an autoplay video, one click per slide, speaker notes (C, 4 Nov; in Downloads, not in git)
 
 ### Before the submission (Wed 5 Nov)
 - [ ] Choose the final deck (Luis's copy with the risk matrix) and finish the text (J + L)
-- [ ] Fix in the deck: Surfside title "Ignored until 2021" (sources say documented, not ignored); the "12 missed" line describes the first model's misses; "Show results" is now "Share results" (J + L or C)
-- [ ] Export: animated slides recorded as MP4, deck to Google Slides with the videos, PDF backup; upload to Google Drive (C, then J)
+- [ ] Decide: Rana Plaza slide stays or goes (J + L)
+- [ ] Upload to Google Drive: the PowerPoint (animations as videos), the deck's HTML download and a PDF backup; README note asking professors to use the PowerPoint (J)
+- [ ] Deck: the model slide and the app demo do not show the width in mm yet; add a line or a slide if wanted (J + L, C)
 - [ ] Rehearse once against 7 minutes, with the animations playing (J + L)
 
 ### On the day (Fri 6 Nov)
 - [ ] Start the app shortly before (`py src/app/launch.py`); keep the laptop plugged in and awake (J)
+- [ ] Bring a bank-card-sized card (not the real bank card on stage: an old or loyalty card) for the live measurement (J + L)
 - [ ] After the talk: QR full screen (`localhost:8501/?qr`), then the live wall (`localhost:8501/?wall`) (J)
 
 ### Open from week 1
-- [ ] Width in mm from the mask, the "close-up of a surface?" check, pilot photos with the scale card (C, J + L)
+- [ ] Calibrate the width: photograph known widths (printed 0.1 to 3 mm lines or a crack-width gauge) with the bank card and compare; why "widest" runs high at corners and trims (L, C, 12 Nov)
+- [ ] The "close-up of a surface?" check; pilot photos with a bank card (C, J + L)
 - [ ] Engineering partners: requests to Engineers Without Borders and the structural engineer (__)
 - [ ] Decide what to do with the deleted logo files and `figures/01_pipeline.png` (still on GitHub) (J)
 

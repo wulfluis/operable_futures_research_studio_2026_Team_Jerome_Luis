@@ -47,7 +47,7 @@ V1, V2 and V3 are visit priorities, not triage levels. The five levels (Retake, 
 - **Audit:** 1 V3 report in 10 (illustrative), picked by a fixed rule on the report ID, is visited anyway. This measures how many serious cracks the rule leaves waiting (its false negatives, `spec/features/evaluation.md`).
 
 ## Limits
-- With no scale card, every report becomes a visit (rule 7). How cards reach residents (partners, printed in the app) is open.
+- With no scale card, every report becomes a visit (rule 7). Since 4 Nov a bank card (or any card of that size) is the default reference (D42, D46), so most residents already have one; the printed card stays for field workers.
 - The width from a resident's phone is rough; the rule only uses it to decide how soon to look, never for the level.
 - How many visits this creates per field worker is unknown until the pilot.
 

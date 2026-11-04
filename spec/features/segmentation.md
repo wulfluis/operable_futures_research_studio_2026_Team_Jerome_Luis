@@ -62,7 +62,7 @@ Model v1 marked any thin dark line as crack: on 30 full-scene building photos it
 - Thresholds (127, 416 px, 80/10/10) are illustrative until checked against engineer-labelled photos.
 
 ## One photo in, one statement out (`src/segmentation/predict.py`)
-Quality gate first (blurred, too dark or too bright: Retake; a missing scale card does not stop crack or no crack, it makes the width unknown). The photo's long side is scaled to 832 px (illustrative) and padded to a multiple of 32; the crack-rule thresholds grow with the photo size. Output: the statement, a one-sentence reason with the confidence, and the photo with the crack in red.
+Quality gate first (blurred, too dark or too bright: Retake; a missing card does not stop crack or no crack, it makes the width unknown; with a bank card the width is measured, `spec/features/app_measure.md`, D46). The photo's long side is scaled to 832 px (illustrative) and padded to a multiple of 32; the crack-rule thresholds grow with the photo size. Output: the statement, a one-sentence reason with the confidence, and the photo with the crack in red.
 
 ## Video (`src/viz/segmentation_video.py`)
 1920 x 1080 MP4 of test photos from every outcome, misses and false alarms included: photo, crack fades in red, statement, and what the dataset says.

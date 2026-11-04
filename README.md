@@ -15,7 +15,7 @@ Rana Plaza, Dhaka, 2013: cracks were visible the day before the collapse.
 The unit is the **building**, photographed at three scales as in PHI-Net: **S** the building, **O** the element, **P** the crack.
 - **S:** a short building questionnaire (age, storeys, floors added, typology and its changes) and a facade photo give a **building risk score** that ranks buildings for engineers (P1, P2, P3).
 - **O:** models identify the **material** (concrete or not) and the **element** (column, beam, slab, wall); residents are never asked.
-- **P:** the crack close-up with a printed scale card is checked (sharp, at least 3 pixels across the crack), segmented and measured (width in mm with its uncertainty); the written risk matrix gives Category 1, Category 2, Category 3, "Expert needed" or "Retake", each with its confidence and a one-sentence reason.
+- **P:** the crack close-up with a bank card (or a printed scale card) next to the crack is checked (sharp, at least 3 pixels across the crack), segmented and measured (width in mm with its uncertainty); the written risk matrix gives Category 1, Category 2, Category 3, "Expert needed" or "Retake", each with its confidence and a one-sentence reason.
 - **Monitoring:** the same crack is photographed again on its recheck date; growth larger than the measurement uncertainty raises its level.
 - **Engineers** review every Category 3 and every referral; their corrections retrain the models (human-in-the-loop learning).
 
@@ -27,7 +27,7 @@ The concept is cracks in buildings in slum-like, informal neighbourhoods. See `d
 - Closest public data: engineer surveys of damaged buildings after the Haiti 2010 and Nepal 2015 earthquakes, rated light / moderate / severe (one rating per building, no scale).
 - Building and masonry crack images: METU, Darbhanga, Strathclyde (crack / no crack, no scale).
 - Generic crack pixels for pre-training: CrackSeg9k, crack-seg. Bridge and pavement sets are off-concept.
-- Still to collect: our own phone photos with the printed scale card, rated by our engineering partners (Engineers Without Borders and a third-party structural engineer).
+- Still to collect: our own phone photos with a bank card next to the crack, rated by our engineering partners (Engineers Without Borders and a third-party structural engineer).
 
 **Can we train with it?** Partly. There is enough public data to train the step that finds cracks (segmentation and detection). There is not enough to train or prove the step that rates danger: no public dataset has our seven crack patterns, a scale for width in mm, or an engineer's rating per crack. Those come only from our own photos and the engineering partners (`docs/data_map.md`, section 0b).
 
@@ -47,6 +47,7 @@ Decisions are logged in `spec/decisions.md`. The plan to the final presentation 
 ## Results
 **Crack model v3, on 1,203 public test photos it never saw in training:** 538 of 550 cracks found (12 missed), 7 false alarms on 653 photos without a crack (none on brick), pixel F1 0.63 (`docs/experiments/2026-10-29_unet_first_training.md`).
 **Known failure:** it only knows close-ups. On 30 photos of whole damaged buildings (Haiti 2010, local only) it still said "Crack found" 28 times: it reads window frames, wires and edges as cracks. Next: a "close-up of a surface?" check before the model.
+**First width on a real photo (4 Nov, one wall crack, Luis's phone, bank card):** card found, camera tilt 9° (straight), 11.2 px across the crack; widest 1.14 ± 0.10 mm, median 0.28 mm, length 309 mm. The widest point sits where the crack meets a door trim whose edge the model also marks, so it is likely too large; the median is the safer number until the widths are calibrated against known widths (planned 12 Nov). One photo, not a test.
 These are scores on public close-ups, not on our own photos, and not yet against the non-AI baseline. Success means beating the baseline (an engineer's visual check) on held-out, engineer-labelled photos, while missing almost no Category 3 cases (a target, planned for 3 Dec).
 We stop or redesign if the tool misses Category 3 cases that engineers would flag.
 
@@ -82,6 +83,7 @@ This repository was set up with help from Claude (Anthropic). Review everything 
 3. Download the model file [unet_crack.pt](https://github.com/iaac-maai/operable_futures_research_studio_2026_Team_Jerome_Luis/releases/download/model-v3/unet_crack.pt) (v3, about 98 MB, release `model-v3`) and put it in `models/`.
 4. On this laptop only: `py -m streamlit run src/app/second_look.py`, then open `http://localhost:8501` (phone page) and `http://localhost:8501/?wall` (live wall).
 5. With a public link for phones (class demo): `py src/app/launch.py`. It opens the team's fixed link https://cranium-bladder-tapioca.ngrok-free.dev through ngrok (install it, then `ngrok config add-authtoken <your token>` once; never commit the token), so the QR is always the same (`docs/presentation/midterm/assets/qr_fixed.png`). Only one laptop can serve that link at a time. Without ngrok it falls back to a random Cloudflare link (`winget install --id Cloudflare.cloudflared`). It prints the phone link, the wall link for a teammate and the QR page (`http://localhost:8501/?qr`). The link only answers while the app runs; the free ngrok plan shows a one-time "You are about to visit" page first.
+6. To measure a crack: lay a bank card (or any card that size) flat on the wall next to the crack, all four corners visible, number covered; hold the phone parallel to the wall. The phone page then shows the width, length and camera tilt; each photo on the live wall opens its own page with the numbers. After a code update, stop the launcher (Ctrl+C) and start it again: a running app keeps the old code in memory.
 
 Photos are analysed in memory and never saved; the wall forgets them when the app stops.
 
