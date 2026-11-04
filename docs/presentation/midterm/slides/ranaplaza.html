@@ -1,34 +1,42 @@
 <section id="ranaplaza" data-transition="fade" style="background:#0b0b0b">
-  <img src="/_blob/6f2a2df28c57cf9fa81395a1d3ed3687" alt="" style="position:absolute; top:0; left:0; width:1920px; height:1080px">
-  <x-embed style="position:absolute; top:174px; left:1034.16px; width:820px; height:560px"><!doctype html>
+  <img src="/_blob/d6b4634c4e1594f8f48319a7329f6639" alt="" style="position:absolute; top:0; left:0; width:1920px; height:1080px">
+  <x-embed style="position:absolute; top:268px; left:128px; width:1260px; height:660px"><!doctype html>
 <html><head><meta charset="utf-8"><style>
 html,body{margin:0;height:100%;background:#0b0b0b;overflow:hidden;font-family:Consolas,"Courier New",monospace;color:#f2f2f2}
 canvas{position:absolute;inset:0;width:100%;height:100%}
-#cap{position:absolute;left:28px;right:28px;bottom:22px}
-#t{font-size:26px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
-#u{font-size:20px;color:#bfbfbf;margin-top:6px;min-height:24px}
-#step{position:absolute;left:28px;top:22px;font-size:20px;color:#a6a6a6}
-#rec{position:absolute;right:28px;top:22px;font-size:20px;color:#d62728}
-#hud{position:absolute;right:28px;top:50px;font-size:15px;color:#6f6f6f;text-align:right}
-#bar{position:absolute;left:0;bottom:0;height:3px;background:#d62728;width:0}
-#end{position:absolute;left:0;right:0;top:150px;text-align:center;font-size:44px;font-weight:700;text-transform:uppercase;opacity:0;transition:opacity 1s}
+#cap{position:absolute;left:40px;right:40px;bottom:30px}
+#t{font-size:46px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
+#u{font-size:30px;color:#d9d9d9;margin-top:8px;min-height:36px}
+#step{position:absolute;left:40px;top:30px;font-size:26px;color:#a6a6a6}
+#rec{position:absolute;right:40px;top:30px;font-size:26px;color:#d62728}
+#hud{position:absolute;right:40px;top:66px;font-size:18px;color:#6f6f6f;text-align:right}
+#bar{position:absolute;left:0;bottom:0;height:5px;background:#d62728;width:0}
+#end{position:absolute;left:0;right:0;top:190px;text-align:center;font-size:76px;font-weight:700;text-transform:uppercase;opacity:0;transition:opacity 1s}
+.r{color:#d62728}
 </style></head><body>
 <canvas id="c"></canvas>
-<div id="step">01 / 06</div><div id="rec">&#9679; REC</div><div id="hud"></div>
+<div id="step">01 / 07</div><div id="rec">&#9679; REC</div><div id="hud"></div>
 <div id="end">The cracks were seen<br><span style="color:#d62728">the day before.</span></div>
 <div id="cap"><div id="t"></div><div id="u"></div></div>
 <div id="bar"></div>
 <script>
 
 var S=[[4,"Savar, Dhaka &middot; Rana Plaza","Eight storeys: shops and a bank below, garment factories above"],
-[5,"23 Apr 2013 &middot; Cracks appear","A local TV crew films them"],
+[7,"Before the cracks &middot; built to fail","Half on a filled pond &middot; <span class=r>4 floors</span> without permit &middot; generators on top"],
+[5,"<span class=r>23 Apr 2013</span> &middot; Cracks appear","A local TV crew films them"],
 [3,"The building is evacuated",""],
 [5,"The owner says it is safe","Workers are told to come back the next day"],
-[5,"24 Apr 2013 &middot; Morning collapse","1,134 dead &middot; about 2,500 injured"],
+[5,"<span class=r>24 Apr 2013</span> &middot; Morning collapse","<span class=r>1,134 dead</span> &middot; about 2,500 injured"],
 [4,"",""]],YAW=-.5,cam={pitch:.34,dist:24,tx:4.5,ty:3.6,tz:2.5,f:640,cy:.46};
 var CR=[zig(3,.08,.92,0,4,.1,2),zig(4.5,.1,.9,0,4,.1,9),zig(6,.1,.92,0,4,.1,4),
 [[6.9,1.3,0],[7.3,1.5,0],[7.7,1.42,0],[8.1,1.65,0],[8.5,1.58,0]]];
-function scene(i,l,s){var dim=i==5?.2:1;grid(0,-6,14,-6,8,2);
+function scene(i,l,s){if(i==1){scene0(0,l,s);flaws(l,s);return}scene0(i>1?i-1:i,l,s)}
+function flaws(l,s){var a1=cl(l/.8),a2=cl((l-1.8)/.8),a3=cl((l-3.6)/.8);
+if(a1>0){B(4.5,-1.2,0,9,0,5,"#d62728",2,a1);for(var h=4.8;h<8.8;h+=.6)L([[h,-1.2,5],[h+.4,0,5]],"#d62728",1,a1*.7);box([[4.5,-1.2,0],[9,-1.2,5],[9,0,5],[4.5,0,0]],"FILLED POND",a1)}
+if(a2>0){for(var f=4;f<8;f++)B(0,f,0,9,f+1,5,"#d62728",2.4,a2);txt([-3.4,6.2,2.5],"4 FLOORS","#d62728",a2);txt([-3.4,5.6,2.5],"NO PERMIT","#d62728",a2)}
+if(a3>0){var g=[];for(var x=1.2;x<8.5;x+=2){B(x,8,1.6,x+.9,8.6,2.6,"#d62728",1.6,a3);var v=.08*Math.sin(s*30+x);
+L([[x+.1,8.85+v,2.1],[x+.3,9.05-v,2.1],[x+.5,8.85+v,2.1],[x+.7,9.05-v,2.1]],"#d62728",1.4,a3);g.push([x,8,1.6],[x+.9,9.1,2.6])}box(g,"GENERATORS",a3)}}
+function scene0(i,l,s){var dim=i==5?.2:1;grid(0,-6,14,-6,8,2);
 var wk=i==2?1-cl(l/1):i==3?cl(l/1):i>=4?0:1;
 for(var f=0;f<8;f++){var kk=i==4?cl((l-(7-f)*.09)/1.3):i==5?1:0;kk*=kk;
 var t={px:4.5,py:f,dy:-f*.86*kk,r:(f%2?1:-1)*.035*kk},al=dim*(i==5?1:1-.75*kk);
@@ -44,25 +52,25 @@ if(i>=4){var tc=i==4?l:l+5;rubble(34,0,9,1,8,0,5,0,4,cl(l/2)+(i==5?1:0),dim*(i==
 if(i>=4){var k=cl(l/1.6),r=[],q=3;for(var x2=-.5;x2<=9.5;x2+=.4){q=(q*9301+49297)%233280;r.push([x2,.2+1.1*q/233280,2.5])}L(r,"#f2f2f2",1.6,k*(i==5?.4:1))}
 }
 
-var c=document.getElementById("c"),g=c.getContext("2d"),W,H,DP=window.devicePixelRatio||1;
-function rs(){W=c.clientWidth;H=c.clientHeight;c.width=W*DP;c.height=H*DP;g.setTransform(DP,0,0,DP,0,0)}rs();window.onresize=rs;
+var c=document.getElementById("c"),g=c.getContext("2d"),SC=1,W,H,DP=window.devicePixelRatio||1;
+function rs(){W=c.clientWidth;H=c.clientHeight;SC=H/560;cam.f=740*SC;c.width=W*DP;c.height=H*DP;g.setTransform(DP,0,0,DP,0,0)}rs();window.onresize=rs;
 function P(p){var X=p[0]-cam.tx,Y=p[1]-cam.ty,Z=p[2]-cam.tz,a=Math.cos(cam.yaw),b=Math.sin(cam.yaw),
 x1=X*a-Z*b,z1=X*b+Z*a,cp=Math.cos(cam.pitch),sp=Math.sin(cam.pitch),y2=Y*cp+z1*sp,z2=-Y*sp+z1*cp+cam.dist;
 return[W/2+x1*cam.f/z2,H*cam.cy-y2*cam.f/z2]}
 function T(p,t){if(!t)return p;var x=p[0]-t.px,y=p[1]-t.py,a=Math.cos(t.r||0),b=Math.sin(t.r||0);
 return[t.px+x*a-y*b+(t.dx||0),t.py+x*b+y*a+(t.dy||0),p[2]]}
 function L(ps,col,w,al,t,dash){g.beginPath();for(var i=0;i<ps.length;i++){var q=P(T(ps[i],t));i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1])}
-g.strokeStyle=col;g.lineWidth=w;g.globalAlpha=al;g.setLineDash(dash||[]);g.stroke();g.globalAlpha=1}
+g.strokeStyle=col;g.lineWidth=w*SC;g.globalAlpha=al;g.setLineDash(dash||[]);g.stroke();g.globalAlpha=1}
 function B(x0,y0,z0,x1,y1,z1,col,w,al,t){[[[x0,y0,z0],[x1,y0,z0],[x1,y0,z1],[x0,y0,z1],[x0,y0,z0]],
 [[x0,y1,z0],[x1,y1,z0],[x1,y1,z1],[x0,y1,z1],[x0,y1,z0]]].forEach(function(r){L(r,col,w,al,t)});
 [[x0,z0],[x1,z0],[x1,z1],[x0,z1]].forEach(function(e){L([[e[0],y0,e[1]],[e[0],y1,e[1]]],col,w,al,t)})}
 function grid(y,x0,x1,z0,z1,s){for(var x=x0;x<=x1;x+=s)L([[x,y,z0],[x,y,z1]],"#2c2c2c",1,1);for(var z=z0;z<=z1;z+=s)L([[x0,y,z],[x1,y,z]],"#2c2c2c",1,1)}
 function zig(x,y0,y1,z,n,amp,seed){var r=[],s=seed;for(var i=0;i<=n;i++){s=(s*9301+49297)%233280;r.push([x+(i%2?amp:-amp)*(.5+s/233280),y0+(y1-y0)*i/n,z])}return r}
 function box(ps,lab,al,t){var a=1e9,b=1e9,cc=-1e9,d=-1e9;ps.forEach(function(p){var q=P(T(p,t));a=Math.min(a,q[0]);b=Math.min(b,q[1]);cc=Math.max(cc,q[0]);d=Math.max(d,q[1])});
-a-=7;b-=7;cc+=7;d+=7;g.globalAlpha=al;g.setLineDash([]);g.strokeStyle="#d62728";g.lineWidth=1.5;g.strokeRect(a,b,cc-a,d-b);
-if(lab){g.font="bold 13px Consolas,monospace";var w=g.measureText(lab).width+8;g.fillStyle="#d62728";g.fillRect(a,b-17,w,17);g.fillStyle="#0b0b0b";g.fillText(lab,a+4,b-4)}g.globalAlpha=1}
-function txt(p,s,col,al){var q=P(p);g.globalAlpha=al;g.font="13px Consolas,monospace";g.fillStyle=col;g.fillText(s,q[0],q[1]);g.globalAlpha=1}
-function corners(){g.strokeStyle="#d62728";g.lineWidth=3;g.setLineDash([]);g.beginPath();var m=12,k=40;
+a-=7;b-=7;cc+=7;d+=7;g.globalAlpha=al;g.setLineDash([]);g.strokeStyle="#d62728";g.lineWidth=1.5*SC;g.strokeRect(a,b,cc-a,d-b);
+if(lab){g.font="bold "+Math.round(13*SC)+"px Consolas,monospace";var w=g.measureText(lab).width+8*SC;g.fillStyle="#d62728";g.fillRect(a,b-17*SC,w,17*SC);g.fillStyle="#0b0b0b";g.fillText(lab,a+4*SC,b-4*SC)}g.globalAlpha=1}
+function txt(p,s,col,al){var q=P(p);g.globalAlpha=al;g.font=Math.round(13*SC)+"px Consolas,monospace";g.fillStyle=col;g.fillText(s,q[0],q[1]);g.globalAlpha=1}
+function corners(){g.strokeStyle="#d62728";g.lineWidth=3;g.setLineDash([]);g.beginPath();var m=14,k=56;
 [[m,m,1,1],[W-m,m,-1,1],[m,H-m,1,-1],[W-m,H-m,-1,-1]].forEach(function(e){g.moveTo(e[0],e[1]+e[3]*k);g.lineTo(e[0],e[1]);g.lineTo(e[0]+e[2]*k,e[1])});g.stroke()}
 function cl(v){return v<0?0:v>1?1:v}
 function rnd(n){var x=Math.sin(n*127.1)*43758.5;return x-Math.floor(x)}
@@ -80,18 +88,25 @@ var te=document.getElementById("t"),ue=document.getElementById("u"),st=document.
 bar=document.getElementById("bar"),en=document.getElementById("end"),hud=document.getElementById("hud"),
 t0=Date.now()-(parseFloat(location.hash.slice(1))||0)*700,cur=-1;
 function f(){var ms=Date.now()-t0,e=(ms/700)%Tt,a=0,i=0;while(e>=a+S[i][0]){a+=S[i][0];i++}
-if(i!=cur){cur=i;te.innerHTML=S[i][1];ue.innerHTML=S[i][2];st.textContent="0"+(i+1)+" / 06";en.style.opacity=i==5?1:0}
+if(i!=cur){cur=i;te.innerHTML=S[i][1];ue.innerHTML=S[i][2];st.textContent="0"+(i+1)+" / 07";en.style.opacity=i==6?1:0}
 cam.yaw=YAW+.32*Math.sin(ms/5200);g.clearRect(0,0,W,H);
 hud.innerHTML="CAM 01 &middot; YAW "+Math.round(cam.yaw*57.3)+"&deg;<br>WIREFRAME &middot; NOT TO SCALE";
 scene(i,e-a,ms/1000);corners();bar.style.width=(e/Tt*100)+"%";requestAnimationFrame(f)}f();
 </script></body></html></x-embed>
-  <p style="position:absolute; bottom:64px; left:128px; width:1664px; font-family:'Source Sans 3', Arial, sans-serif; font-size:24px; color:#7a7a7a">Sources: Wikipedia, Rana Plaza collapse [15]; Dhaka Tribune, “Rana Plaza collapse: what happened that day” [63]. Diagram: schematic, not to scale.</p>
-  <div style="position:absolute; top:174px; left:128px; width:781px; display:flex; flex-direction:column; gap:28px">
-    <h2 style="font-family:'Source Sans 3', Arial, sans-serif; font-size:80px; font-weight:800; line-height:1.05; text-transform:uppercase; color:#ffffff">Cracks filmed the day before.</h2>
+  <p style="position:absolute; bottom:64px; left:128px; width:1664px; font-family:'Source Sans 3', Arial, sans-serif; font-size:24px; color:#7a7a7a">Sources: Wikipedia, Rana Plaza collapse [15]; Dhaka Tribune, “Rana Plaza collapse: what happened that day” [63]; The Daily Star; government probe via IndustryWeek, May 2013. Diagram: schematic, not to scale.</p>
+  <div style="position:absolute; top:96px; left:128px; width:1664px; display:flex; flex-direction:column; gap:16px">
     <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:26px; font-weight:700; color:#a6a6a6">RANA PLAZA, SAVAR, DHAKA</p>
-    <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:32px; line-height:1.4; color:#d9d9d9"><span style="color:#d62728"><b>23 Apr 2013</b></span> · Cracks appear in an eight-storey building of garment factories. A TV crew films them; it is evacuated.</p>
-    <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:32px; line-height:1.4; color:#d9d9d9"><span style="color:#d62728"><b>24 Apr 2013</b></span> · Declared safe, workers are sent back in. It collapses that morning.</p>
-    <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:120px; font-weight:800; line-height:1; text-transform:uppercase; color:#ffffff"><span style="color:#d62728">1,134</span> dead</p>
+    <h2 style="font-family:'Source Sans 3', Arial, sans-serif; font-size:76px; font-weight:800; line-height:1.05; text-transform:uppercase; color:#ffffff">The cracks were on TV the day before.</h2>
   </div>
-  <aside>(40 s) Rana Plaza, near Dhaka, 2013. [The animation runs on the right.] Eight storeys: shops and a bank below, garment factories above. On 23 April cracks appeared; a local TV crew filmed them and the building was evacuated. The owner declared it safe, and the workers were told to come back the next day. On the morning of 24 April it collapsed: 1,134 people died and about 2,500 were injured. The cracks were seen the day before.</aside>
+  <div style="position:absolute; top:268px; left:1428px; width:364px; height:660px; display:flex; flex-direction:column; justify-content:center; gap:12px">
+    <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:128px; font-weight:800; line-height:.95; white-space:nowrap; color:#d62728">1,134</p>
+    <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:72px; font-weight:800; line-height:1; text-transform:uppercase; color:#d62728">dead</p>
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; color:#a6a6a6">24 APR 2013</p>
+  </div>
+  <div id="hud-0" style="position:absolute; top:36px; left:36px; width:44px; height:44px; border-top:3px solid #6f6f6f; border-left:3px solid #6f6f6f"></div>
+  <div id="hud-1" style="position:absolute; top:36px; left:1840px; width:44px; height:44px; border-top:3px solid #6f6f6f; border-right:3px solid #6f6f6f"></div>
+  <div id="hud-2" style="position:absolute; top:1000px; left:36px; width:44px; height:44px; border-bottom:3px solid #6f6f6f; border-left:3px solid #6f6f6f"></div>
+  <div id="hud-3" style="position:absolute; top:1000px; left:1840px; width:44px; height:44px; border-bottom:3px solid #6f6f6f; border-right:3px solid #6f6f6f"></div>
+  <p id="hud-f" style="position:absolute; top:44px; left:1392px; width:440px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:18px; font-weight:700; letter-spacing:2px; text-align:right; color:#6f6f6f">SECOND LOOK · FRAME 03 / 12</p>
+  <aside>(40 s) Rana Plaza, near Dhaka, 2013. [The animation runs full screen.] Eight storeys: shops and a bank below, garment factories above. It was built to fail: the eastern half stands on a filled-in pond, the upper four floors were added without a permit, and heavy generators sit on top. On 23 April cracks appeared; a local TV crew filmed them and the building was evacuated. The owner declared it safe, and the workers were told to come back the next day. On the morning of 24 April it collapsed: 1,134 people died and about 2,500 were injured. The cracks were seen the day before.</aside>
 </section>

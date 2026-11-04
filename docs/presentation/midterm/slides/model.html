@@ -1,27 +1,64 @@
 <section id="model" data-transition="fade" style="background:#0b0b0b">
-  <img src="/_blob/c9debe0b6c7e87a25f83d63bfcdac5e5" alt="" style="position:absolute; top:0; left:0; width:1920px; height:1080px">
-  <p id="e2-1czgcii" style="position:absolute; bottom:64px; left:128px; width:1664px; font-family:'Source Sans 3', Arial, sans-serif; font-size:24px; color:#7a7a7a">Pixel F1 0.63. Public close-ups (CrackSeg9k, crack-seg, METU, SDNET2018, Darbhanga), not our own photos yet. docs/experiments/2026-10-29_unet_first_training.md</p>
-  <div id="p3ce789e15ce8r0-5b7023bd" style="position:absolute; top:128px; left:128px; width:1664px; display:flex; flex-direction:column; gap:20px">
+  <img src="/_blob/c18abaadde4a22b083386c1bf1cb950c" alt="" style="position:absolute; top:0; left:0; width:1920px; height:1080px">
+  <div style="position:absolute; top:128px; left:128px; width:1664px; display:flex; flex-direction:column; gap:20px">
     <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:26px; font-weight:700; color:#a6a6a6">MODEL v3 · TEST SET</p>
     <h2 style="font-family:'Source Sans 3', Arial, sans-serif; font-size:76px; font-weight:800; line-height:1.05; text-transform:uppercase; color:#ffffff">1,203 photos it had never seen.</h2>
   </div>
-  <div id="p3ce789e15ce8r1-5b7023bd" style="position:absolute; top:393px; left:128px; width:1664px; height:248px; display:flex; flex-direction:row; gap:32px">
-    <div style="display:flex; flex-direction:column; gap:12px; flex:1; padding:28px 0 0; border-top:4px solid #ffffff">
-      <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:120px; font-weight:800; line-height:1; color:#ffffff">538<span style="color:#6f6f6f">/550</span></p>
-      <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:30px; line-height:1.4; color:#d9d9d9">cracks found</p>
+  <x-embed style="position:absolute; top:296px; left:104px; width:822px; height:552px"><!doctype html>
+<html><head><meta charset="utf-8"><style>html,body{margin:0;height:100%;background:transparent;overflow:hidden}canvas{width:100%;height:100%;display:block}</style></head><body>
+<canvas id="c"></canvas><script>
+var c=document.getElementById("c"),g=c.getContext("2d"),DP=window.devicePixelRatio||1,t0=Date.now();function rs(){c.width=c.clientWidth*DP;c.height=c.clientHeight*DP;g.setTransform(DP*c.clientWidth/822,0,0,DP*c.clientHeight/552,0,0)}rs();onresize=rs;function cl(v){return v<0?0:v>1?1:v}function rnd(n){var x=Math.sin(n*127.1)*43758.5;return x-Math.floor(x)}
+var C=43,R=28,P=18,S=16,n=1203,ty=[];for(var i=0;i<n;i++)ty.push(i<550?1:0);
+var mi=[],fa=[];for(i=0;mi.length<12;i++){var k=Math.floor(rnd(i+.11)*550);if(mi.indexOf(k)<0)mi.push(k)}for(i=0;fa.length<7;i++){k=550+Math.floor(rnd(i+.57)*653);if(fa.indexOf(k)<0)fa.push(k)}
+mi.forEach(function(k){ty[k]=2});fa.forEach(function(k){ty[k]=3});
+function f(){g.setTransform(DP*c.clientWidth/822,0,0,DP*c.clientHeight/552,0,0);g.clearRect(0,0,822,552);g.fillStyle="rgba(11,11,11,.7)";g.fillRect(0,0,822,552);g.translate(24,24);
+for(var i=0;i<n;i++){var r=Math.floor(i/C),q=i%C,a=1;var x=q*P,y=r*P,v=ty[i],p=1;
+g.globalAlpha=a;if(v==1){g.fillStyle="#f2f2f2";g.fillRect(x,y,S,S)}else if(v==0){g.strokeStyle="#3a3a3a";g.lineWidth=1.5;g.strokeRect(x+1,y+1,S-2,S-2)}
+else if(v==2){g.fillStyle="#d62728";g.fillRect(x,y,S,S);{g.strokeStyle="#d62728";g.lineWidth=2;g.globalAlpha=a*p;g.strokeRect(x-4,y-4,S+8,S+8)}}
+else{g.fillStyle="#a6a6a6";g.fillRect(x,y,S,S);{g.strokeStyle="#a6a6a6";g.lineWidth=2;g.globalAlpha=a*p;g.strokeRect(x-4,y-4,S+8,S+8)}}}
+g.globalAlpha=1}f();onresize=function(){rs();f()};
+</script></body></html></x-embed>
+  <div style="position:absolute; top:320px; left:980px; width:812px; display:flex; flex-direction:row; gap:28px; align-items:center; padding:20px 28px; background:#0b0b0bb3">
+    <div style="width:28px; height:28px; display:flex; flex-direction:column; flex:0 0 auto; background:#f2f2f2">
     </div>
-    <div style="display:flex; flex-direction:column; gap:12px; flex:1; padding:28px 0 0; border-top:4px solid #d62728">
-      <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:120px; font-weight:800; line-height:1; color:#d62728">&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;12</p>
-      <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:30px; line-height:1.4; color:#d9d9d9">cracks missed, mostly faint hairlines on painted plaster</p>
-    </div>
-    <div style="display:flex; flex-direction:column; gap:12px; flex:1; padding:28px 0 0; border-top:4px solid #a6a6a6">
-      <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:120px; font-weight:800; line-height:1; color:#ffffff">7<span style="color:#6f6f6f">/653</span></p>
-      <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:30px; line-height:1.4; color:#d9d9d9">false alarms on walls without a crack</p>
+    <div style="display:flex; flex-direction:column; gap:4px">
+      <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:80px; font-weight:800; line-height:1; color:#ffffff">538<span style="color:#6f6f6f">/550</span></p>
+      <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:26px; line-height:1.3; color:#d9d9d9">cracks found</p>
     </div>
   </div>
-  <table id="p3ce789e15ce8r2-5b7023bd" style="position:absolute; top:770px; left:128px; width:1664px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:26px; color:#d9d9d9; background:#0b0b0bd9">
-    <tr><th style="width:34%; color:#a6a6a6">architecture</th><th style="width:33%; color:#a6a6a6">training data</th><th style="width:33%; color:#a6a6a6">baseline (3 Dec)</th></tr>
-    <tr><td>U-Net · ResNet-34 encoder · ~1 h on a laptop GPU</td><td>9,441 crack photos + brick walls without cracks</td><td>Same photos, an engineer’s visual check</td></tr>
-  </table>
-  <aside>(45 s) Does it work? We trained a U-Net with a ResNet-34 encoder on 9,441 public crack photos, plus brick walls without cracks: about one hour on a laptop GPU. On 1,203 test photos it had never seen, it found 538 of 550 cracks and raised 7 false alarms on 653 clean walls. The 12 it missed are mostly faint hairlines on painted plaster. The real test is on 3 December: the same photos against an engineer's visual check, our non-AI baseline.</aside>
+  <div style="position:absolute; top:498px; left:980px; width:812px; display:flex; flex-direction:row; gap:28px; align-items:center; padding:20px 28px; background:#0b0b0bb3">
+    <div style="width:28px; height:28px; display:flex; flex-direction:column; flex:0 0 auto; background:#d62728">
+    </div>
+    <div style="display:flex; flex-direction:column; gap:4px">
+      <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:80px; font-weight:800; line-height:1; color:#ffffff"><span style="color:#d62728">12</span></p>
+      <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:26px; line-height:1.3; color:#d9d9d9">cracks missed · not yet analysed for v3</p>
+    </div>
+  </div>
+  <div style="position:absolute; top:676px; left:980px; width:812px; display:flex; flex-direction:row; gap:28px; align-items:center; padding:20px 28px; background:#0b0b0bb3">
+    <div style="width:28px; height:28px; display:flex; flex-direction:column; flex:0 0 auto; background:#a6a6a6">
+    </div>
+    <div style="display:flex; flex-direction:column; gap:4px">
+      <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:80px; font-weight:800; line-height:1; color:#ffffff">7<span style="color:#6f6f6f">/653</span></p>
+      <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:26px; line-height:1.3; color:#d9d9d9">false alarms on walls without a crack · outline = correctly clean</p>
+    </div>
+  </div>
+  <div style="position:absolute; top:850px; left:104px; width:1712px; height:140px; background:#0b0b0bb3"></div>
+  <p style="position:absolute; top:858px; left:128px; width:600px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:22px; font-weight:700; text-align:left; white-space:nowrap; color:#d9d9d9">TRAIN · 8,241 PHOTOS</p>
+  <p style="position:absolute; top:858px; left:1300px; width:288px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:22px; font-weight:700; text-align:right; white-space:nowrap; color:#a6a6a6">CHECK · 660</p>
+  <p style="position:absolute; top:858px; left:1592px; width:200px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:22px; font-weight:700; text-align:right; white-space:nowrap; color:#ffffff">TEST · 1,203</p>
+  <div style="position:absolute; top:896px; left:128px; width:1348px; height:14px; background:#6f6f6f"></div>
+  <div style="position:absolute; top:896px; left:1482px; width:108px; height:14px; background:#3a3a3a; border:1px solid #6f6f6f"></div>
+  <div style="position:absolute; top:896px; left:1596px; width:196px; height:14px; background:#f2f2f2"></div>
+  <p style="position:absolute; top:926px; left:128px; width:1664px; font-family:'Source Sans 3', Arial, sans-serif; font-size:24px; color:#a6a6a6">25 rounds · ResNet-34 pre-trained on ImageNet, fine-tuned on CrackSeg9k + crack-seg · 159 brick walls without cracks · laptop GPU</p>
+  <p id="e2-1czgcii" style="position:absolute; bottom:32px; left:128px; width:1664px; font-family:'Source Sans 3', Arial, sans-serif; font-size:24px; color:#7a7a7a">Pixel F1 0.63 · public close-ups, not our own photos yet · docs/experiments/2026-10-29_unet_first_training.md</p>
+  <div id="hud-0" style="position:absolute; top:36px; left:36px; width:44px; height:44px; display:flex; flex-direction:column; border-top:3px solid #6f6f6f; border-left:3px solid #6f6f6f">
+  </div>
+  <div id="hud-1" style="position:absolute; top:36px; left:1840px; width:44px; height:44px; display:flex; flex-direction:column; border-top:3px solid #6f6f6f; border-right:3px solid #6f6f6f">
+  </div>
+  <div id="hud-2" style="position:absolute; top:1000px; left:36px; width:44px; height:44px; display:flex; flex-direction:column; border-bottom:3px solid #6f6f6f; border-left:3px solid #6f6f6f">
+  </div>
+  <div id="hud-3" style="position:absolute; top:1000px; left:1840px; width:44px; height:44px; display:flex; flex-direction:column; border-right:3px solid #6f6f6f; border-bottom:3px solid #6f6f6f">
+  </div>
+  <p id="hud-f" style="position:absolute; top:44px; left:1392px; width:440px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:18px; font-weight:700; letter-spacing:2px; text-align:right; color:#6f6f6f">SECOND LOOK · FRAME 08 / 12</p>
+  <aside>(45 s) Does it work? [Each square is one test photo.] The bar at the bottom is the data. 8,241 photos to learn from: 8,082 public crack close-ups from CrackSeg9k and crack-seg, plus 159 brick walls without cracks so it stops reading mortar joints as cracks. 660 photos only to pick the best of 25 rounds, never to learn from. The model is a U-Net whose ResNet-34 part was pre-trained on ImageNet and then fine-tuned on cracks, on our laptop GPU. And 1,203 test photos it had never seen, run once at the end: these are the squares. On them it found 538 of 550 cracks and raised 7 false alarms on 653 clean walls. We still have to look at the 12 it missed; in the first version the misses were mostly faint hairlines on painted plaster. The real test is on 3 December: the same photos against an engineer's visual check, our non-AI baseline.</aside>
 </section>

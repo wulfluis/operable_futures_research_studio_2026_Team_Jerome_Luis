@@ -1,24 +1,40 @@
-<section id="slums" data-transition="fade" style="display:flex; flex-direction:column; gap:40px; justify-content:space-between; padding:128px 128px 160px; background:#0b0b0b">
-  <img src="/_blob/e220f6bde5a2cd857abaff903635f64a" alt="" style="position:absolute; top:0; left:0; width:1920px; height:1080px">
-  <div style="display:flex; flex-direction:column; gap:20px">
+<section id="slums" data-transition="fade" style="background:#0b0b0b">
+  <img src="/_blob/5793b825a89dacb40980e04a5db1bc12" alt="" style="position:absolute; top:0; left:0; width:1920px; height:1080px">
+  <div style="position:absolute; top:128px; left:128px; width:1664px; display:flex; flex-direction:column; gap:20px">
     <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:26px; font-weight:700; color:#a6a6a6">&nbsp;WHERE IS THE PROBLEM · WHO IS AFFECTED</p>
     <h2 style="font-family:'Source Sans 3', Arial, sans-serif; font-size:76px; font-weight:800; line-height:1.05; text-transform:uppercase; color:#ffffff">Where nobody writes a report.</h2>
   </div>
-  <div style="display:flex; flex-direction:row; gap:32px">
+  <div style="position:absolute; top:320px; left:128px; width:1664px; display:flex; flex-direction:row; gap:32px">
     <div style="display:flex; flex-direction:column; gap:12px; flex:1; padding:28px 0 0; border-top:4px solid #d62728">
-      <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:128px; font-weight:800; line-height:1; color:#ffffff">1.16 bn</p>
-      <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:30px; line-height:1.4; color:#d9d9d9">people lived in slums and informal settlements in 2024</p>
-    </div>
-    <div style="display:flex; flex-direction:column; gap:12px; flex:1; padding:28px 0 0; border-top:4px solid #a6a6a6">
       <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:128px; font-weight:800; line-height:1; color:#ffffff">3 bn+</p>
       <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:30px; line-height:1.4; color:#d9d9d9">people live in inadequate housing</p>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:12px; flex:1; padding:28px 0 0; border-top:4px solid #a6a6a6">
+      <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:128px; font-weight:800; line-height:1; color:#ffffff">1.16 bn</p>
+      <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:30px; line-height:1.4; color:#d9d9d9">people lived in slums and informal settlements in 2024</p>
     </div>
     <div style="display:flex; flex-direction:column; gap:12px; flex:1; padding:28px 0 0; border-top:4px solid #a6a6a6">
       <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:128px; font-weight:800; line-height:1; color:#ffffff">+270 m</p>
       <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:30px; line-height:1.4; color:#d9d9d9">more people in slums than in 2000</p>
     </div>
   </div>
-  <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:34px; font-weight:600; line-height:1.4; color:#ffffff">Ageing concrete at the end of its life cycle. Residents see cracks every day but cannot tell harmless from dangerous. <span style="color:#d62728">Engineers are too few to visit every building.</span></p>
-  <p style="position:absolute; bottom:64px; left:128px; width:1664px; font-family:'Source Sans 3', Arial, sans-serif; font-size:24px; color:#7a7a7a">Source: UN-Habitat, SDG 11 Global Report 2026, key facts and press release, 9 Jul 2026 [61, 62].</p>
-  <aside>(40 s) Two buildings, two countries: the cracks were seen and nobody acted. Now scale it. UN-Habitat counts 1.16 billion people in slums and informal settlements, more than 3 billion in inadequate housing, 270 million more slum dwellers than in 2000. Ageing concrete at the end of its life cycle. The people affected see the cracks every day, but cannot tell a harmless one from a dangerous one, and engineers are too few to visit every building.</aside>
+  <p style="position:absolute; top:870px; left:128px; width:1664px; font-family:'Source Sans 3', Arial, sans-serif; font-size:34px; font-weight:600; line-height:1.4; color:#ffffff">Residents see cracks every day <span style="color:#d62728">but cannot tell harmless from dangerous.</span></p>
+<x-embed style="position:absolute; top:640px; left:128px; width:1664px; height:90px"><!doctype html>
+<html><head><meta charset="utf-8"><style>html,body{margin:0;height:100%;background:transparent;overflow:hidden}canvas{width:100%;height:100%;display:block}</style></head><body>
+<canvas id="c"></canvas><script>
+var c=document.getElementById("c"),g=c.getContext("2d"),DP=window.devicePixelRatio||1,t0=Date.now();function rs(){c.width=c.clientWidth*DP;c.height=c.clientHeight*DP;g.setTransform(DP*c.clientWidth/1664,0,0,DP*c.clientHeight/90,0,0)}rs();onresize=rs;function cl(v){return v<0?0:v>1?1:v}function rnd(n){var x=Math.sin(n*127.1)*43758.5;return x-Math.floor(x)}
+function f(){var t=(Date.now()-t0)/1000;g.clearRect(0,0,1664,90);
+for(var i=0;i<100;i++){var r=Math.floor(i/50),q=i%50,x=q*33.4+12,y=r*44+20,k=cl((t-.6-i*.03)/.35),m=cl((t-2.4-i*.04)/.35);
+g.beginPath();g.arc(x,y,11,0,6.3);g.strokeStyle="#6f6f6f";g.lineWidth=2;g.stroke();
+if(i<37&&k>0){g.globalAlpha=k;g.fillStyle="#d62728";g.fill();g.globalAlpha=1;if(i<14&&m>0){g.globalAlpha=m;g.beginPath();g.arc(x,y,5,0,6.3);g.fillStyle="#a6a6a6";g.fill();g.globalAlpha=1}}}
+if(t<4)requestAnimationFrame(f)}f();
+</script></body></html></x-embed>
+  <p style="position:absolute; top:748px; left:128px; width:1664px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:22px; font-weight:700; color:#a6a6a6">1 DOT = 1 % OF HUMANITY · <span style="color:#d62728">● MORE THAN 1 IN 3 IN INADEQUATE HOUSING</span> · <span style="color:#d9d9d9">◉ 1 IN 7 OF ALL PEOPLE IN A SLUM</span></p>
+  <p style="position:absolute; bottom:64px; left:128px; width:1664px; font-family:'Source Sans 3', Arial, sans-serif; font-size:24px; color:#7a7a7a">Source: UN-Habitat, SDG 11 Global Report 2026, key facts and press release, 9 Jul 2026 [61, 62]. Dots: share of a world population of about 8.2 bn, rounded.</p>
+  <div id="hud-0" style="position:absolute; top:36px; left:36px; width:44px; height:44px; border-top:3px solid #6f6f6f; border-left:3px solid #6f6f6f"></div>
+  <div id="hud-1" style="position:absolute; top:36px; left:1840px; width:44px; height:44px; border-top:3px solid #6f6f6f; border-right:3px solid #6f6f6f"></div>
+  <div id="hud-2" style="position:absolute; top:1000px; left:36px; width:44px; height:44px; border-bottom:3px solid #6f6f6f; border-left:3px solid #6f6f6f"></div>
+  <div id="hud-3" style="position:absolute; top:1000px; left:1840px; width:44px; height:44px; border-bottom:3px solid #6f6f6f; border-right:3px solid #6f6f6f"></div>
+  <p id="hud-f" style="position:absolute; top:44px; left:1392px; width:440px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:18px; font-weight:700; letter-spacing:2px; text-align:right; color:#6f6f6f">SECOND LOOK · FRAME 04 / 12</p>
+  <aside>(40 s) Two buildings, two countries: the cracks were seen and nobody acted. Now scale it. [The dots: each one is one per cent of humanity.] UN-Habitat counts more than 3 billion people in inadequate housing, 1.16 billion of them in slums and informal settlements, 270 million more slum dwellers than in 2000. Ageing concrete at the end of its life cycle. The people affected see the cracks every day, but cannot tell a harmless one from a dangerous one, and engineers are too few to visit every building.</aside>
 </section>

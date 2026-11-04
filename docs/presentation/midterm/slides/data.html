@@ -1,27 +1,62 @@
-<section id="data" data-transition="fade" style="display:flex; flex-direction:column; gap:40px; justify-content:space-between; padding:128px 128px 160px; background:#0b0b0b">
-  <img src="/_blob/d7d2f22ad46479b4f6a398b4b269706c" alt="" style="position:absolute; top:0; left:0; width:1920px; height:1080px">
-  <div style="display:flex; flex-direction:column; gap:20px">
-    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:26px; font-weight:700; color:#a6a6a6">DATA</p>
-    <h2 style="font-family:'Source Sans 3', Arial, sans-serif; font-size:76px; font-weight:800; line-height:1.05; text-transform:uppercase; color:#ffffff">What data exists, and what doesn’t.</h2>
+<section id="data" data-transition="fade" style="background:#0b0b0b">
+  <img src="/_blob/4e4199b4651635d7fd18abb8ce1843d5" alt="" style="position:absolute; top:0; left:0; width:1920px; height:1080px">
+  <div style="position:absolute; top:128px; left:128px; width:1664px; display:flex; flex-direction:column; gap:20px">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:26px; font-weight:700; color:#a6a6a6">THE AI · WHAT THE COMPUTER SEES</p>
+    <h2 style="font-family:'Source Sans 3', Arial, sans-serif; font-size:76px; font-weight:800; line-height:1.05; text-transform:uppercase; color:#ffffff">One crack, five steps.</h2>
   </div>
-  <div style="display:flex; flex-direction:row; gap:24px">
-    <div style="display:flex; flex-direction:column; gap:14px; flex:1; padding:32px; background:#0b0b0bd9; border:1px solid #3a3a3a">
-      <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#d62728">TRAIN · PUBLIC</p>
-      <h3 style="font-family:'Source Sans 3', Arial, sans-serif; font-size:36px; font-weight:800; text-transform:uppercase; color:#ffffff">Crack pixels</h3>
-      <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:26px; line-height:1.4; color:#d9d9d9">9,441 photos with crack masks (CrackSeg9k, crack-seg), plus walls without cracks (METU, SDNET2018, Darbhanga brick).</p>
-    </div>
-    <div style="display:flex; flex-direction:column; gap:14px; flex:1; padding:32px; background:#0b0b0bd9; border:1px solid #3a3a3a">
-      <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#a6a6a6">TEST · CLOSEST TO REALITY</p>
-      <h3 style="font-family:'Source Sans 3', Arial, sans-serif; font-size:36px; font-weight:800; text-transform:uppercase; color:#ffffff">Damaged buildings</h3>
-      <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:26px; line-height:1.4; color:#d9d9d9">Engineer surveys after Haiti 2010 and Nepal 2015: light, moderate, severe. One rating per building, no scale.</p>
-    </div>
-    <div style="display:flex; flex-direction:column; gap:14px; flex:1; padding:32px; background:#0b0b0bd9; border:1px dashed #d62728">
-      <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#d62728">MISSING · WE COLLECT</p>
-      <h3 style="font-family:'Source Sans 3', Arial, sans-serif; font-size:36px; font-weight:800; text-transform:uppercase; color:#ffffff">Rated cracks in mm</h3>
-      <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:26px; line-height:1.4; color:#d9d9d9">Phone photos with a scale card, each crack rated by an engineer. No public dataset has this.</p>
-    </div>
+<x-embed style="position:absolute; top:300px; left:128px; width:1664px; height:340px"><!doctype html>
+<html><head><meta charset="utf-8"><style>html,body{margin:0;height:100%;background:transparent;overflow:hidden}canvas{width:100%;height:100%;display:block}</style></head><body>
+<canvas id="c"></canvas><script>
+var c=document.getElementById("c"),g=c.getContext("2d"),DP=window.devicePixelRatio||1,t0=Date.now();function rs(){c.width=c.clientWidth*DP;c.height=c.clientHeight*DP;g.setTransform(DP*c.clientWidth/1664,0,0,DP*c.clientHeight/340,0,0)}rs();onresize=rs;function cl(v){return v<0?0:v>1?1:v}function rnd(n){var x=Math.sin(n*127.1)*43758.5;return x-Math.floor(x)}
+var CR=[[40,24],[70,62],[62,98],[96,130],[118,176],[106,206],[140,236],[150,278]],BR=[[96,130],[138,138],[170,128],[204,150]];
+var N=5,PW=300,G=(1664-5*PW)/4,T=9.5;
+function pth(o,col,w,al,pts){g.beginPath();pts.forEach(function(p,i){i?g.lineTo(o+p[0]*1.0,20+p[1]):g.moveTo(o+p[0],20+p[1])});g.strokeStyle=col;g.lineWidth=w;g.globalAlpha=al;g.lineJoin="round";g.lineCap="round";g.stroke();g.globalAlpha=1}
+function both(o,col,w,al){pth(o,col,w,al,CR);pth(o,col,w*.7,al,BR)}
+function photo(o,al){g.globalAlpha=al;g.fillStyle="#2b2b2b";g.fillRect(o,20,PW,PW);for(var j=0;j<420;j++){var v=40+Math.round(rnd(j)*45);g.fillStyle="rgb("+v+","+v+","+v+")";g.fillRect(o+rnd(j+.3)*PW,20+rnd(j+.6)*PW,1+rnd(j+.9)*3,1+rnd(j+.2)*3)}g.globalAlpha=1;both(o-0,"#0e0e0e",5,al);both(o,"#555",1.2,al*.6)}
+function corners(o,col){g.strokeStyle=col;g.lineWidth=3;g.beginPath();var a=o-8,b=12,c2=o+PW+8,d=20+PW+8,k=26;[[a,b,1,1],[c2,b,-1,1],[a,d,1,-1],[c2,d,-1,-1]].forEach(function(e){g.moveTo(e[0],e[1]+e[3]*k);g.lineTo(e[0],e[1]);g.lineTo(e[0]+e[2]*k,e[1])});g.stroke()}
+function lab(o,s,col){g.font="bold 15px Consolas,monospace";g.fillStyle=col;g.fillText(s,o+10,40)}
+function panel(i,o){if(i==0){photo(o,1);lab(o,"RGB · 1 PHOTO","#d9d9d9")}
+if(i==1){photo(o,.3);[[34,.06],[22,.12],[12,.3],[5,1]].forEach(function(q){both(o,"#d62728",q[0],q[1])});both(o,"#ffd0d0",1.5,.8);
+var gr=g.createLinearGradient(0,60,0,300);gr.addColorStop(0,"#d62728");gr.addColorStop(1,"#1a1a1a");g.fillStyle=gr;g.fillRect(o+PW-22,60,10,240);lab(o,"P(CRACK) PER PIXEL","#d9d9d9")}
+if(i==2){g.fillStyle="#000";g.fillRect(o,20,PW,PW);both(o,"#fff",7,1);lab(o,"MASK · ABOVE THRESHOLD","#a6a6a6")}
+if(i==3){g.fillStyle="#000";g.fillRect(o,20,PW,PW);both(o,"#3a3a3a",7,1);pth(o,"#d62728",2.5,1,CR);[CR[0],CR[CR.length-1]].forEach(function(p){g.beginPath();g.arc(o+p[0],20+p[1],6,0,6.3);g.strokeStyle="#fff";g.lineWidth=2;g.stroke()});
+g.font="bold 22px Consolas,monospace";g.fillStyle="#fff";g.fillText("212 px",o+170,230);lab(o,"LONGEST LINE","#a6a6a6")}
+if(i==4){g.fillStyle="#000";g.fillRect(o,20,PW,PW);g.font="16px Consolas,monospace";g.fillStyle="#6f6f6f";g.fillText("< 50 px     NO CRACK",o+24,92);g.fillText("50–150 px   EXPERT",o+24,122);g.fillStyle="#fff";g.fillText("≥ 150 px    CRACK FOUND",o+24,152);
+g.fillStyle="#d62728";g.fillRect(o+24,190,PW-48,70);g.fillStyle="#fff";g.font="bold 28px Consolas,monospace";g.fillText("CRACK FOUND",o+56,236);lab(o,"RULE · NO AI","#a6a6a6")}}
+function f(){var t=T-.7;g.clearRect(0,0,1664,340);
+for(var i=0;i<N;i++){var o=i*(PW+G),s=t-.3-i*1.1,k=cl(s/.8);
+corners(o,k>0&&k<1?"#d62728":"#3a3a3a");if(k<=0)continue;
+g.save();g.beginPath();g.rect(o,20,PW,PW*k);g.clip();panel(i,o);g.restore();
+if(k<1){g.fillStyle="#d62728";g.fillRect(o,20+PW*k-2,PW,3)}
+if(i<N-1&&k>=1){var x=o+PW+G/2;g.strokeStyle="#6f6f6f";g.lineWidth=3;g.beginPath();g.moveTo(x-8,158);g.lineTo(x+6,170);g.lineTo(x-8,182);g.stroke()}}
+}f();onresize=function(){rs();f()};
+</script></body></html></x-embed>
+  <div style="position:absolute; top:670px; left:128px; width:300px; display:flex; flex-direction:column; gap:8px">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:22px; font-weight:700; color:#a6a6a6">01 · PHOTO</p>
+    <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:28px; font-weight:600; line-height:1.25; color:#ffffff">What the resident sends</p>
   </div>
-  <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:34px; font-weight:600; line-height:1.4; color:#ffffff">AI can learn to find crack pixels. <span style="color:#d62728">It cannot invent an engineer’s rating, so we don’t.</span></p>
-  <p style="position:absolute; bottom:64px; left:128px; width:1664px; font-family:'Source Sans 3', Arial, sans-serif; font-size:24px; color:#7a7a7a">Every source traceable and licensed, ranked by fit to ageing informal buildings: docs/data_map.md, docs/sources.md [22, 25, 30, 33, 36, 41, 42].</p>
-  <aside>(45 s) What data exists? Enough public data to teach a model to find crack pixels: 9,441 photos with crack masks, plus walls without cracks. Closest to reality: engineer surveys after the Haiti and Nepal earthquakes, but one rating per building and no scale. What is missing is exactly what triage needs: a crack measured in millimetres and rated by an engineer. No public dataset has it, so we collect it ourselves with a printed scale card. AI can find crack pixels; it cannot invent an engineer's rating, and we don't let it.</aside>
+  <div style="position:absolute; top:670px; left:469px; width:300px; display:flex; flex-direction:column; gap:8px">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:22px; font-weight:700; color:#d62728">02 · U-NET · AI</p>
+    <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:28px; font-weight:600; line-height:1.25; color:#ffffff">Chance per pixel that it is crack</p>
+  </div>
+  <div style="position:absolute; top:670px; left:810px; width:300px; display:flex; flex-direction:column; gap:8px">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:22px; font-weight:700; color:#a6a6a6">03 · MASK</p>
+    <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:28px; font-weight:600; line-height:1.25; color:#ffffff">Crack pixels kept</p>
+  </div>
+  <div style="position:absolute; top:670px; left:1151px; width:300px; display:flex; flex-direction:column; gap:8px">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:22px; font-weight:700; color:#a6a6a6">04 · MEASURE</p>
+    <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:28px; font-weight:600; line-height:1.25; color:#ffffff">Longest crack line in pixels</p>
+  </div>
+  <div style="position:absolute; top:670px; left:1492px; width:300px; display:flex; flex-direction:column; gap:8px">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:22px; font-weight:700; color:#a6a6a6">05 · VERDICT · RULE</p>
+    <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:28px; font-weight:600; line-height:1.25; color:#ffffff">≥ 150 px → crack found</p>
+  </div>
+  <p style="position:absolute; top:860px; left:128px; width:1664px; font-family:'Source Sans 3', Arial, sans-serif; font-size:34px; font-weight:600; line-height:1.4; color:#ffffff">The AI only draws the crack. <span style="color:#d62728">A written rule reads it.</span></p>
+  <p style="position:absolute; bottom:64px; left:128px; width:1664px; font-family:'Source Sans 3', Arial, sans-serif; font-size:24px; color:#7a7a7a">Schematic example; the 212 px line is illustrative. Real photos and masks in the live demo. decide.py: ≥ 150 px crack found · &lt; 50 px no crack · between: expert needed.</p>
+  <div id="hud-0" style="position:absolute; top:36px; left:36px; width:44px; height:44px; border-top:3px solid #6f6f6f; border-left:3px solid #6f6f6f"></div>
+  <div id="hud-1" style="position:absolute; top:36px; left:1840px; width:44px; height:44px; border-top:3px solid #6f6f6f; border-right:3px solid #6f6f6f"></div>
+  <div id="hud-2" style="position:absolute; top:1000px; left:36px; width:44px; height:44px; border-bottom:3px solid #6f6f6f; border-left:3px solid #6f6f6f"></div>
+  <div id="hud-3" style="position:absolute; top:1000px; left:1840px; width:44px; height:44px; border-bottom:3px solid #6f6f6f; border-right:3px solid #6f6f6f"></div>
+  <p id="hud-f" style="position:absolute; top:44px; left:1392px; width:440px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:18px; font-weight:700; letter-spacing:2px; text-align:right; color:#6f6f6f">SECOND LOOK · FRAME 07 / 12</p>
+  <aside>(40 s) This is what the computer actually sees. One phone photo. Step two is the only AI: the U-Net gives every pixel a probability that it is crack, the red heat map. Step three keeps the crack pixels: the mask. Step four measures the longest crack line in pixels. Step five is a written rule, not AI: at least 150 pixels means crack found, under 50 means no crack, anything in between goes to an expert. The AI only draws the crack; a written rule reads it. You will see this on real photos in the live demo.</aside>
 </section>

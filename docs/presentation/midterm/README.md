@@ -1,13 +1,12 @@
 # Midterm presentation (6 Nov 2026)
 
-Live deck (private, share it from the page): https://claude.ai/artifact/QexYufRijMQWAu436T5kbj
+Live deck (private, share it from the page): https://claude.ai/artifact/4jxzfBi5ixe1hfZBUmH4yb
 
-This folder is a copy of its source, saved on 31 Oct 2026:
-- `deck.json`: slide order (12 slides) and fonts.
-- `slides/`: one HTML file per slide. Slides 2 and 3 hold the Surfside and Rana Plaza animations, drawn as 3D wireframes (31 Oct).
-- `embeds/`: those two animations on their own, in 3D (`*_3d.html`, made by `build_3d.py`: a small wireframe renderer, no library, since the slides allow no network) and the earlier 2D versions (`*_2d.html`), to swap back if needed. Open a `*_3d.html` with `#11` after the name to jump ahead in the story (the number counts story steps of 0.7 s).
-- `assets/`: the app's crack (`crack.svg`, cover and last slide), the cracked line (`underline.svg`) and the red-progress cracks for slides 2 to 12 (`crack12_NN.svg`).
-- `crack_progress.py`: makes the cover crack and the red-progress cracks from `src/app/background.py`, both ends faded into the black as in the app; set `N` to the number of slides.
+This folder is a copy of the deck's source, saved on 4 Nov 2026 (the version presented):
+- `deck.json`: slide order (12 slides), sections and fonts.
+- `slides/`: one HTML file per slide: cover, Surfside, Rana Plaza, slums, product, pipeline, data, model, loop, risk matrix, next, thank you. The animations (cover word mark, Surfside and Rana Plaza 3D wireframes, slum dots, product flow, risk matrix, thank-you) are drawn inside the slides, with no library and no network.
+- `assets/`: the app's crack and the red-progress cracks behind the slides (`crack.svg`, `crack12_NN.svg`, made by `crack_progress.py` from `src/app/background.py`), and the fixed QR for the app link (`qr_fixed.png`, D40).
 
-Facts and numbers on the slides are cited by number from `docs/sources.md` ([15], [41], [57] to [63]).
-Still open: the news clip. The QR is not on the slides: after the talk it is shown full screen from the app (`localhost:8501/?qr`), since it changes at each app launch.
+Background images in the slides point to the deck's own stored copies (`/_blob/...`), so the slides open fully only in the live deck or its HTML download.
+Facts and numbers on the slides are cited by number from `docs/sources.md`.
+Submission: the deck's HTML download (plays every animation offline in Chrome or Edge) and a PDF export, on Google Drive.

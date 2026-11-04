@@ -1,34 +1,51 @@
-<section id="loop" data-transition="fade" style="display:flex; flex-direction:column; gap:40px; justify-content:space-between; padding:128px 128px 160px; background:#0b0b0b">
-  <img src="/_blob/dfac34b7b1939156d2131a50d6cf16d0" alt="" style="position:absolute; top:0; left:0; width:1920px; height:1080px">
-  <div style="display:flex; flex-direction:column; gap:20px">
+<section id="loop" data-transition="fade" style="background:#0b0b0b">
+  <img src="/_blob/38d6a733397b9f651d638d9289d29d20" alt="" style="position:absolute; top:0; left:0; width:1920px; height:1080px">
+  <div style="position:absolute; top:128px; left:128px; width:1664px; display:flex; flex-direction:column; gap:20px">
     <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:26px; font-weight:700; color:#a6a6a6">HUMAN IN THE LOOP · ETHICS</p>
-    <h2 style="font-family:'Source Sans 3', Arial, sans-serif; font-size:76px; font-weight:800; line-height:1.05; text-transform:uppercase; color:#ffffff">Every correction makes the next answer better.</h2>
+    <h2 style="font-family:'Source Sans 3', Arial, sans-serif; font-size:76px; font-weight:800; line-height:1.05; text-transform:uppercase; color:#ffffff">Every correction makes it better.</h2>
   </div>
-  <div style="display:flex; flex-direction:row; gap:16px; align-items:center">
-    <div style="display:flex; flex-direction:column; gap:12px; flex:1; padding:28px; background:#0b0b0bd9; border:1px solid #3a3a3a">
-      <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#a6a6a6">01</p>
-      <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:32px; font-weight:600; line-height:1.3; color:#ffffff">Resident sends a photo</p>
-    </div>
-    <x-shape kind="arrow-right" style="width:56px; height:28px; background:#6f6f6f"></x-shape>
-    <div style="display:flex; flex-direction:column; gap:12px; flex:1; padding:28px; background:#0b0b0bd9; border:1px solid #3a3a3a">
-      <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#a6a6a6">02</p>
-      <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:32px; font-weight:600; line-height:1.3; color:#ffffff">Model and rules answer</p>
-    </div>
-    <x-shape kind="arrow-right" style="width:56px; height:28px; background:#6f6f6f"></x-shape>
-    <div style="display:flex; flex-direction:column; gap:12px; flex:1; padding:28px; background:#0b0b0bd9; border:1px solid #d62728">
-      <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#d62728">03</p>
-      <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:32px; font-weight:600; line-height:1.3; color:#ffffff">Engineer confirms or corrects</p>
-    </div>
-    <x-shape kind="arrow-right" style="width:56px; height:28px; background:#6f6f6f"></x-shape>
-    <div style="display:flex; flex-direction:column; gap:12px; flex:1; padding:28px; background:#0b0b0bd9; border:1px solid #3a3a3a">
-      <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#a6a6a6">04</p>
-      <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:32px; font-weight:600; line-height:1.3; color:#ffffff">Corrections retrain the model</p>
-    </div>
+<x-embed style="position:absolute; top:300px; left:128px; width:1664px; height:680px"><!doctype html>
+<html><head><meta charset="utf-8"><style>html,body{margin:0;height:100%;background:transparent;overflow:hidden}canvas{width:100%;height:100%;display:block}</style></head><body>
+<canvas id="c"></canvas><script>
+var c=document.getElementById("c"),g=c.getContext("2d"),D=window.devicePixelRatio||1,W,H;
+function rs(){W=c.clientWidth;H=c.clientHeight;c.width=W*D;c.height=H*D;g.setTransform(D*W/1664,0,0,D*H/680,0,0)}rs();onresize=rs;
+var cx=972,cy=340,rx=480,ry=230,t0=Date.now();
+function pt(a){return[cx+rx*Math.cos(a),cy+ry*Math.sin(a)]}
+function head(x,y,dx,dy,s){var l=Math.hypot(dx,dy);dx/=l;dy/=l;g.beginPath();g.moveTo(x+dx*s,y+dy*s);g.lineTo(x-dx*s-dy*s*.8,y-dy*s+dx*s*.8);g.lineTo(x-dx*s+dy*s*.8,y-dy*s-dx*s*.8);g.closePath();g.fill()}
+function f(){var t=(Date.now()-t0)/1000;g.clearRect(0,0,1664,680);
+g.strokeStyle="#6f6f6f";g.fillStyle="#6f6f6f";g.lineWidth=4;g.setLineDash([]);g.beginPath();g.ellipse(cx,cy,rx,ry,0,0,6.2832);g.stroke();
+[-.785,.785,2.356,3.927].forEach(function(a){var p=pt(a);head(p[0],p[1],-rx*Math.sin(a),ry*Math.cos(a),14)});
+g.setLineDash([10,8]);g.beginPath();g.moveTo(380,110);g.lineTo(762,110);g.stroke();g.setLineDash([]);head(766,110,1,0,14);
+for(var k=0;k<3;k++){var a=-1.5708+((t*.55+k*.08)%6.2832),p=pt(a);g.globalAlpha=1-k*.35;g.fillStyle="#ffffff";g.beginPath();g.arc(p[0],p[1],8-k*2,0,6.3);g.fill()}
+g.globalAlpha=1;requestAnimationFrame(f)}f();
+</script></body></html></x-embed>
+  <div style="position:absolute; top:345px; left:128px; width:380px; display:flex; flex-direction:column; gap:10px; padding:22px 26px; background:#0b0b0b; border:2px dashed #6f6f6f">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:22px; font-weight:700; color:#a6a6a6">01 · START</p>
+    <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:30px; font-weight:600; line-height:1.25; color:#ffffff">Resident sends a photo + survey answers</p>
   </div>
-  <div style="display:flex; flex-direction:row; gap:48px">
-    <p style="flex:1; font-family:'Source Sans 3', Arial, sans-serif; font-size:30px; line-height:1.4; color:#d9d9d9"><span style="color:#ffffff"><b>Photos belong to the household:</b></span> consent first, faces and addresses removed, never published.</p>
-    <p style="flex:1; font-family:'Source Sans 3', Arial, sans-serif; font-size:30px; line-height:1.4; color:#d9d9d9"><span style="color:#ffffff"><b>A new model ships only</b></span> if it misses no more cracks and raises fewer false alarms on the same test.</p>
+  <div style="position:absolute; top:345px; left:900px; width:400px; display:flex; flex-direction:column; gap:10px; padding:22px 26px; background:#0b0b0b; border:1px solid #6f6f6f">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:22px; font-weight:700; color:#a6a6a6">02 · COMPUTER VISION</p>
+    <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:30px; font-weight:600; line-height:1.25; color:#ffffff">CrackSeg9k · U-Net · PyTorch</p>
   </div>
+  <div style="position:absolute; top:575px; left:1392px; width:400px; display:flex; flex-direction:column; gap:10px; padding:22px 26px; background:#0b0b0b; border:1px solid #6f6f6f">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:22px; font-weight:700; color:#a6a6a6">03 · RULES</p>
+    <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:30px; font-weight:600; line-height:1.25; color:#ffffff">Risk matrix: pattern × width → category</p>
+  </div>
+  <div style="position:absolute; top:805px; left:900px; width:400px; display:flex; flex-direction:column; gap:10px; padding:22px 26px; background:#0b0b0b; border:2px solid #d62728">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:22px; font-weight:700; color:#d62728">04 · HUMAN</p>
+    <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:30px; font-weight:600; line-height:1.25; color:#ffffff">Engineer confirms or corrects</p>
+  </div>
+  <div style="position:absolute; top:575px; left:408px; width:400px; display:flex; flex-direction:column; gap:10px; padding:22px 26px; background:#0b0b0b; border:1px solid #6f6f6f">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:22px; font-weight:700; color:#a6a6a6">05 · RETRAIN</p>
+    <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:30px; font-weight:600; line-height:1.25; color:#ffffff">Corrections retrain the model</p>
+  </div>
+  <p style="position:absolute; top:560px; left:850px; width:500px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:44px; font-weight:700; letter-spacing:4px; text-align:center; color:#a6a6a6">LOOP</p>
+  <p style="position:absolute; top:630px; left:850px; width:500px; font-family:'Source Sans 3', Arial, sans-serif; font-size:24px; line-height:1.35; text-align:center; color:#d9d9d9">A new model ships only if it misses no more cracks and raises fewer false alarms.</p>
   <p style="position:absolute; bottom:64px; left:128px; width:1664px; font-family:'Source Sans 3', Arial, sans-serif; font-size:24px; color:#7a7a7a">Engineering partners: Engineers Without Borders and a third-party structural engineer.</p>
-  <aside>(40 s) The engineer is not a backup; they are part of the system. Every Category 3 and every referral goes to an engineer, and their corrections become training data. A new model only replaces the old one if, on the same test, it misses no more cracks and raises fewer false alarms: that is how v3 replaced v1. And photos belong to the household: consent first, faces and addresses removed, never published.</aside>
+  <div id="hud-0" style="position:absolute; top:36px; left:36px; width:44px; height:44px; border-top:3px solid #6f6f6f; border-left:3px solid #6f6f6f"></div>
+  <div id="hud-1" style="position:absolute; top:36px; left:1840px; width:44px; height:44px; border-top:3px solid #6f6f6f; border-right:3px solid #6f6f6f"></div>
+  <div id="hud-2" style="position:absolute; top:1000px; left:36px; width:44px; height:44px; border-bottom:3px solid #6f6f6f; border-left:3px solid #6f6f6f"></div>
+  <div id="hud-3" style="position:absolute; top:1000px; left:1840px; width:44px; height:44px; border-bottom:3px solid #6f6f6f; border-right:3px solid #6f6f6f"></div>
+  <p id="hud-f" style="position:absolute; top:44px; left:1392px; width:440px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:18px; font-weight:700; letter-spacing:2px; text-align:right; color:#6f6f6f">SECOND LOOK · FRAME 09 / 12</p>
+  <aside>(40 s) The engineer is not a backup; they are part of the system. It always starts with a resident: a photo and a few survey answers. Computer vision draws the crack: a U-Net in PyTorch, trained on CrackSeg9k. The rules read it through the risk matrix: crack pattern times width gives the category. An engineer confirms or corrects every Category 3 and every referral. Those corrections retrain the model, and the loop comes back to computer vision, a little better each time. A new model only replaces the old one if, on the same test, it misses no more cracks and raises fewer false alarms: that is how v3 replaced v1.</aside>
 </section>

@@ -1,10 +1,10 @@
-<section id="next" data-transition="fade" style="display:flex; flex-direction:column; gap:40px; justify-content:space-between; padding:128px 128px 160px; background:#0b0b0b">
-  <img src="/_blob/8bb592885ec3d95990cf37ae09678fef" alt="" style="position:absolute; top:0; left:0; width:1920px; height:1080px">
-  <div style="display:flex; flex-direction:column; gap:20px">
+<section id="next" data-transition="fade" style="background:#0b0b0b">
+  <img src="/_blob/29ea1d2c8f0a48faf23a36364a817531" alt="" style="position:absolute; top:0; left:0; width:1920px; height:1080px">
+  <div style="position:absolute; top:128px; left:128px; width:1664px; display:flex; flex-direction:column; gap:20px">
     <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:26px; font-weight:700; color:#a6a6a6">ROADMAP</p>
     <h2 style="font-family:'Source Sans 3', Arial, sans-serif; font-size:76px; font-weight:800; line-height:1.05; text-transform:uppercase; color:#ffffff">From a crack line to a measured crack.</h2>
   </div>
-  <div style="display:flex; flex-direction:row">
+  <div style="position:absolute; top:300px; left:128px; width:1664px; display:flex; flex-direction:row">
     <div style="display:flex; flex-direction:column; gap:12px; flex:1; padding:28px 24px 0 0; border-top:4px solid #d62728">
       <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; color:#d62728">NOW · 6 NOV</p>
       <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:30px; line-height:1.4; color:#ffffff">Quality gate, crack model v3, rules, live demo</p>
@@ -22,6 +22,62 @@
       <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:30px; line-height:1.4; color:#ffffff">Prototype, proof of concept, ethics</p>
     </div>
   </div>
+  <div style="position:absolute; top:490px; left:128px; width:1664px; height:70px; background:#0b0b0be6"></div>
+  <div style="position:absolute; top:820px; left:128px; width:1664px; height:140px; background:#0b0b0be6"></div>
+  <p style="position:absolute; top:510px; left:128px; width:1664px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; font-weight:700; color:#d62728">NEXT · CRACK SURVEY · DESIGNED WITH ENGINEERS</p>
+<x-embed style="position:absolute; top:560px; left:128px; width:1664px; height:260px"><!doctype html>
+<html><head><meta charset="utf-8"><style>html,body{margin:0;height:100%;background:transparent;overflow:hidden}canvas{width:100%;height:100%;display:block}</style></head><body>
+<canvas id="c"></canvas><script>
+var c=document.getElementById("c"),g=c.getContext("2d"),D=window.devicePixelRatio||1,W,H,t0=Date.now();
+function rs(){W=c.clientWidth;H=c.clientHeight;c.width=W*D;c.height=H*D;g.setTransform(D*W/1664,0,0,D*H/260,0,0)}rs();onresize=rs;
+function L(p,col,w,dash){g.beginPath();p.forEach(function(q,i){i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1])});g.strokeStyle=col;g.lineWidth=w;g.setLineDash(dash||[]);g.stroke();g.setLineDash([])}
+function R(x,y,w,h,col,lw,dash){L([[x,y],[x+w,y],[x+w,y+h],[x,y+h],[x,y]],col,lw,dash)}
+function tag(x,y,s,a){g.globalAlpha=a;g.font="bold 15px Consolas,monospace";var w=g.measureText(s).width+10;g.fillStyle="#d62728";g.fillRect(x,y-20,w,20);g.fillStyle="#0b0b0b";g.fillText(s,x+5,y-5);g.globalAlpha=1}
+function corners(x,y,w,h){g.strokeStyle="#6f6f6f";g.lineWidth=3;g.beginPath();var k=26;[[x,y,1,1],[x+w,y,-1,1],[x,y+h,1,-1],[x+w,y+h,-1,-1]].forEach(function(e){g.moveTo(e[0],e[1]+e[3]*k);g.lineTo(e[0],e[1]);g.lineTo(e[0]+e[2]*k,e[1])});g.stroke()}
+function rnd(n){var x=Math.sin(n*127.1)*43758.5;return x-Math.floor(x)}
+var CW=520,GX=572,cyc=6;
+function f(){var e=(Date.now()-t0)/1000,t=Math.min(e,4.5);g.clearRect(0,0,1664,260);g.fillStyle="rgba(11,11,11,.9)";g.fillRect(0,0,1664,260);
+for(var i=0;i<3;i++)corners(i*GX+10,10,CW-20,240);
+// 1 material: concrete close-up
+g.save();g.beginPath();g.rect(30,30,480,200);g.clip();
+for(var j=0;j<150;j++){var x=30+rnd(j)*480,y=30+rnd(j+.5)*200,r=2+rnd(j+.2)*7;g.beginPath();g.arc(x,y,r,0,6.3);g.strokeStyle=j%4?"#3a3a3a":"#6f6f6f";g.lineWidth=1.5;g.stroke()}
+g.restore();var k1=Math.min(1,t/1.2);
+L([[230,30],[250,70],[232,105],[262,140],[244,180],[270,230]].slice(0,1+Math.round(k1*5)),"#d62728",4);
+tag(36,54,"CONCRETE",k1);
+// 2 element: frame
+var o=GX;L([[o+60,230],[o+60,70]],"#d9d9d9",3);L([[o+460,230],[o+460,70]],"#d9d9d9",3);L([[o+40,70],[o+480,70]],"#d9d9d9",3);L([[o+40,52],[o+480,52]],"#d9d9d9",3);L([[o+40,52],[o+40,70]],"#d9d9d9",3);L([[o+480,52],[o+480,70]],"#d9d9d9",3);
+R(o+90,100,340,130,"#6f6f6f",1.5);for(var h=110;h<230;h+=20)L([[o+90,h],[o+430,h]],"#3a3a3a",1);
+L([[o+30,230],[o+490,230]],"#6f6f6f",2);
+var a2=Math.max(0,Math.min(1,(t-1.4)/.6));g.globalAlpha=a2;R(o+44,64,32,172,"#d62728",2.5);g.globalAlpha=1;tag(o+44,60,"COLUMN",a2);
+R(o+52,150,16,16,"#d62728",2);
+g.font="14px Consolas,monospace";g.fillStyle="#a6a6a6";g.fillText("BEAM",o+250,46);g.fillText("WALL",o+240,170);g.fillText("SLAB",o+250,250);
+// 3 building
+o=2*GX;var bx=o+150,bw=220;for(var s=0;s<6;s++){var y=230-s*34;R(bx,y-34,bw,34,"#d9d9d9",1.6);for(var w=0;w<5;w++)R(bx+14+w*42,y-26,22,18,"#6f6f6f",1)}
+L([[o+40,230],[o+480,230]],"#6f6f6f",2);
+var a3=Math.max(0,Math.min(1,(t-2.6)/.6));g.globalAlpha=a3;R(bx-6,230-3*34-3,bw+12,40,"#d62728",2.5);g.globalAlpha=1;tag(bx-6,230-3*34-6,"STOREY 3",a3);
+var a4=Math.max(0,Math.min(1,(t-3.4)/.6));g.globalAlpha=a4;g.font="15px Consolas,monospace";g.fillStyle="#d9d9d9";g.fillText("AGE ?",o+390,80);g.fillText("LAST REPAIR ?",o+390,104);L([[o+386,92],[bx+bw+6,120]],"#6f6f6f",1,[4,4]);g.globalAlpha=1;
+// zoom lines
+g.globalAlpha=.8;L([[510,30],[GX+52,150]],"#6f6f6f",1,[5,5]);L([[510,230],[GX+52,166]],"#6f6f6f",1,[5,5]);
+L([[GX+510,30],[bx-6,127]],"#6f6f6f",1,[5,5]);L([[GX+510,230],[bx-6,167]],"#6f6f6f",1,[5,5]);g.globalAlpha=1;
+if(e<4.7)requestAnimationFrame(f)}f();onresize=function(){rs();f()};
+</script></body></html></x-embed>
+  <div style="position:absolute; top:840px; left:128px; width:520px; display:flex; flex-direction:column; gap:8px">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:22px; font-weight:700; color:#a6a6a6">01 · MATERIAL</p>
+    <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:32px; font-weight:600; line-height:1.25; color:#ffffff"><span style="color:#d62728">Concrete only</span></p>
+  </div>
+  <div style="position:absolute; top:840px; left:700px; width:520px; display:flex; flex-direction:column; gap:8px">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:22px; font-weight:700; color:#a6a6a6">02 · ELEMENT</p>
+    <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:32px; font-weight:600; line-height:1.25; color:#ffffff">Column · beam · slab · wall</p>
+  </div>
+  <div style="position:absolute; top:840px; left:1272px; width:520px; display:flex; flex-direction:column; gap:8px">
+    <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:22px; font-weight:700; color:#a6a6a6">03 · BUILDING</p>
+    <p style="font-family:'Source Sans 3', Arial, sans-serif; font-size:32px; font-weight:600; line-height:1.25; color:#ffffff">Storey · age · maintenance history</p>
+  </div>
   <p style="position:absolute; bottom:64px; left:128px; width:1664px; font-family:'Source Sans 3', Arial, sans-serif; font-size:24px; color:#7a7a7a">Second Look v1.0 · Jerome Eid · Luis Sebastian Wulf · IAAC MaAI 2026–27</p>
-  <aside>(30 s) Where next. At the hackathon: width in millimetres from a printed scale card, and the close-up check. On 3 December: our own photos, rated by engineers, so we can compare the AI against an engineer's visual check. Final on 17 December. We close where we started: a repair that conceals a crack without addressing its cause is not a solution, it is a temporary disguise. Thank you.</aside>
+  <div id="hud-0" style="position:absolute; top:36px; left:36px; width:44px; height:44px; border-top:3px solid #6f6f6f; border-left:3px solid #6f6f6f"></div>
+  <div id="hud-1" style="position:absolute; top:36px; left:1840px; width:44px; height:44px; border-top:3px solid #6f6f6f; border-right:3px solid #6f6f6f"></div>
+  <div id="hud-2" style="position:absolute; top:1000px; left:36px; width:44px; height:44px; border-bottom:3px solid #6f6f6f; border-left:3px solid #6f6f6f"></div>
+  <div id="hud-3" style="position:absolute; top:1000px; left:1840px; width:44px; height:44px; border-bottom:3px solid #6f6f6f; border-right:3px solid #6f6f6f"></div>
+  <p id="hud-f" style="position:absolute; top:44px; left:1392px; width:440px; font-family:'JetBrains Mono', 'Courier New', monospace; font-size:18px; font-weight:700; letter-spacing:2px; text-align:right; color:#6f6f6f">SECOND LOOK · FRAME 11 / 12</p>
+  <aside>(40 s) Where next. At the hackathon: width in millimetres from a printed scale card, and the close-up check. On 3 December: our own photos, rated by engineers, so we can compare the AI against an engineer's visual check. Final on 17 December. And one piece we have not started yet: a short survey that goes with every photo. We only look at cracks in concrete, and how severe a crack is depends on where it is: three scales: the material, concrete only; the element, a column, a beam, a slab or a wall; and the building: which storey, how old it is, and how it has been maintained. We will design these questions together with structural engineers, because they know what matters.</aside>
 </section>
