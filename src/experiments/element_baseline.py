@@ -1,6 +1,6 @@
 """Element model, first test: Grounding DINO without training against a ResNet-18 trained on PHI-Net task 6.
 
-Spec: spec/features/element_model.md (D33). Usage, from the repository root:
+Spec: spec/features/element_model.md (D44). Usage, from the repository root:
     python src/experiments/element_baseline.py data/raw/phinet/task6_component_type --method both
     python src/experiments/element_baseline.py data/raw/phinet/task6_component_type --method zero-shot --limit 100
 The folder is the one written by src/experiments/phinet_prepare.py (X_train.npy, y_train.npy, X_test.npy,

@@ -1,6 +1,6 @@
 """One photo in, one measurement out: quality gate, bank card, tilt, crack width and length.
 
-Spec: spec/features/measurement.md (D30, D31). Used by the app (`app.py`) and the command line (`measure_crack.py`).
+Spec: spec/features/measurement.md (D41, D42). Used by the app (`app.py`) and the command line (`measure_crack.py`).
 It returns a measurement and the reasons to retake, never a triage level and never a safety statement: the level
 needs the pattern and the element, and comes from src/triage/matrix.py.
 """

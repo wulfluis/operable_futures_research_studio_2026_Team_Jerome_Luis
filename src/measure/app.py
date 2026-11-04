@@ -3,7 +3,7 @@
 Run, from the repository root:
     streamlit run src/measure/app.py
 Runs on this laptop only. Photos stay in memory and are not stored; "Save result" writes only the overlay and the
-JSON to data/measurements/ (ignored by git). Spec: spec/features/measurement.md (D30, D31).
+JSON to data/measurements/ (ignored by git). Spec: spec/features/measurement.md (D41, D42).
 """
 
 import io

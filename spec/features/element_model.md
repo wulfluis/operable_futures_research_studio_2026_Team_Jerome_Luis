@@ -1,6 +1,6 @@
 # Feature: element model, first test (`src/experiments/element_baseline.py`)
 
-Status: experiment specified and coded (4 Nov 2026), **not run yet**: PHI-Net is on Jerome's PC, not on this laptop (`docs/data_map.md`, section 6). Decision D33. Pipeline step O3 (`spec/features/pipeline.md`).
+Status: experiment specified and coded (4 Nov 2026), **not run yet**: PHI-Net is on Jerome's PC, not on this laptop (`docs/data_map.md`, section 6). Decision D44. Pipeline step O3 (`spec/features/pipeline.md`).
 
 ## Question
 Can a model tell which element an element photo (scale O) shows, well enough that the field worker only has to confirm it? Is an off-the-shelf model without training enough, or do we need to train one?

@@ -1,9 +1,9 @@
 # Feature: crack pattern from written rules (`src/triage/pattern_rules.py`)
 
-Status: draft v0 (4 Nov 2026), in code, tested on synthetic shapes only. Decision D32. Every angle and limit below is illustrative until a structural engineer sets it. The basis is standard reading of crack patterns in reinforced concrete (assumption: to be checked against FEMA 306 and ACI 224R, not yet read, and with the engineer).
+Status: draft v0 (4 Nov 2026), in code, tested on synthetic shapes only. Decision D43. Every angle and limit below is illustrative until a structural engineer sets it. The basis is standard reading of crack patterns in reinforced concrete (assumption: to be checked against FEMA 306 and ACI 224R, not yet read, and with the engineer).
 
 ## Why rules and not a model
-No public dataset labels our seven patterns, and the closest ones (PHI-Net task 8 [53][55], IDEA [56]) label only flexural, shear and a few others (`docs/data_map.md`). Engineers tell most of the patterns apart by **the crack's direction relative to the element, its position on the element, and its form**. Those can be measured, so a written rule can suggest the pattern. That keeps the decision auditable (AGENTS.md rule 5), and a model is needed only for what has data: the crack mask, the element, and spalling.
+No public dataset labels our seven patterns, and the closest ones (PHI-Net task 8 [53][55], IDEA [64]) label only flexural, shear and a few others (`docs/data_map.md`). Engineers tell most of the patterns apart by **the crack's direction relative to the element, its position on the element, and its form**. Those can be measured, so a written rule can suggest the pattern. That keeps the decision auditable (AGENTS.md rule 5), and a model is needed only for what has data: the crack mask, the element, and spalling.
 
 ## What it returns
 A **suggestion**: a pattern key of the risk matrix (or none), `clear` true or false, the rule that fired, and a one-sentence reason. **It never feeds the matrix by itself.** Until the rules are checked against engineer-labelled photos, a field worker confirms or corrects every suggestion, and only a confirmed pattern goes into `triage.matrix.assess()`. An unclear suggestion, or none, means the field worker chooses from the drawings; without a field worker the case goes to an engineer (Expert needed, rule 2).

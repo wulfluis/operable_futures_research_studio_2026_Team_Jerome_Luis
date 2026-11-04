@@ -1,6 +1,6 @@
 """Bank card as the reference: find it in the photo and check whether the photo was taken straight.
 
-Spec: spec/features/measurement.md, decision D31.
+Spec: spec/features/measurement.md, decision D42.
 1. Find four-sided shapes (OpenCV contours on edges and on brightness and colour), on a small copy of the photo.
 2. Keep the shapes that a card (ISO/IEC 7810 ID-1, 85.60 x 53.98 mm) could make, seen at most MAX_TILT_DEG off
    straight: the camera pose is solved (planar PnP) and the card's corners must be reprojected within

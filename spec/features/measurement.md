@@ -1,11 +1,11 @@
 # Feature: crack measurement with a reference object (`src/measure/`)
 
-Status: version 0.2 in code (4 Nov 2026), tested on synthetic images only. Pipeline step P3 "crack reading", the width part, and step P2 "scale and angle" for the bank card (`spec/features/pipeline.md`). Decisions D30, D31. Every threshold is illustrative until tested on the pilot photos.
+Status: version 0.2 in code (4 Nov 2026), tested on synthetic images only. Pipeline step P3 "crack reading", the width part, and step P2 "scale and angle" for the bank card (`spec/features/pipeline.md`). Decisions D41, D42. Every threshold is illustrative until tested on the pilot photos.
 
 ## What it does
 From one crack close-up (scale P) that also shows a reference object of known size, it returns the crack **width in mm with its uncertainty**, the **length in mm**, and warnings. It is a measurement and never a safety statement. Its `matrix_input` (width and uncertainty) feeds `triage.matrix.assess()`.
 
-## The bank card, found automatically (D31, `card.py`)
+## The bank card, found automatically (D42, `card.py`)
 The default reference is a bank-card-sized card (ISO/IEC 7810 ID-1, 85.60 x 53.98 mm: bank, ID, loyalty or an expired card), flat on the wall next to the crack, with the card number and name covered.
 1. **Find.** Four-sided shapes from OpenCV contours (edges and brightness or colour thresholds) on a copy with a long side of 1000 px.
 2. **Is it a card?** For each shape the camera pose is solved (planar PnP, IPPE). The shape counts as a card only if a card of this size, at most 35 degrees off straight, reprojects onto its corners within 2 % of the card's diagonal. A square tile or a long strip does not pass. The largest passing shape is taken.
@@ -50,7 +50,7 @@ A 4-corner reference gives a homography from image pixels to mm in the plane of 
 4. **Uncertainty** = ±1 pixel at the local pixel size [46], plus the scale error from the clicks (±1 px per point, assumption).
 5. **Length.** The longest path along the centre line (main length) and the sum of all branches (total), each smoothed so that pixel staircases do not add length.
 
-## Shape, for the pattern rules (D32)
+## Shape, for the pattern rules (D43)
 Besides width and length, the measurement reports the crack's form: the **angle of the main path to vertical** (0 = vertical, 90 = horizontal, on the wall plane; "vertical" is the image's up-down carried onto the wall, so the phone must be upright), the **straightness** (end-to-end distance / main length), the **coherence** of the local directions along the whole centre line (1 = one direction, 0 = none), the number of **closed cells**, and the **branch ratio** (all branches / main length). `src/triage/pattern_rules.py` reads them (`spec/features/pattern_rules.md`).
 
 ## Rules (illustrative)

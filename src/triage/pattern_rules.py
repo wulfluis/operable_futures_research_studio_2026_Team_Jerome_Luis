@@ -1,6 +1,6 @@
 """Crack pattern suggested by written rules from the crack's shape and the element. Spec: spec/features/pattern_rules.md.
 
-Draft v0 (D32). Every angle and limit is illustrative until a structural engineer sets it. The result is a
+Draft v0 (D43). Every angle and limit is illustrative until a structural engineer sets it. The result is a
 suggestion for the field worker to confirm; it never goes into the risk matrix by itself and never carries a level.
 """
 
