@@ -30,6 +30,14 @@ MAX_REPROJECTION = 0.02  # corner error / card diagonal, for a shape to count as
 TILT_OK_DEG = 10.0  # illustrative
 TILT_RETAKE_DEG = 20.0  # illustrative
 FOCAL_PRIOR = 0.75  # x long side of the photo; assumption
+# Fallback search from straight edge pieces (illustrative): low Canny limits for a light card on a light wall,
+# the longest LINE_MAX lines, each side at least LINE_MIN_SIDE on edges (a finger may hide part), mean LINE_MIN_MEAN
+LINE_CANNY = ((8, 24), (15, 45), (30, 90))
+LINE_MAX = 30
+MIN_EDGE_SCORE, EDGE_SCORE_SLACK = 0.6, 0.25  # illustrative
+MIN_SIDE_CONTRAST = 1.0  # grey levels (illustrative)
+BORDER_FRAC = 0.005  # share of the long side: a candidate closer to the photo's edge is rejected
+LINE_MIN_SIDE, LINE_MIN_MEAN = 0.45, 0.7
 
 
 @dataclass(frozen=True)
@@ -117,6 +125,88 @@ def _quads(rgb_small) -> list[np.ndarray]:
     return quads
 
 
+def _intersect(l1, l2):
+    """Crossing of two lines given as (unit normal angle theta, distance rho): x cos t + y sin t = rho."""
+    (t1, r1), (t2, r2) = l1, l2
+    A = np.array([[math.cos(t1), math.sin(t1)], [math.cos(t2), math.sin(t2)]])
+    if abs(np.linalg.det(A)) < 1e-6:
+        return None
+    return np.linalg.solve(A, np.array([r1, r2]))
+
+
+def _side_support(edges: np.ndarray, a: np.ndarray, b: np.ndarray, n: int = 60) -> float:
+    """Share of points along the side a-b (middle 90 %) that lie on an edge pixel."""
+    t = np.linspace(0.05, 0.95, n)[:, None]
+    p = np.round(a + t * (b - a)).astype(int)
+    h, w = edges.shape
+    ok = (p[:, 0] >= 0) & (p[:, 0] < w) & (p[:, 1] >= 0) & (p[:, 1] < h)
+    if not ok.all():
+        return 0.0
+    return float((edges[p[:, 1], p[:, 0]] > 0).mean())
+
+
+def _line_quads(rgb_small) -> list[tuple[float, np.ndarray]]:
+    """Fallback when no closed outline is found (low contrast, a finger over an edge, gaps): straight edge pieces
+    are joined into lines, and four lines in two near-parallel pairs make a candidate. Returns (support, corners);
+    each side must lie mostly on edges (a finger may hide part of one side)."""
+    grey = cv2.GaussianBlur(cv2.cvtColor(rgb_small, cv2.COLOR_RGB2GRAY), (5, 5), 0)
+    h, w = grey.shape
+    diag = math.hypot(h, w)
+    edges = np.zeros_like(grey)
+    for lo, hi in LINE_CANNY:
+        edges |= cv2.Canny(grey, lo, hi)
+    segs = cv2.HoughLinesP(edges, 1, np.pi / 360, threshold=30, minLineLength=int(0.035 * diag),
+                           maxLineGap=int(0.012 * diag))
+    if segs is None:
+        return []
+    lines = []  # [theta, rho, total length]
+    for x1, y1, x2, y2 in segs.reshape(-1, 4).astype(float):
+        length = math.hypot(x2 - x1, y2 - y1)
+        theta = math.atan2(x2 - x1, -(y2 - y1)) % math.pi  # normal direction
+        rho = x1 * math.cos(theta) + y1 * math.sin(theta)
+        for ln in lines:  # join collinear pieces
+            dt = abs(ln[0] - theta)
+            if min(dt, math.pi - dt) < math.radians(3):
+                r = rho if dt < math.pi / 2 else -rho
+                if abs(ln[1] - r) < 0.008 * diag:
+                    ln[2] += length
+                    break
+        else:
+            lines.append([theta, rho, length])
+    lines = sorted(lines, key=lambda ln: -ln[2])[:LINE_MAX]
+    pairs = []
+    for i in range(len(lines)):
+        for j in range(i + 1, len(lines)):
+            dt = abs(lines[i][0] - lines[j][0])
+            if min(dt, math.pi - dt) < math.radians(15):
+                r2 = lines[j][1] if dt < math.pi / 2 else -lines[j][1]
+                if abs(lines[i][1] - r2) > 0.04 * diag:
+                    pairs.append((lines[i], lines[j]))
+    near = cv2.dilate(edges, np.ones((5, 5), np.uint8))
+    out = []
+    for i in range(len(pairs)):
+        for j in range(i + 1, len(pairs)):
+            (a1, a2), (b1, b2) = pairs[i], pairs[j]
+            dt = abs(a1[0] - b1[0]) % math.pi
+            if min(dt, math.pi - dt) < math.radians(45):
+                continue
+            corners = [_intersect(a1[:2], b1[:2]), _intersect(b1[:2], a2[:2]), _intersect(a2[:2], b2[:2]),
+                       _intersect(b2[:2], a1[:2])]
+            if any(c is None for c in corners):
+                continue
+            q = order_corners(np.array(corners, dtype=np.float32).reshape(4, 1, 2))
+            area = cv2.contourArea(q.astype(np.float32))
+            if not MIN_AREA_FRAC * h * w <= area <= MAX_AREA_FRAC * h * w:
+                continue
+            if not cv2.isContourConvex(q.astype(np.float32).reshape(4, 1, 2)):
+                continue
+            support = [_side_support(near, q[k], q[(k + 1) % 4]) for k in range(4)]
+            if min(support) < LINE_MIN_SIDE or sum(support) / 4 < LINE_MIN_MEAN:
+                continue
+            out.append((sum(support) / 4, q))
+    return out
+
+
 def refine_corners(grey: np.ndarray, quad: np.ndarray, search_px: float) -> np.ndarray:
     """Sub-pixel corners: the strongest edge across each side, a line per side, corners where lines cross."""
     g = ndimage.gaussian_filter(grey.astype(float), 1.0)
@@ -151,13 +241,30 @@ def refine_corners(grey: np.ndarray, quad: np.ndarray, search_px: float) -> np.n
     return out if np.linalg.norm(out - quad, axis=1).max() <= 2 * search_px + 2 else quad
 
 
-def _status(tilt):
+def tilt_hint(corners_px) -> str:
+    """Which way to straighten the phone, from the card's look: the side that looks larger was closer to the camera.
+    Corners in order top-left, top-right, bottom-right, bottom-left (order_corners)."""
+    q = np.asarray(corners_px, dtype=float).reshape(4, 2)
+    top, bottom = np.linalg.norm(q[1] - q[0]), np.linalg.norm(q[2] - q[3])
+    left, right = np.linalg.norm(q[3] - q[0]), np.linalg.norm(q[2] - q[1])
+    ud, lr = max(top, bottom) / max(min(top, bottom), 1e-9), max(left, right) / max(min(left, right), 1e-9)
+    if max(ud, lr) < 1.02:
+        return ""
+    if ud >= lr:
+        near, fix = ("lower", "top") if bottom > top else ("upper", "bottom")
+    else:
+        near, fix = ("left", "right") if left > right else ("right", "left")
+    return (f" The {near} edge of the phone was closer to the wall (the card looks larger there): bring the {fix} "
+            "of the phone toward the wall.")
+
+
+def _status(tilt, hint: str = ""):
     if tilt <= TILT_OK_DEG:
         return "straight", f"Photo taken straight enough (tilt {tilt:.0f} degrees)."
     if tilt <= TILT_RETAKE_DEG:
         return "tilted", (f"Photo tilted by {tilt:.0f} degrees: corrected using the card, but hold the phone "
-                          "parallel to the wall next time.")
-    return "retake", f"Photo tilted by {tilt:.0f} degrees: retake it with the phone parallel to the wall."
+                          "parallel to the wall next time." + hint)
+    return "retake", f"Photo tilted by {tilt:.0f} degrees: retake it with the phone parallel to the wall." + hint
 
 
 def from_corners(corners_px, shape) -> CardDetection | None:
@@ -167,25 +274,92 @@ def from_corners(corners_px, shape) -> CardDetection | None:
     if pose is None:
         return None
     err, tilt, lr, ud, long_first = pose
-    status, msg = _status(tilt)
+    status, msg = _status(tilt, tilt_hint(q))
     return CardDetection(q, long_first, tilt, lr, ud, err, status, msg)
 
 
+def _edge_map(rgb_small) -> np.ndarray:
+    grey = cv2.GaussianBlur(cv2.cvtColor(rgb_small, cv2.COLOR_RGB2GRAY), (5, 5), 0)
+    edges = np.zeros_like(grey)
+    for lo, hi in LINE_CANNY:
+        edges |= cv2.Canny(grey, lo, hi)
+    return cv2.dilate(edges, np.ones((5, 5), np.uint8))  # a side may lie 2 px off its edge
+
+
+def _touches_border(q, shape) -> bool:
+    """A card must lie wholly inside the photo; a shape running to the edge is a shadow or a wall joined to it."""
+    h, w = shape[:2]
+    m = BORDER_FRAC * max(h, w)
+    return bool((q[:, 0] < m).any() or (q[:, 1] < m).any() or (q[:, 0] > w - 1 - m).any()
+                or (q[:, 1] > h - 1 - m).any())
+
+
+def _inside(inner, outer) -> bool:
+    poly = np.asarray(outer, np.float32).reshape(-1, 1, 2)
+    tol = 0.01 * float(np.sqrt(abs(cv2.contourArea(poly))))  # a corner may sit just over the outer edge
+    return all(cv2.pointPolygonTest(poly, (float(x), float(y)), True) >= -tol for x, y in np.asarray(inner))
+
+
+def _side_contrast(grey_small, q, d: float = 4.0) -> float:
+    """A card is one object: along all four sides the inside differs from the outside the same way (lighter or
+    darker). Returns the weakest side's contrast in grey levels when all four agree, else 0. A shape over print or
+    over a crack has the same surface on both sides of at least one side."""
+    c = q.mean(axis=0)
+    diffs = []
+    for k in range(4):
+        a, b = q[k], q[(k + 1) % 4]
+        p = a + np.linspace(0.1, 0.9, 40)[:, None] * (b - a)
+        u = (b - a) / max(np.linalg.norm(b - a), 1e-9)
+        n = np.array([-u[1], u[0]])
+        n = n if np.dot(c - (a + b) / 2, n) > 0 else -n
+        inside = ndimage.map_coordinates(grey_small, [(p + n * d)[:, 1], (p + n * d)[:, 0]], order=1, mode="nearest")
+        outside = ndimage.map_coordinates(grey_small, [(p - n * d)[:, 1], (p - n * d)[:, 0]], order=1, mode="nearest")
+        diffs.append(float(np.median(inside - outside)))
+    if min(diffs) > 0:
+        return min(diffs)
+    return -max(diffs) if max(diffs) < 0 else 0.0
+
+
+def _edge_score(edges, q) -> float:
+    """How well the four sides lie on edges: half the weakest side, half the mean (a finger may hide part of one)."""
+    s = [_side_support(edges, q[k], q[(k + 1) % 4]) for k in range(4)]
+    return 0.5 * min(s) + 0.5 * sum(s) / 4
+
+
 def detect_card(rgb: np.ndarray) -> CardDetection | None:
-    """Find the bank card in an RGB photo; None if no card-shaped rectangle is found."""
+    """Find the bank card in an RGB photo; None if no card-shaped rectangle is found. Of all card-shaped candidates
+    the one whose sides lie best on edges wins (not the largest: 4 Nov, a shadow joined to the photo's edge)."""
     h, w = rgb.shape[:2]
     f = min(1.0, DETECT_LONG_SIDE / max(h, w))
     small = cv2.resize(rgb, (round(w * f), round(h * f)), interpolation=cv2.INTER_AREA) if f < 1 else rgb
     small = np.ascontiguousarray(small, dtype=np.uint8)
-    accepted = []
-    for q in _quads(small):
-        full = q / f
-        pose = card_pose(full, rgb.shape)
-        if pose and pose[0] <= MAX_REPROJECTION and pose[1] <= MAX_TILT_DEG:
-            accepted.append((cv2.contourArea(full.astype(np.float32)), full))
+    edges = _edge_map(small)
+    grey_small = cv2.GaussianBlur(cv2.cvtColor(small, cv2.COLOR_RGB2GRAY), (5, 5), 0).astype(float)
+
+    def candidates(quads):
+        out = []
+        for q in quads:
+            if _touches_border(q, small.shape):
+                continue
+            full = q / f
+            pose = card_pose(full, rgb.shape)
+            if pose and pose[0] <= MAX_REPROJECTION and pose[1] <= MAX_TILT_DEG:
+                area = cv2.contourArea(q.astype(np.float32)) / (small.shape[0] * small.shape[1])
+                out.append((_edge_score(edges, q), area, full, _side_contrast(grey_small, q)))
+        return out
+
+    # both searches every time: closed outlines, and straight edge pieces (a light card on a light wall, a finger
+    # over an edge); a closed outline of some print or stain must not stop the second search (4 Nov)
+    accepted = candidates(_quads(small)) + candidates(q for _, q in _line_quads(small))
     if not accepted:
         return None
-    coarse = max(accepted, key=lambda a: a[0])[1]
+    # a shape lying wholly inside another card-shaped one is print on the card (a letter, a logo box), not the card
+    outer = [a for a in accepted if not any(b is not a and b[1] > 1.5 * a[1] and _inside(a[2], b[2]) for b in accepted)]
+    distinct = [a for a in outer if a[3] >= MIN_SIDE_CONTRAST]  # inside differs from outside on all four sides
+    outer = distinct or outer
+    best = max(a[0] for a in outer)  # of the shapes that lie well on edges, the largest
+    good = [a for a in outer if a[0] >= max(MIN_EDGE_SCORE, best - EDGE_SCORE_SLACK)]
+    coarse = max(good, key=lambda a: (a[1], a[0]))[2] if good else max(outer, key=lambda a: a[0])[2]
     grey = cv2.cvtColor(np.ascontiguousarray(rgb, dtype=np.uint8), cv2.COLOR_RGB2GRAY)
     fine = refine_corners(grey, coarse, search_px=max(4.0, 3.0 / f + 2))
     det = from_corners(fine, rgb.shape)

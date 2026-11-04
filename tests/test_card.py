@@ -85,3 +85,63 @@ def test_app_runs_on_demo_photo():
     assert not at.exception
     labels = {m.label: m.value for m in at.metric}
     assert labels["Width, widest point"].endswith("mm") and labels["Camera tilt"].endswith("°")
+
+
+def test_light_card_on_light_wall_with_a_finger_over_its_edge():
+    """Field case of 4 Nov: an access card (ID-1 size) a little darker than the wall, a finger across the bottom
+    edge, so there is no closed outline. The straight-edge fallback must still find it."""
+    import cv2
+    from measure.card import _line_quads, detect_card
+    rng = np.random.default_rng(3)
+    h, w = 1400, 1070
+    img = np.full((h, w), 142.0) + rng.normal(0, 3, (h, w))
+    corners = np.array([[386, 846], [736, 845], [746, 1081], [379, 1080]], np.float64)
+    card = np.zeros((h, w), np.uint8)
+    cv2.fillPoly(card, [corners.astype(np.int32)], 1)
+    img[card > 0] = 118 + rng.normal(0, 3, int(card.sum()))
+    cv2.ellipse(img, (560, 1250), (55, 200), 0, 0, 360, 175, -1)  # the finger, lighter than the card
+    rgb = np.repeat(np.clip(img, 0, 255).astype(np.uint8)[..., None], 3, axis=2)
+    rgb = cv2.GaussianBlur(rgb, (5, 5), 1.2)
+    d = detect_card(rgb)
+    assert d is not None
+    dist = np.linalg.norm(corners[:, None, :] - np.asarray(d.corners_px)[None], axis=2).min(axis=1)
+    assert dist.max() < 4, dist  # every true corner has a found corner within 4 px
+    small = cv2.resize(rgb, (round(w * 1000 / h), 1000), interpolation=cv2.INTER_AREA)
+    assert _line_quads(small)  # the straight-edge search on its own finds it too
+
+
+def test_no_card_is_invented_on_a_plain_wall_with_a_crack():
+    from measure.card import detect_card
+    rng = np.random.default_rng(4)
+    img = np.full((900, 1200), 150.0) + rng.normal(0, 4, (900, 1200))
+    img[440:446, 100:1100] = 60
+    rgb = np.repeat(np.clip(img, 0, 255).astype(np.uint8)[..., None], 3, axis=2)
+    assert detect_card(rgb) is None
+
+
+def test_tilt_hint_says_which_way_to_straighten_the_phone():
+    from measure.card import tilt_hint
+    wide_bottom = [[300, 1030], [650, 1030], [667, 1260], [283, 1260]]
+    assert "lower edge" in tilt_hint(wide_bottom) and "bring the top" in tilt_hint(wide_bottom)
+    tall_left = [[100, 100], [400, 120], [400, 280], [100, 300]]
+    assert "left edge" in tilt_hint(tall_left) and "bring the right" in tilt_hint(tall_left)
+    assert tilt_hint([[0, 0], [856, 0], [856, 540], [0, 540]]) == ""  # straight: no hint
+
+
+def test_card_wins_over_print_on_it_and_a_shadow_running_to_the_edge():
+    """Field case of 4 Nov: a card-shaped print on the card (a logo box) and a dark shadow joined to the photo's
+    left edge must not be taken for the card."""
+    import cv2
+    from measure.card import detect_card
+    rng = np.random.default_rng(5)
+    h, w = 1400, 1070
+    img = np.full((h, w), 150.0) + rng.normal(0, 3, (h, w))
+    cv2.fillPoly(img, [np.array([[0, 180], [70, 200], [60, 600], [0, 620]], np.int32)], 70)  # shadow at the edge
+    corners = np.array([[60, 210], [654, 220], [650, 581], [56, 575]], np.float64)
+    cv2.fillPoly(img, [corners.astype(np.int32)], 225)  # light card
+    cv2.fillPoly(img, [np.array([[400, 470], [480, 470], [480, 520], [400, 520]], np.int32)], 40)  # logo box
+    rgb = cv2.GaussianBlur(np.repeat(np.clip(img, 0, 255).astype(np.uint8)[..., None], 3, axis=2), (5, 5), 1.2)
+    d = detect_card(rgb)
+    assert d is not None
+    dist = np.linalg.norm(corners[:, None, :] - np.asarray(d.corners_px)[None], axis=2).min(axis=1)
+    assert dist.max() < 4, dist
