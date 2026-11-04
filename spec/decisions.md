@@ -151,3 +151,6 @@ The midterm deck cover shows "SECOND LOOK" with its two O's drawn as scan frames
 
 ## D39 (2026-11-04): the crack model is published as a GitHub Release file
 So that Luis, and anyone else, can run the app without the training data, the team published `unet_crack.pt` (v3) on the public repository as the file of release `model-v3`, not committed to git. The release notes give the training sets and their licences (CrackSeg9k CC0 1.0, Darbhanga CC BY 4.0, crack-seg Public Domain on its page but AGPL-3.0 in its file header: unclear, chosen knowingly), the test result, the SHA-256 and that it is a research prototype that never says a building is safe.
+
+## D40 (2026-11-04): a fixed link and QR through ngrok
+The Cloudflare quick tunnel gave a new random link at every start, so the QR in the slides went stale. The launcher now uses the team's free ngrok dev domain, https://cranium-bladder-tapioca.ngrok-free.dev, the same at every start; the QR is made once (`docs/presentation/midterm/assets/qr_fixed.png`). Cloudflare stays as the fallback. Trade-offs: the laptop must still run the app; only one laptop can serve the link at a time; the free plan shows a one-time warning page that visitors click through; the authtoken lives only in ngrok's own config on the laptop, never in the repository.

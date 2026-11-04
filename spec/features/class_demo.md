@@ -7,7 +7,7 @@ Students scan a QR code on the projector, take a photo of a crack with their own
 
 ## How it runs
 - Needs `cloudflared` once: `winget install --id Cloudflare.cloudflared`.
-- `py src/app/launch.py` on the laptop starts the app (Streamlit, port 8501) and a temporary Cloudflare quick tunnel, which gives a random https link. It prints the link, saves a QR code to `data/results/app/qr.png` and opens the live wall in the browser.
+- `py src/app/launch.py` on the laptop starts the app (Streamlit, port 8501) and a tunnel: the team's fixed ngrok link (4 Nov, D40: the same link and QR at every start; one laptop at a time), or, when ngrok is missing or fails, a temporary Cloudflare quick tunnel with a random https link (the launcher says the QR in the slides will not work then). It prints the link, saves a QR code to `data/results/app/qr.png` and opens the live wall in the browser.
 - The model runs on the laptop's GPU; the laptop must stay on, plugged in and online. Closing the launcher closes the link.
 - Phone page: `/`. Live wall: `http://localhost:8501/?wall`, opened in the laptop's own browser. It opens only when the host is localhost and the request did not come through the Cloudflare link (which adds `Cf-*` headers and keeps the public host name), so a student cannot open the wall from the link. Fallback: `/?wall=<key>` with the random per-launch key (30 Oct: a key to copy proved impractical on stage). The launcher prints that link for a teammate (31 Oct); it is sent privately and never shown on screen, since anyone with it sees the shared photos.
 

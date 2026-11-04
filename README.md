@@ -78,7 +78,7 @@ This repository was set up with help from Claude (Anthropic). Review everything 
 2. `pip install -r requirements.txt`
 3. Download the model file [unet_crack.pt](https://github.com/iaac-maai/operable_futures_research_studio_2026_Team_Jerome_Luis/releases/download/model-v3/unet_crack.pt) (v3, about 98 MB, release `model-v3`) and put it in `models/`.
 4. On this laptop only: `py -m streamlit run src/app/second_look.py`, then open `http://localhost:8501` (phone page) and `http://localhost:8501/?wall` (live wall).
-5. With a public link for phones (class demo): install cloudflared (`winget install --id Cloudflare.cloudflared`), then `py src/app/launch.py`. It prints the phone link, the wall link for a teammate, and the QR page (`http://localhost:8501/?qr`). The links change at every start and stop when the laptop sleeps.
+5. With a public link for phones (class demo): `py src/app/launch.py`. It opens the team's fixed link https://cranium-bladder-tapioca.ngrok-free.dev through ngrok (install it, then `ngrok config add-authtoken <your token>` once; never commit the token), so the QR is always the same (`docs/presentation/midterm/assets/qr_fixed.png`). Only one laptop can serve that link at a time. Without ngrok it falls back to a random Cloudflare link (`winget install --id Cloudflare.cloudflared`). It prints the phone link, the wall link for a teammate and the QR page (`http://localhost:8501/?qr`). The link only answers while the app runs; the free ngrok plan shows a one-time "You are about to visit" page first.
 
 Photos are analysed in memory and never saved; the wall forgets them when the app stops.
 
