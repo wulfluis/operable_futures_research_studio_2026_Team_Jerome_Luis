@@ -57,6 +57,23 @@ Decision: v3 passes the rule on the test photos and is now `models/unet_crack.pt
 
 Whole scenes (30 Haiti 2010 engineer photos, local only): v1 30 "Crack found", v2 29 (1 Expert needed), v3 28 (2 No crack found). Close-up no-crack photos do not teach the model what a window frame or a wire is; whole scenes need a "close-up of a surface?" check before the model (next step).
 
+## 9 Nov: model v4, building concrete with crack masks (D48)
+v4 adds the Özgenel Concrete Crack Segmentation Dataset [49]: 458 photos of concrete on METU campus buildings with crack masks, cut into 12 tiles each (`src/segmentation/ozgenel.py`; train 4,236, val 672, test 588 tiles, split by photo). Trained as v3 (`--exclude metu_ sdnet_ --repeat darb_=5`), 25 rounds; best val F1 0.776 (round 21; v3's val set had no Özgenel tiles, so the two are not comparable).
+**A data bug, found by looking at the errors.** In a first run the "false alarms" on Özgenel tiles were real, clearly visible cracks with an empty mask: 194 photos carry an EXIF rotation their masks do not, and the preparation had stretched the masks instead of turning the photos. Fixed (photos turned by their tag, a size mismatch now stops the run, a test reproduces the case); on all 458 pairs the masked pixels are now darker than the rest (191 were not). That run was discarded and v4 retrained.
+**Test** (photos never seen; METU tiles left out because they are cut from the Özgenel photos):
+
+| Test set | Model | Cracks found | Missed | Expert needed | False alarms | Pixel F1 |
+|---|---|---|---|---|---|---|
+| Building concrete, Özgenel (281 crack / 307 clean tiles) | v3 | 250 | 30 | 1 | 21 | 0.78 |
+| | **v4** | 261 | **17** | 3 | **5** | **0.85** |
+| Public close-ups without METU (550 crack / 356 clean photos) | v3 | 538 | **12** | 0 | 6 | 0.63 |
+| | **v4** | 530 | 18 | 4 | 6 | 0.64 |
+| All 1,494 | v3 | 788 | 42 | 1 | 27 | |
+| | **v4** | 791 | **35** | 7 | **11** | |
+
+v4 is better on building concrete, the case closest to the concept, and slightly worse on the old public close-ups (16 of its 18 misses are CrackSeg9k photos, mostly pavement). Judged on all test photos, missed cracks first, it replaces v3 (D48). Its 6 extra misses there are its known weakness; the pilot photos decide next.
+Outputs: `data/results/segmentation/v4_compare/` (v3 and v4 on both sets, one overlay per photo), `train_log_v4.csv`.
+
 ## Outputs (local, not committed)
 - `models/unet_crack.pt`: the model in use (v3 since 30 Oct); `unet_crack_v1.pt`, `unet_crack_v2.pt`; training logs `train_log.csv` (v1), `train_log_v2.csv`, `train_log_v3.csv`.
 - `data/results/segmentation/train_log.csv`: loss and val F1 per epoch.

@@ -36,8 +36,9 @@ ELEMENT_KEYS = {"unknown": None, **{name: key for key, name in ELEMENTS.items()}
 WALL_GALLERY_COLUMNS = 6  # photos per row in an opened collection
 WALL_QUOTE = ("A repair that conceals a crack without addressing its root cause is not a solution, It is a "
               "temporary disguise for a potentially continuing defect.")
-MODEL_LINE = ("Model: U-Net crack segmentation, ResNet-34 encoder (crack model v3), trained on 9,441 public crack photos "
-              "and brick walls without cracks, plus written rules for the statement, plus bank-card measurement in mm")
+MODEL_LINE = ("Model: U-Net crack segmentation, ResNet-34 encoder (crack model v4), trained on 12,477 photos: public crack "
+              "close-ups, building concrete with crack masks and brick walls without cracks, plus written rules for the "
+              "statement, plus bank-card measurement in mm")  # update with models/unet_crack.pt (D48)
 
 STYLE = """<style>
 """ + background_css() + LOGO_CSS + """

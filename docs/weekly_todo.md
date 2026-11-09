@@ -6,6 +6,21 @@ Owner: J = Jerome, L = Luis, C = coding agent (Claude). Fill in the blanks.
 
 ---
 
+## Week 3: 9 to 15 Nov (studio Thu 12 Nov: full SDD constitution, first feature with tests, first MCP attempt)
+
+### Done
+- [x] Crack model v4 in use: the reference thesis's building-concrete crack masks (Özgenel [49]) added; better on building concrete, slightly worse on pavement close-ups (C, 9 Nov, D48)
+- [x] Old logo ideas removed (D47) (C, 4 Nov)
+
+### Before Thursday 12 Nov
+- [ ] Width check against a known answer: photos of known widths with a bank card (J + L take the photos, C compares)
+- [ ] First MCP connection: OpenStreetMap building data into the building case (C)
+- [ ] Constitution refresh: roadmap and tech stack brought up to date (C)
+- [ ] Element model: run Luis's experiment (D44) on PHI-Net task 6 here; rule for a hidden or unknown element, to check with the engineer (C)
+- [ ] Deck for Thursday's studio (J + L)
+
+---
+
 ## Week 2: 2 to 8 Nov (midterm: submit Wed 5 Nov on Google Drive, present Fri 6 Nov)
 
 ### Done

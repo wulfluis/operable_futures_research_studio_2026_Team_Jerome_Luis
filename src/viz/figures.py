@@ -853,7 +853,7 @@ DATASETS = [
     ("METU", 40_000, "40,000  ·  CC BY 4.0", True, True, False, "crack / no crack; material: concrete"),
     ("PHI-Net", 36_413, "36,413  ·  CC BY-NC-SA 4.0", True, True, False, "element, pattern, scene"),
     ("CrackSeg9k", 9_255, "9,255  ·  CC0", True, True, False, "crack pixels (U-Net)"),
-    ("Özgenel building concrete", 458, "458 photos with crack masks  ·  CC BY 4.0", True, True, False,
+    ("Özgenel building concrete", 458, "458  ·  CC BY 4.0", True, True, False,
      "crack pixels (U-Net v4)"),
     ("crack-seg (Ultralytics)", 4_029, "4,029  ·  Public Domain", True, True, False, "crack pixels (U-Net)"),
     ("Haiti 2010 survey", 6_526, "6,526 photos  ·  licence not stated", False, True, False,

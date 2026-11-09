@@ -1,6 +1,6 @@
 # Feature: crack segmentation (`src/segmentation/`)
 
-Status: day 1 of the first model (29 Oct): data preparation done (9,441 pairs: crack-seg 3,717 / 199 / 112, CrackSeg9k 4,365 / 439 / 609 train / val / test). Day 2 (29 Oct): trained and tested once: on 721 unseen photos, 95.8 % of cracks found, 3.1 % missed, 2.9 % false alarms (`docs/experiments/2026-10-29_unet_first_training.md`). 30 Oct: no-crack photos added; model v3 in use (test: 538 of 550 cracks found, 12 missed, 7 false alarms out of 653 no-crack photos; D32). Box [6] of the pipeline story (figure 01d), scope D30.
+Status: day 1 of the first model (29 Oct): data preparation done (9,441 pairs: crack-seg 3,717 / 199 / 112, CrackSeg9k 4,365 / 439 / 609 train / val / test). Day 2 (29 Oct): trained and tested once: on 721 unseen photos, 95.8 % of cracks found, 3.1 % missed, 2.9 % false alarms (`docs/experiments/2026-10-29_unet_first_training.md`). 30 Oct: no-crack photos added; model v3 (test: 538 of 550 cracks found, 12 missed, 7 false alarms out of 653 no-crack photos; D32). Box [6] of the pipeline story (figure 01d), scope D30. 9 Nov: model v4 in use, Özgenel building-concrete masks added (on building concrete 17 cracks missed and 5 false alarms against 30 and 21 for v3; on the old public close-ups 18 missed against 12; D48).
 
 ## Purpose
 Mark which pixels of a usable photo are crack. The mask feeds the width measurement (mm, from the scale card) and then the written risk matrix. The model never gives a level itself.
