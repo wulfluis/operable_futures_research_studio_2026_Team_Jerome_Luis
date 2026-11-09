@@ -24,7 +24,8 @@ from segmentation.decide import CRACK, NO_CRACK, UNSURE, decide, pixel_scores, r
 from segmentation.predict import MODEL, draw_overlay
 from segmentation.train import load_checkpoint, to_tensor
 
-DATASET = {"crackseg": "crack-seg", "cs9k": "CrackSeg9k", "metu": "METU", "sdnet": "SDNET2018", "darb": "Darbhanga"}
+DATASET = {"crackseg": "crack-seg", "cs9k": "CrackSeg9k", "metu": "METU", "sdnet": "SDNET2018", "darb": "Darbhanga",
+           "ozg": "Ozgenel"}
 
 
 def outcome(statement: str, has_crack: bool) -> str:
@@ -52,6 +53,8 @@ def main(argv=None) -> None:
     ap.add_argument("--split", default="test", choices=["val", "test"])
     ap.add_argument("--model", type=Path, default=MODEL)
     ap.add_argument("--out", type=Path, default=Path("data/results/segmentation"))
+    ap.add_argument("--exclude", nargs="*", default=[], help="file-name prefixes left out of the scores, e.g. metu_")
+    ap.add_argument("--only", nargs="*", default=[], help="score only these file-name prefixes, e.g. ozg_")
     args = ap.parse_args(argv)
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = load_checkpoint(args.model, device)
@@ -61,6 +64,8 @@ def main(argv=None) -> None:
     table = Counter()
     rows = []
     for path in sorted((args.data / args.split / "images").glob("*.png")):
+        if path.name.startswith(tuple(args.exclude)) or (args.only and not path.name.startswith(tuple(args.only))):
+            continue
         img = Image.open(path).convert("RGB")
         truth = np.array(Image.open(args.data / args.split / "masks" / path.name)) > 0
         prob = torch.sigmoid(model(to_tensor(np.array(img))[None].to(device)).float())[0, 0].cpu().numpy()

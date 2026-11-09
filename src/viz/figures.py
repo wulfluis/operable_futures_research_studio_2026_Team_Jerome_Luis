@@ -800,22 +800,22 @@ def segmentation_tree():
 STAGES = ["Quality gate", "Material model (O)", "Element model (O)", "Crack segmentation (P)", "Measurement in mm (P)",
           "Pattern model (P)", "Building risk score (S)", "Agent: building data", "Triage rules sign-off",
           "Engineer review + retraining", "Evaluation (ground truth)"]
-SOURCES = ["SDNET2018", "CrackSeg9k", "crack-seg\n(Ultralytics)", "METU", "PHI-Net", "CODEBRIM", "Haiti + Nepal\nsurveys",
+SOURCES = ["SDNET2018", "CrackSeg9k", "crack-seg\n(Ultralytics)", "METU", "Özgenel\nmasks", "PHI-Net", "CODEBRIM", "Haiti + Nepal\nsurveys",
            "Brick masonry\n(Darbhanga)", "Brick facades\n(Strathclyde)", "Masonry masks\n(Dais et al.)", "Pilot photos",
            "Engineer-\nlabelled photos", "Engineering\npartner"]
 # From docs/data_map.md, section 1. Rows follow STAGES, columns follow SOURCES.
 COVERAGE = [
-    ["none", "none", "none", "none", "none", "none", "none", "none", "none", "none", "planned", "planned", "none"],
-    ["partial", "none", "none", "partial", "none", "partial", "none", "partial", "partial", "partial", "planned", "planned", "none"],
-    ["none", "none", "none", "none", "partial", "none", "none", "none", "none", "none", "planned", "planned", "none"],
-    ["none", "covered", "covered", "none", "none", "none", "none", "none", "none", "partial", "none", "planned", "none"],
-    ["none", "none", "none", "none", "none", "none", "none", "none", "none", "none", "planned", "planned", "none"],
-    ["none", "none", "none", "none", "partial", "partial", "none", "none", "none", "none", "none", "planned", "none"],
-    ["none", "none", "none", "none", "none", "none", "partial", "none", "none", "none", "none", "none", "planned"],
-    ["none", "none", "none", "none", "none", "none", "partial", "none", "none", "none", "none", "none", "none"],
-    ["none", "none", "none", "none", "none", "none", "partial", "none", "none", "none", "none", "none", "planned"],
-    ["none", "none", "none", "none", "none", "none", "none", "none", "none", "none", "none", "planned", "planned"],
-    ["none", "none", "none", "none", "none", "none", "partial", "none", "none", "none", "none", "planned", "planned"],
+    ["none", "none", "none", "none", "none", "none", "none", "none", "none", "none", "none", "planned", "planned", "none"],
+    ["partial", "none", "none", "partial", "partial", "none", "partial", "none", "partial", "partial", "partial", "planned", "planned", "none"],
+    ["none", "none", "none", "none", "none", "partial", "none", "none", "none", "none", "none", "planned", "planned", "none"],
+    ["none", "covered", "covered", "none", "covered", "none", "none", "none", "none", "none", "partial", "none", "planned", "none"],
+    ["none", "none", "none", "none", "none", "none", "none", "none", "none", "none", "none", "planned", "planned", "none"],
+    ["none", "none", "none", "none", "none", "partial", "partial", "none", "none", "none", "none", "none", "planned", "none"],
+    ["none", "none", "none", "none", "none", "none", "none", "partial", "none", "none", "none", "none", "none", "planned"],
+    ["none", "none", "none", "none", "none", "none", "none", "partial", "none", "none", "none", "none", "none", "none"],
+    ["none", "none", "none", "none", "none", "none", "none", "partial", "none", "none", "none", "none", "none", "planned"],
+    ["none", "none", "none", "none", "none", "none", "none", "none", "none", "none", "none", "none", "planned", "planned"],
+    ["none", "none", "none", "none", "none", "none", "none", "partial", "none", "none", "none", "none", "planned", "planned"],
 ]
 COVERAGE_LABEL = {"covered": "covers", "partial": "partly", "planned": "planned", "none": ""}
 
@@ -840,7 +840,7 @@ def data_coverage():
                   ["COVERS", "PARTLY", "PLANNED", "NOTHING"])
     _house_title(fig, "DATA MAP", "Which source feeds which pipeline stage")
     fig.text(0.02, 1 - 1.4 / fig.get_figheight(), "Public data covers only crack segmentation (P); every other stage needs our own photos or an "
-             "engineer. From docs/data_map.md, section 1 (27 Oct 2026).", fontsize=10, color=INK_2)
+             "engineer. From docs/data_map.md, section 1 (27 Oct 2026; Özgenel added 9 Nov).", fontsize=10, color=INK_2)
     fig.subplots_adjust(left=0.13, right=0.99, top=1 - 2.3 / fig.get_figheight(), bottom=0.1)
     return fig
 
@@ -853,6 +853,8 @@ DATASETS = [
     ("METU", 40_000, "40,000  ·  CC BY 4.0", True, True, False, "crack / no crack; material: concrete"),
     ("PHI-Net", 36_413, "36,413  ·  CC BY-NC-SA 4.0", True, True, False, "element, pattern, scene"),
     ("CrackSeg9k", 9_255, "9,255  ·  CC0", True, True, False, "crack pixels (U-Net)"),
+    ("Özgenel building concrete", 458, "458 photos with crack masks  ·  CC BY 4.0", True, True, False,
+     "crack pixels (U-Net v4)"),
     ("crack-seg (Ultralytics)", 4_029, "4,029  ·  Public Domain", True, True, False, "crack pixels (U-Net)"),
     ("Haiti 2010 survey", 6_526, "6,526 photos  ·  licence not stated", False, True, False,
      "engineer ratings: check of levels"),
@@ -1058,7 +1060,7 @@ def timeline():
 
 # Every dataset on our disk (docs/data_map.md, sections 0 and 6), in order of fit to the concept (D14).
 # (name, fit, images on disk or None, quality-gate pass % or None, labels it gives, what it trains, licence).
-# Gate %: data/processed/real_data_quality.csv (27 Oct 2026). PHI-Net counts: train + test from the npy files [53][55].
+# Gate %: data/processed/real_data_quality.csv (27 Oct 2026); Özgenel checked 9 Nov (458 of 458). PHI-Net counts: train + test from the npy files [53][55].
 HELD = [
     ("Haiti 2010 survey", "high", 4_450, 95, "engineer rating per building:\nlight / moderate / severe (183)",
      "building risk score evidence,\nsanity check of levels", "not stated"),
@@ -1080,6 +1082,8 @@ HELD = [
     ("Strathclyde brick facades", "medium", 700, 100, "crack / no crack", "crack or no crack, material",
      "CC BY 4.0"),
     ("METU building concrete", "low", 40_000, 21, "crack / no crack", "crack or no crack, material", "CC BY 4.0"),
+    ("Özgenel building concrete", "low", 458, 100, "crack pixel masks", "crack segmentation (v4)",
+     "CC BY 4.0"),
     ("SDNET2018 walls", "low", 18_138, 16, "crack / no crack", "crack or no crack", "CC BY 4.0"),
     ("crack-seg (Ultralytics)", "low", 4_029, 97, "crack outlines (polygons)", "crack segmentation",
      "Public Domain"),
