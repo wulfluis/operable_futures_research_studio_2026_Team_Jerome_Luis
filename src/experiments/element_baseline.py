@@ -195,13 +195,20 @@ def train_resnet(x, y, idx, device: str, epochs: int = 8, batch: int = 64, seed:
 
 
 def predict_resnet(model, x, idx, device: str, batch: int = 128) -> np.ndarray:
+    """Probabilities in the order of idx. The images are read in sorted order (the files are memory-mapped) and the
+    rows put back, so a shuffled idx, as in the validation split, still lines up with its labels (bug until 10 Nov:
+    the validation accuracy compared sorted predictions with unsorted labels, so the best epoch was picked at random)."""
     import torch
     model.eval()
     out = []
     with torch.no_grad():
         for i in range(0, len(idx), batch):
-            b = np.sort(idx[i:i + batch])
-            out.append(torch.softmax(model(_tensor(np.asarray(x[b])).to(device)), 1).cpu().numpy())
+            part = np.asarray(idx[i:i + batch])
+            order = np.argsort(part)
+            prob = torch.softmax(model(_tensor(np.asarray(x[part[order]])).to(device)), 1).cpu().numpy()
+            back = np.empty_like(prob)
+            back[order] = prob
+            out.append(back)
     return np.concatenate(out) if out else np.zeros((0, len(CLASSES)))
 
 

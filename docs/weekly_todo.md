@@ -13,10 +13,13 @@ Owner: J = Jerome, L = Luis, C = coding agent (Claude). Fill in the blanks.
 - [x] Old logo ideas removed (D47) (C, 4 Nov)
 
 ### Before Thursday 12 Nov
-- [ ] Width check against a known answer: photos of known widths with a bank card (J + L take the photos, C compares)
-- [ ] First MCP connection: OpenStreetMap building data into the building case (C)
-- [ ] Constitution refresh: roadmap and tech stack brought up to date (C)
-- [ ] Element model: run Luis's experiment (D44) on PHI-Net task 6 here; rule for a hidden or unknown element, to check with the engineer (C)
+- [x] Constitution refresh: mission unchanged; roadmap, tech stack and the AGENTS.md map brought up to date (C, 10 Nov)
+- [x] First MCP connection built: `src/mcp_osm/`, spec and 68 tests (C, 10 Nov, D49). **Live check pending**: the public Overpass servers did not answer on 10 Nov; retry and record the result
+- [x] Width check kit built: printed gauge with markers, `width_check.py`, 22 tests (C, 10 Nov, D50)
+- [ ] **Take the photos for the width check:** print `docs/width_gauge/width_gauge_v2.pdf` at 100 % (check the 100 mm bar), about 10 photos of the gauge and about 10 real cracks with 3 photos each, as in `spec/features/measurement.md`, "Width check" (J + L; one hour)
+- [ ] Run `py src/measure/width_check.py <photos> <truth.csv>` and read the report together; agree with the engineer what error the matrix can accept (C, J + L)
+- [x] Element model, method B run on PHI-Net task 6 after a bug fix: not accurate enough alone (C, 10 Nov). Open: method A, slabs and beams, a rule for a hidden or unknown element for the engineer
+- [ ] Decide the proposal of 10 Nov: a wide-view model (cracks, windows, elements), element classification and video (would supersede D30 in part) (J + L)
 - [ ] Deck for Thursday's studio (J + L)
 
 ---

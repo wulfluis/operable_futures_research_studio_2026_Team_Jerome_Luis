@@ -1,6 +1,6 @@
 # Feature: crack measurement with a reference object (`src/measure/`)
 
-Status: version 0.2 in code (4 Nov 2026), tested on synthetic images only. Pipeline step P3 "crack reading", the width part, and step P2 "scale and angle" for the bank card (`spec/features/pipeline.md`). Decisions D41, D42. Every threshold is illustrative until tested on the pilot photos.
+Status: version 0.2 in code (4 Nov 2026), tested on synthetic images only. Pipeline step P3 "crack reading", the width part, and step P2 "scale and angle" for the bank card (`spec/features/pipeline.md`). Decisions D41, D42; width check added on 10 Nov (D50). Every threshold is illustrative until tested on the pilot photos.
 
 ## What it does
 From one crack close-up (scale P) that also shows a reference object of known size, it returns the crack **width in mm with its uncertainty**, the **length in mm**, and warnings. It is a measurement and never a safety statement. Its `matrix_input` (width and uncertainty) feeds `triage.matrix.assess()`.
@@ -67,6 +67,31 @@ Besides width and length, the measurement reports the crack's form: the **angle 
 
 ## Tests (`tests/test_measure.py`, `tests/test_card.py`)
 Homography against a known mapping; card scale in any click order; refusal of bad references; straight cracks at three angles (width 0.8 mm, length 30 mm); a synthetic photo with a tilted camera and a bank card (width 1.0 mm, length 135.8 mm: measured 1.03 mm widest, 1.00 mm median, 135.8 mm); a crack under 3 px is not trusted; no crack found; the CLI writes JSON and an overlay without the words "safe", "clearance" or "permit". Card: found at tilts 0 to 26 degrees with corners within 1 px and the tilt within 1.5 degrees of the camera model; tilt status at 0, 15 and 28 degrees; no card in a plain wall; a square and a 3:1 strip are not taken for a card; the whole analysis without a search box (1.0 mm, 135.8 mm); 30 degrees is a Retake; the app runs on the demo photo. A synthetic 12 MP photo is analysed in about 2 s.
+
+## Width check (10 Nov, the first feature against the baseline, D50)
+**Question.** How far is the app's width in mm from a known width? How much does it move between photos of one crack? How does it compare with reading the width by eye on a printed gauge, the non-AI baseline of the photo protocol (`spec/features/photo_protocol.md`)?
+
+**Kit.**
+- `docs/width_gauge/width_gauge_v2.pdf` (A4, `src/measure/gauge_sheet.py`): four ArUco corner markers (DICT_4X4_50, 16 mm), a 100 mm bar, eight lines of 0.1, 0.2, 0.3, 0.5, 1, 2, 3 and 5 mm, and a frame for a bank card. At 600 dpi every line is a whole number of printer pixels, so its printed width is known exactly (`width_gauge_v2_truth.json`; "0.1 mm" is really 0.085 mm and "1 mm" 1.016 mm). Ink spread adds a few hundredths of a millimetre (assumption, not measured). Print at 100 % and check the bar with a ruler.
+- `src/measure/width_check.py` runs the check; `docs/templates/width_check_truth.csv` is the table to fill.
+
+**How it works.**
+- **A photo of the gauge** (`kind gauge`): the four markers give the sheet's position and scale, independently of the card, and a search box for every line. The card inside the frame is found with the frame region only (the rest of the photo painted white, because the card finder checks its candidates with the camera model of the whole photo, and the sheet's edges and lines look like card-shaped boxes to it). A card that is not clearly darker than the paper is refused: it cannot be told from the empty printed frame (30 grey levels, illustrative). The width of each line is measured with the **bank card's scale**, as the app does, and compared with the printed width. The card's scale divided by the sheet's own scale at each line (`scale_ratio`, 1.000 = they agree) tests the bank-card method itself.
+- **A photo of a real crack** (`kind crack`) goes through the app's own pipeline (U-Net v4, card, measurement). It is compared with the gauge reading by eye (`gauge_mm`), and photos of the same crack (`group`) give the spread between photos.
+- A line under 3 pixels across is "not measured" (the pixel rule, D24): at 6 to 8 pixels per mm the lines of 0.1 to 0.3 mm are reported as not resolved, never guessed.
+
+**What to photograph (about an hour).**
+1. **The gauge, about 10 photos.** Printed at 100 %, flat on a table or taped to a wall, a dark bank card in the frame, the sheet upright in the photo with all four markers visible, good light, no flash. Phone at 20, 30 and 40 cm (3 or 4 photos each); some with a tilt of about 10° and 20° (the app's limits). One row per photo: `kind gauge`, `group` the distance.
+2. **Real cracks, about 10 cracks with 3 photos each.** The card flat on the wall next to the crack, in its plane, 20 to 40 cm, the phone steady. Read the width at the widest point against the printed gauge by eye and write the nearest gauge width in `gauge_mm` (the middle value when between two lines). One row per photo: `kind crack`, `gauge_mm`, `group` a name per crack. No people, faces or addresses in frame (AGENTS.md rule 9); photos stay in `data/`, never committed.
+3. `py src/measure/width_check.py <folder with the photos> <truth.csv>` writes `report.md` and `results.csv` to `data/results/width_check/<time>/`.
+
+**What it shows, and what not.**
+- The printed lines test the card scale, the tilt handling and the width method against a width known to within the printer's ink spread. They do not test the U-Net: a line on white paper is not a crack on a wall.
+- Real cracks have no independent truth here. The gauge reading is made by eye and neighbouring gauge lines are far apart (0.3, 0.5, 1 mm), so differences of that size are expected. The spread between photos of one crack is the cleaner number.
+- This is not a calibration against a crack microscope or a feeler gauge. No pass mark is set: the error the risk matrix can accept is to be agreed with the structural engineer.
+- Reading the results (hypotheses to test with this data, not findings): a bias on the printed lines points at the scale or the width method; cracks that are consistently wider than the gauge reading point at the U-Net mask, which is trained on masks drawn wider than the crack (`spec/features/segmentation.md`).
+
+**Tests** (`tests/test_width_check.py`): the printed width of every line and the 100 mm bar on the rendered sheet; reading the table, with bad rows stopping the run and naming the line; the statistics on hand-made results; the report never uses a pass or safety word; a synthetic photo of the real sheet seen at an angle, with a dark card in its frame: the markers recover the sheet to within 3 pixels, every resolvable line is measured within 0.35 mm, the unresolvable ones are refused, and the card's scale agrees with the sheet's within 3 %; a photo with a missing marker, an empty frame or no card says so; real-crack photos go through the app's pipeline and give a spread.
 
 ## Not yet
 - Accuracy on real photos: photograph the width lines of the scale card (0.1 to 3 mm), measure them with this code and compare (the first test against a known answer, 12 Nov). The ±1 px is adopted from [46], not yet shown for our code.

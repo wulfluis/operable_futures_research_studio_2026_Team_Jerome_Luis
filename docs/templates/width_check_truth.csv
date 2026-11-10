@@ -1,0 +1,4 @@
+photo,kind,true_mm,nominal_mm,gauge_mm,roi,group,note
+EXAMPLE_gauge_30cm_01.jpg,gauge,,,,,30cm,EXAMPLE row: a photo of the whole printed gauge with a dark card in its frame. Delete the examples.
+EXAMPLE_crack_A_01.jpg,crack,,,0.5,,crack-A,EXAMPLE row: a real crack; gauge_mm is the width read by eye at the widest point
+EXAMPLE_one_line.jpg,line,,1,,"900,300,1500,420",,EXAMPLE row: one gauge line searched by hand inside a box

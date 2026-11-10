@@ -46,3 +46,20 @@ def test_loader_on_fake_arrays(tmp_path):
     x, y, idx = d["test"]
     assert len(idx) == 6 and set(CLASSES[v] for v in y) == set(CLASSES)
     assert CLASSES[y[3]] == "wall"  # PHI-Net code 3 is wall
+
+
+def test_predictions_come_back_in_the_order_asked_for():
+    """A shuffled index list (the validation split) must line up with its labels."""
+    import torch
+    from experiments.element_baseline import predict_resnet
+
+    class Brightness(torch.nn.Module):  # 'class' = which quarter of the brightness range the image is in
+        def forward(self, t):
+            level = t.mean((1, 2, 3))
+            return torch.stack([-(level - c) ** 2 * 50 for c in (-1.5, -0.5, 0.5, 1.5)], 1)
+
+    x = np.stack([np.full((224, 224, 3), v, np.uint8) for v in (10, 90, 160, 250, 15, 245)])
+    idx = np.array([5, 0, 3, 1, 4, 2])
+    got = predict_resnet(Brightness(), x, idx, "cpu", batch=4).argmax(1)
+    straight = predict_resnet(Brightness(), x, np.arange(6), "cpu").argmax(1)
+    assert list(got) == list(straight[idx])

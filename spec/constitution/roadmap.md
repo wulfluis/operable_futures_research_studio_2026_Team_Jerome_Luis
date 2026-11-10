@@ -10,6 +10,10 @@
 - A third-party structural engineer: independent check of thresholds and of the baseline ratings. Agreement under construction.
 Both are needed for every task marked "at risk" below (`spec/decisions.md` D10).
 
+## Status on 10 Nov 2026
+**Done:** quality gate; crack model v4 (U-Net, ResNet-34, 12,477 public photos, D48) in the class app; bank-card width and length in mm with the camera tilt, in the app and on the live wall (D41 to D46); dispatch rule and risk matrix v3 in code; a draft written suggestion of the crack pattern (D43); the class demo on a fixed link (D40).
+**Not done:** pilot photos with a card; the width check against known widths (planned for 12 Nov); the building risk score in code; the first MCP connection (in progress for 12 Nov); an element model good enough to use (first trained test on PHI-Net task 6, 10 Nov: about 79 % accurate on the answers it was confident about, 73 % of the photos answered, so not enough alone; D44); calibration of the matrix with the engineer; engineer-labelled photos.
+
 ## Dates (from the syllabus, 26/27 MaAI01)
 | Date | Session | Target outcome |
 |---|---|---|
@@ -64,3 +68,4 @@ Fallback: if no engineer ratings exist by 26 Nov, the 3 Dec comparison uses the 
 ## Open items
 - Impact section: indicator with unit, baseline, target, evidence.
 - Engineering partners: agreement with the third-party structural engineer is under construction.
+- Proposed on 10 Nov, not decided: a wide-view model for cracks, windows and elements, element classification and video (a close sweep and a wide walk-through). It would supersede D30 in part (the element model is only designed there). Its data survey (QuakeCity, dacl10k, SDD-Seg, IDEA) is not yet recorded in `docs/data_map.md`.

@@ -1,0 +1,48 @@
+{
+ "version": "v2",
+ "dpi": 600,
+ "sheet_mm": [
+  210.0,
+  297.0
+ ],
+ "bar_mm": 100,
+ "card_frame_mm": [
+  35.0,
+  215.0,
+  120.6,
+  268.98
+ ],
+ "markers": {
+  "dictionary": "DICT_4X4_50",
+  "size_mm": 16.0,
+  "origins_mm": {
+   "0": [
+    8.0,
+    8.0
+   ],
+   "1": [
+    186.0,
+    8.0
+   ],
+   "2": [
+    186.0,
+    273.0
+   ],
+   "3": [
+    8.0,
+    273.0
+   ]
+  }
+ },
+ "lines": {
+  "0.1": 0.0847,
+  "0.2": 0.2117,
+  "0.3": 0.2963,
+  "0.5": 0.508,
+  "1": 1.016,
+  "2": 1.9897,
+  "3": 3.0057,
+  "5": 4.9953
+ },
+ "note": "nominal width -> width in mm that the printer lays down at this dpi (whole device pixels)"
+}
