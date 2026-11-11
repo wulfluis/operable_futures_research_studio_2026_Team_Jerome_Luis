@@ -14,7 +14,7 @@ Owner: J = Jerome, L = Luis, C = coding agent (Claude). Fill in the blanks.
 
 ### Before Thursday 12 Nov
 - [x] Constitution refresh: mission unchanged; roadmap, tech stack and the AGENTS.md map brought up to date (C, 10 Nov)
-- [x] First MCP connection built: `src/mcp_osm/`, spec and 68 tests (C, 10 Nov, D49). **Live check pending**: the public Overpass servers did not answer on 10 Nov; retry and record the result
+- [x] First MCP connection built: `src/mcp_osm/`, spec and 68 tests (C, 10 Nov, D49). **Live check pending**: the public Overpass servers did not answer on 10 Nov; retry and record the result. Retried 11 Nov evening: the laptop's Python could not verify HTTPS certificates (fixed: `osm.py` now uses certifi); after the fix both overpass-api.de ("currently at capacity") and overpass.kumi.systems timed out. Second retry 11 Nov, about 19:00: all three public Overpass servers (overpass-api.de, overpass.kumi.systems, maps.mail.ru) failed even a one-node test query (502, 504, timeout), so the fault is on their side. **OpenStreetMap itself answered**: Nominatim reverse geocoding at once, and the official OSM API (`api/0.6/map`, bounding box of about 50 m) returned the test building with its tags (Basílica de la Sagrada Família, building=church, ODbL 1.0). **Done 11 Nov about 19:30:** the MCP server now falls back to the OSM API when Overpass fails (D72); live check through the MCP tool found the test landmark (`"via": "osm_api"`). Retry Overpass on 12 Nov morning: `python3 -c "import sys; sys.path.insert(0,'src'); from mcp_osm.server import building_at; print(building_at(41.40363, 2.17436))"`
 - [x] Width check kit built: printed gauge with markers, `width_check.py`, 22 tests (C, 10 Nov, D50)
 - [ ] **Take the photos for the width check:** print `docs/width_gauge/width_gauge_v2.pdf` at 100 % (check the 100 mm bar), about 10 photos of the gauge and about 10 real cracks with 3 photos each, as in `spec/features/measurement.md`, "Width check" (J + L; one hour)
 - [ ] Run `py src/measure/width_check.py <photos> <truth.csv>` and read the report together; agree with the engineer what error the matrix can accept (C, J + L)
@@ -29,6 +29,9 @@ Owner: J = Jerome, L = Luis, C = coding agent (Claude). Fill in the blanks.
 - [x] The app gives the category by itself; any doubt gives Expert needed (C, 11 Nov, D55)
 - [x] Photo 2 gives place, size and spalling; ten logical simulated cases; spalling model (C, 11 Nov, D59 to D61)
 - [x] Ten real two-photo test cases from the Haiti photos, same crack in both photos, both photos on the wall (C, 11 Nov, D62, D63)
+- [x] Luis's work of 11 Nov merged into main: type without a card, position from the linked photos, true vertical, SAM 3.1 parts, capture visibility, OSM fallback; his decisions renumbered D65 to D72; where both built the same, both kept (C, 11 Nov, D73)
+- [ ] SAM 3.1 on Jerome's laptop: request access on Hugging Face, download the weights, install the tokenizer (README) (J)
+- [ ] Record Ultralytics (AGPL-3.0, needed by SAM 3.1) as a decision against D9 (J + L)
 - [ ] **Send the Haiti licence email now** (santiago.pujol@canterbury.ac.nz): until it is answered the Haiti cases stay on this laptop, never on GitHub, slides or the public link (J)
 - [ ] Each crack in 3D, Grasshopper + wall viewer (C, 11 Nov, D57): first run in Rhino 8 and on the wall (J), then merge into main
 - [ ] Next: ask the element photo only when it can change the level; one video instead of two photos (hackathon); photos of crack-free frames, sockets and corners to teach the crack model (J + L)

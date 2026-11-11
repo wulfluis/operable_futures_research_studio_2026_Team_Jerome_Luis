@@ -13,6 +13,8 @@ import urllib.request
 from datetime import datetime, timezone
 
 OVERPASS_URL = os.environ.get("SECOND_LOOK_OVERPASS_URL", "https://overpass-api.de/api/interpreter")
+OSM_API_URL = os.environ.get("SECOND_LOOK_OSM_API_URL", "https://api.openstreetmap.org/api/0.6/map.json")
+FALLBACK_RADIUS_MAX = 60  # metres: the OSM API is for editing, so the fallback asks only for a small box
 USER_AGENT = "SecondLook-studio-prototype/0.1 (IAAC research project; building context for crack triage)"
 TIMEOUT_S = 25
 MIN_SPACING_S = 1.0  # at most one request per second to the public server
@@ -126,7 +128,7 @@ def select_building(elements: list[dict], lat: float, lon: float) -> tuple[dict,
     """The outline that contains the point; otherwise the nearest. -> (element, 'contains' | 'nearest', metres)."""
     nearest = None
     for el in elements:
-        if not isinstance(el, dict) or el.get("type") != "way":
+        if not isinstance(el, dict) or el.get("type") not in ("way", "relation"):
             continue
         xy = outline_xy(el, lat, lon)
         if xy is None:
@@ -155,7 +157,8 @@ def summarise(element: dict, lat: float, lon: float, match: str, distance_m: flo
              "footprint_m2": round(polygon_area_m2(xy), 1) if xy else None}
     osm_id = element.get("id")
     return {"found": True,
-            "osm": {"type": "way", "id": osm_id if isinstance(osm_id, int) else None},
+            "osm": {"type": "relation" if element.get("type") == "relation" else "way",
+                    "id": osm_id if isinstance(osm_id, int) else None},
             "match": match, "distance_m": round(distance_m, 1),
             "facts": {**facts, "year_approximate": approximate if year is not None else False},
             "unknown": [k for k in FIELDS if facts[k] is None],
@@ -170,6 +173,17 @@ def build_query(lat: float, lon: float, radius_m: int) -> str:
     return f'[out:json][timeout:{TIMEOUT_S}];way(around:{int(radius_m)},{lat:.6f},{lon:.6f})["building"];out tags geom;'
 
 
+def _tls():
+    """Certificates from certifi when installed: the python.org build on macOS ships without system certificates,
+    so every HTTPS request failed there (live check, 11 Nov 2026)."""
+    import ssl
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except ImportError:
+        return ssl.create_default_context()
+
+
 def fetch_overpass(query: str, url: str | None = None, timeout: float = TIMEOUT_S) -> dict:
     """POST one query to the Overpass API, at most one request per second."""
     wait = MIN_SPACING_S - (time.monotonic() - _last_request[0])
@@ -178,8 +192,50 @@ def fetch_overpass(query: str, url: str | None = None, timeout: float = TIMEOUT_
     _last_request[0] = time.monotonic()
     req = urllib.request.Request(url or OVERPASS_URL, data=urllib.parse.urlencode({"data": query}).encode("utf-8"),
                                  headers={"User-Agent": USER_AGENT}, method="POST")
-    with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310 (a fixed https endpoint)
+    with urllib.request.urlopen(req, timeout=timeout, context=_tls()) as r:  # noqa: S310 (a fixed https endpoint)
         return json.loads(r.read().decode("utf-8"))
+
+
+def fetch_osm_api(lat: float, lon: float, radius_m: int, url: str | None = None, timeout: float = TIMEOUT_S) -> dict:
+    """Fallback when Overpass fails (11 Nov 2026: all public Overpass servers at capacity): the official OSM API's
+    map call for a small box around the point, at most one request per second."""
+    r = min(int(radius_m), FALLBACK_RADIUS_MAX)
+    dlat = r / 111_320.0
+    dlon = r / (111_320.0 * max(0.01, math.cos(math.radians(lat))))
+    bbox = f"{lon - dlon:.6f},{lat - dlat:.6f},{lon + dlon:.6f},{lat + dlat:.6f}"
+    wait = MIN_SPACING_S - (time.monotonic() - _last_request[0])
+    if wait > 0:
+        time.sleep(wait)
+    _last_request[0] = time.monotonic()
+    req = urllib.request.Request(f"{url or OSM_API_URL}?bbox={bbox}", headers={"User-Agent": USER_AGENT})
+    with urllib.request.urlopen(req, timeout=timeout, context=_tls()) as resp:  # noqa: S310 (a fixed https endpoint)
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def from_osm_api(data: dict) -> list[dict]:
+    """The OSM API's answer in Overpass's shape: buildings with their outline as lat/lon points. A building mapped as
+    a multipolygon relation gets the outline of its largest outer way. Tags are passed on unread (summarise checks
+    them)."""
+    elements = data.get("elements", []) if isinstance(data, dict) else []
+    nodes = {e["id"]: e for e in elements if isinstance(e, dict) and e.get("type") == "node" and "lat" in e}
+    ways = {e["id"]: e for e in elements if isinstance(e, dict) and e.get("type") == "way"}
+
+    def geometry(way: dict) -> list[dict]:
+        return [{"lat": nodes[n]["lat"], "lon": nodes[n]["lon"]} for n in way.get("nodes", []) if n in nodes]
+
+    out = []
+    for w in ways.values():
+        if "building" in (w.get("tags") or {}):
+            out.append({"type": "way", "id": w["id"], "tags": w["tags"], "geometry": geometry(w)})
+    for rel in (e for e in elements if isinstance(e, dict) and e.get("type") == "relation"):
+        if "building" not in (rel.get("tags") or {}):
+            continue
+        outers = [geometry(ways[m["ref"]]) for m in rel.get("members", [])
+                  if m.get("type") == "way" and m.get("role") == "outer" and m.get("ref") in ways]
+        outers = [g for g in outers if len(g) >= 3]
+        if outers:
+            out.append({"type": "relation", "id": rel["id"], "tags": rel["tags"], "geometry": max(outers, key=len)})
+    return out
 
 
 def check_input(lat, lon, radius_m) -> str | None:
@@ -190,8 +246,10 @@ def check_input(lat, lon, radius_m) -> str | None:
     return None
 
 
-def building_at(lat: float, lon: float, radius_m: int = RADIUS_DEFAULT, fetch=None, now=None) -> dict:
-    """The facts of the building at a place, or why there are none. Never raises."""
+def building_at(lat: float, lon: float, radius_m: int = RADIUS_DEFAULT, fetch=None, now=None,
+                fetch_fallback=None) -> dict:
+    """The facts of the building at a place, or why there are none. Never raises. Overpass first; when it fails,
+    the official OSM API (fetch_fallback(lat, lon, radius_m); by default only when fetch is the real one)."""
     queried = (now or datetime.now(timezone.utc)).strftime("%Y-%m-%dT%H:%M:%SZ")
     bad = check_input(lat, lon, radius_m)
     if bad:
@@ -200,6 +258,7 @@ def building_at(lat: float, lon: float, radius_m: int = RADIUS_DEFAULT, fetch=No
     hit = _cache.get(key)
     if hit and time.monotonic() - hit[0] < CACHE_TTL_S:
         return hit[1]
+    fallback = fetch_fallback if fetch_fallback is not None else (fetch_osm_api if fetch is None else None)
     try:
         data = (fetch or fetch_overpass)(build_query(lat, lon, int(radius_m)))
         if not isinstance(data, dict):
@@ -207,10 +266,15 @@ def building_at(lat: float, lon: float, radius_m: int = RADIUS_DEFAULT, fetch=No
         elements = data.get("elements", [])
         if not isinstance(elements, list):
             raise ValueError("elements is not a list")
-        chosen = select_building(elements, lat, lon)
-    except Exception:  # network, timeout, bad JSON, a server error page: the agent only needs to know it is unavailable
-        return not_found("unavailable", queried)
-    result = (not_found("no_building_within_radius", queried) if chosen is None
-              else summarise(chosen[0], lat, lon, chosen[1], chosen[2], queried))
+        chosen, via = select_building(elements, lat, lon), "overpass"
+    except Exception:  # network, timeout, bad JSON, a server error page: try the fallback, else unavailable
+        if fallback is None:
+            return not_found("unavailable", queried)
+        try:
+            chosen, via = select_building(from_osm_api(fallback(lat, lon, int(radius_m))), lat, lon), "osm_api"
+        except Exception:  # noqa: BLE001  both routes failed
+            return not_found("unavailable", queried)
+    result = (not_found("no_building_within_radius", queried, {"via": via}) if chosen is None
+              else {**summarise(chosen[0], lat, lon, chosen[1], chosen[2], queried), "via": via})
     _cache[key] = (time.monotonic(), result)
     return result

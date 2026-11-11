@@ -196,3 +196,16 @@ Run the real-data test on all of them: `py src/experiments/real_data_quality.py 
 Counts are from the npy files, not the paper.
 
 What we saw in the sample sheets: PHI-Net mixes real buildings, close-ups and laboratory test specimens, and its spalling and damage classes include brick walls, and its column class includes timber columns. Before training for our concrete-only scope (D17), we filter or relabel by hand; the size of that filtered set is not known yet.
+
+## Checked 11 Nov 2026: datasets from the literature list (`docs/literature/reading_list.md`)
+| Data | Source | Fit to the concept (D14) | Access and licence | Use |
+|---|---|---|---|---|
+| OmniCrack30k | [72] | Low to medium: many crack sets mixed, roads included; some concrete and masonry subsets | Dataset by email, non-commercial; nnU-Net weights public (repo GPL-3.0) | Ask for access; compare its model with U-Net v4 on our tiles |
+| CrackSAM wall set | [74] | Medium: exterior-wall cracks (810 images with a road set) | Said to be open-sourced; link not on the abstract page | Possible test set for walls |
+| MCrack1300 | [76] | Medium-low: masonry, bricks and cracks | Not stated | Masonry pattern; scale from brick size |
+| StructDamage | [77] | Low: surface-type labels, walls among roads and decks | Not stated | Not used |
+| Turkey 2023 earthquake images | [86] | Medium: concrete buildings, components and damage | Not stated (paper CC BY 4.0) | Ask the authors |
+| Tokaido (synthetic viaducts) | [87] | Off-concept: synthetic bridges | Zhejiang University website (per the article) | Not used |
+| Apple DMS | [90][91] | Medium for the material model: Concrete, Brickwork, Paint/plaster/enamel classes, everyday scenes | Apple's own terms (to read); splits on Hugging Face | Candidate for the material model, after the licence |
+| Roboflow element sets | [83][84][85] | Unknown: not read (HTTP 403) | To check by hand | Possible element and slab labels |
+

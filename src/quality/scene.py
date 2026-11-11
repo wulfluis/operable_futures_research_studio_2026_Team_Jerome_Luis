@@ -21,8 +21,11 @@ CLOSE_UP_MIN = 0.1  # chosen on the validation images (D54): at most 5 % of clos
 CLOSE_UP_RETAKE_TARGET = 0.05  # at most this share of real close-ups sent to retake (illustrative)
 SIZE = 224
 MEAN, STD = np.array([0.485, 0.456, 0.406]), np.array([0.229, 0.224, 0.225])
-RETAKE_WIDE = ("This looks like {seen}, not a close-up of the wall: hold the phone 20 to 40 cm from the crack so the "
-               "wall fills the photo.")
+RETAKE_WIDE = ("This looks like {seen}, not a wall with a crack: go closer, about 1 m or nearer, so the crack and the "
+               "wall around it fill most of the photo. With a bank card next to the crack the app also accepts photos "
+               "from farther away.")
+RETAKE_BUILDING = ("This looks like a whole building, not a wall with a crack: go closer, about 1 m or nearer, so the "
+                   "crack and the bank card fill most of the photo.")
 RETAKE_CLOSE = "This is a close-up: step back so the whole column, beam or wall is in the photo."
 
 
@@ -64,22 +67,30 @@ def probabilities(model, photo: Image.Image, device: str = "cpu") -> dict[str, f
     return dict(zip(SCENES, map(float, calibrate(p.cpu().numpy()[0], TEMPERATURE))))
 
 
-HALVES_NEEDED = 2  # with a card placed: this many of the photo's four halves read as a close-up are enough (D58)
+HALVES_NEEDED = 2  # with a card found: this many of the photo's four halves read as a close-up are enough (D58)
 
 
 def crack_photo_check(probs: dict[str, float] | None, close_up_min: float = CLOSE_UP_MIN,
-                      halves: list[float] | None = None) -> SceneAnswer:
+                      card_found: bool = False, halves: list[float] | None = None) -> SceneAnswer:
     """A crack photo must be a close-up; otherwise Retake (rule 2: an unusable photo means retake).
-    halves: the close-up probability of the photo's top, bottom, left and right halves, given only when the sender
-    placed a card (D58): a card and the hand holding it, never seen in training, must not overrule the wall."""
+    With a bank card found in the photo (D68), the photo shows a wall at a known distance: a crack photo from about
+    1 m reads as 'a whole element' to this model (trained on very close PHI-Net close-ups), so then only a photo
+    that looks most like a whole building is a Retake, unless 2 of its 4 halves read as a close-up (D58): a card and
+    the hand holding it, never seen in training, can pull a dark wall's photo to 'a whole building'.
+    halves: the close-up probability of the photo's top, bottom, left and right halves (only with a card found)."""
     if probs is None:
         return SceneAnswer(None, None, True, "No scene check (model not installed).")
     best = max(probs, key=probs.get)
+    if card_found:
+        if best != "structure":
+            return SceneAnswer(best, probs["close_up"], True, f"A wall with the bank card ({NAMES[best]}, "
+                                                              f"{probs[best]:.0%}): the card shows it is a wall.")
+        if halves is not None and sum(h >= close_up_min for h in halves) >= HALVES_NEEDED:
+            return SceneAnswer("close_up", max(halves), True, f"A close-up: {sum(h >= close_up_min for h in halves)} "
+                               "of the photo's 4 halves read as one (the card and the hand do not count against it).")
+        return SceneAnswer(best, probs["close_up"], False, RETAKE_BUILDING)
     if probs["close_up"] >= close_up_min:
         return SceneAnswer(best, probs["close_up"], True, f"A close-up ({probs['close_up']:.0%}).")
-    if halves is not None and sum(h >= close_up_min for h in halves) >= HALVES_NEEDED:
-        return SceneAnswer("close_up", max(halves), True, f"A close-up: {sum(h >= close_up_min for h in halves)} of "
-                           "the photo's 4 halves read as one (the card and the hand do not count against it).")
     seen = NAMES["structure" if probs["structure"] >= probs["object"] else "object"]
     return SceneAnswer(best, probs["close_up"], False, RETAKE_WIDE.format(seen=seen))
 
@@ -110,11 +121,11 @@ def halves_of(photo: Image.Image) -> list[Image.Image]:
             img.crop((w // 2, 0, w, h))]
 
 
-def check(model, photo: Image.Image, device: str = "cpu", kind: str = "crack", card_placed: bool = False) -> SceneAnswer:
+def check(model, photo: Image.Image, device: str = "cpu", kind: str = "crack", card_found: bool = False) -> SceneAnswer:
     probs = None if model is None else probabilities(model, photo, device)
     if kind != "crack":
         return element_photo_check(probs)
     halves = None
-    if card_placed and probs is not None and probs["close_up"] < CLOSE_UP_MIN:
+    if card_found and probs is not None and max(probs, key=probs.get) == "structure":
         halves = [probabilities(model, h, device)["close_up"] for h in halves_of(photo)]
-    return crack_photo_check(probs, halves=halves)
+    return crack_photo_check(probs, card_found=card_found, halves=halves)

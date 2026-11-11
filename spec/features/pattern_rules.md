@@ -1,6 +1,6 @@
 # Feature: crack pattern from written rules (`src/triage/pattern_rules.py`)
 
-Status: draft v0 (4 Nov 2026), in code, tested on synthetic shapes only. Decision D43. Every angle and limit below is illustrative until a structural engineer sets it. The basis is standard reading of crack patterns in reinforced concrete (assumption: to be checked against FEMA 306 and ACI 224R, not yet read, and with the engineer).
+Status: draft v0 (4 Nov 2026), in code, tested on synthetic shapes only. Decision D43. Every angle and limit below is illustrative until a structural engineer sets it. The basis is standard reading of crack patterns in reinforced concrete (assumption, to be checked with the engineer). FEMA 306 [93] was read on 11 Nov 2026 (`docs/literature/fema_306.md`): it backs flexure across the member and shear as diagonal, but gives shear cracks in walls as "typically 35° to 70° from the horizontal", that is 20 to 55 degrees from the vertical, wider than our 35 to 55; it gives no 25 or 65 degree limit and treats walls, not columns. ACI 224R [94] is not read (sold by ACI).
 
 ## Why rules and not a model
 No public dataset labels our seven patterns, and the closest ones (PHI-Net task 8 [53][55], IDEA [64]) label only flexural, shear and a few others (`docs/data_map.md`). Engineers tell most of the patterns apart by **the crack's direction relative to the element, its position on the element, and its form**. Those can be measured, so a written rule can suggest the pattern. That keeps the decision auditable (AGENTS.md rule 5), and a model is needed only for what has data: the crack mask, the element, and spalling.
@@ -39,6 +39,13 @@ Column: vertical. Beam: horizontal. Walls and slabs: no axis. The angle φ betwe
 | 13 | Column or beam: φ at most 25 (along the element) with a rust stain | `along_bar` | yes |
 | 14 | Column or beam: φ at most 25 without a rust stain | `along_bar` | **no**: on a column, a vertical crack can also be crushing under load; an engineer decides |
 | 15 | φ between bands (25 to 35, 55 to 65) | the nearer band's pattern | no |
+
+## Shape without a bank card (11 Nov, D65)
+The shape the rules read (angle to vertical, straightness, coherence, closed loops, branch ratio) does not need millimetres: each is an angle or a ratio. So without a bank card the app reads the shape from the U-Net's crack line in the photo's pixels (`src/app/core.py`, `pixel_shape`), the same line and the same code (`measure.crack.measure`) as with a card, only with pixels in place of mm.
+- What it gives: the type suggestion, shown in the app and on the result page as "read in the photo (no card)".
+- What it does not: the level. The risk matrix needs the width, so without a card the level stays Expert needed; only the reason changes (width missing, not type missing). It never lowers a level.
+- Limit: without the card the phone's tilt is unknown and the photo's perspective is not corrected, so the angle is the one in the photo, not on the wall (with a card, a tilt over 20 degrees is a retake). An upright phone is still assumed. When the card is there but the tilt is over 20 degrees, no shape is read.
+- Not read for "No crack found" or "Retake".
 
 ## Limits
 - One crack, one pattern. A crack that changes direction (flexural turning into shear) is read by its main direction only, and its straightness drops.

@@ -42,9 +42,24 @@ def test_no_crack_on_photo_2_means_unknown():
 
 
 def test_photo_2_position_reaches_the_matrix(measured):
+    measured.test = True  # a TEST case: photo 2 alone may say "middle" (D73)
     measured.on_element = CrackOnElement(True, [[0.5, 0.4], [0.5, 0.6]], 0.2, (0.5, 0.5))
     auto_triage(measured)
     assert measured.triage["position"] == "middle" and "photo of the element" in measured.triage["why"]
+
+
+def test_a_real_upload_gets_middle_only_from_the_linked_photos(measured):
+    """D73: photo 2 alone assumes the element fills the photo, too weak to lower a real level; an end zone counts."""
+    measured.on_element = CrackOnElement(True, [[0.5, 0.4], [0.5, 0.6]], 0.2, (0.5, 0.5))
+    auto_triage(measured)
+    assert measured.triage["position"] == "unknown"
+    measured.on_element = CrackOnElement(True, [[0.5, 0.85], [0.5, 0.95]], 0.1, (0.5, 0.9))
+    auto_triage(measured)
+    assert measured.triage["position"] == "end_zone"
+    measured.on_element = CrackOnElement(True, [[0.5, 0.4], [0.5, 0.6]], 0.2, (0.5, 0.5))
+    measured.location = {"position": "middle", "reason": "both ends seen"}  # the strict link (D66)
+    auto_triage(measured)
+    assert measured.triage["position"] == "middle" and measured.triage["position_reason"] == "both ends seen"
 
 
 def test_spalling_on_photo_2_makes_the_type_spalling(measured):

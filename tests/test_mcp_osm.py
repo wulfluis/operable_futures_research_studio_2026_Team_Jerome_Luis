@@ -177,7 +177,7 @@ def test_requests_are_spaced_and_identify_us_without_personal_data(monkeypatch):
         def __exit__(self, *a): return False
         def read(self): return b'{"elements": []}'
 
-    def fake_urlopen(req, timeout=None):
+    def fake_urlopen(req, timeout=None, context=None):
         sent.append(req)
         return Reply()
     monkeypatch.setattr(osm.urllib.request, "urlopen", fake_urlopen)
@@ -250,3 +250,63 @@ def test_nothing_found_gives_no_suggestions_and_every_question_stays_with_a_pers
     assert out["suggestions"] == {} and out["flags_it_may_raise"] == [] and out["clears_no_flag"] is True
     assert {"age", "added_floors", "changed", "open_ground_floor", "typology", "storeys", "occupants"} <= set(out["needs_a_person"])
     assert building_case_suggestions(None)["suggestions"] == {}
+
+
+# ---------- fallback to the official OSM API (11 Nov 2026: all public Overpass servers at capacity) ----------
+
+def _osm_api_answer():
+    """A square building of about 20 x 20 m around (41.0, 2.0) as a way, and a church as a multipolygon relation."""
+    d = 0.0001
+    nodes = [{"type": "node", "id": i, "lat": la, "lon": lo} for i, (la, lo) in
+             enumerate([(41.0 - d, 2.0 - d), (41.0 - d, 2.0 + d), (41.0 + d, 2.0 + d), (41.0 + d, 2.0 - d)], 1)]
+    far = [{"type": "node", "id": 10 + i, "lat": la, "lon": lo} for i, (la, lo) in
+           enumerate([(41.001, 2.001), (41.001, 2.0012), (41.0012, 2.0012), (41.0012, 2.001)])]
+    return {"elements": nodes + far + [
+        {"type": "way", "id": 100, "nodes": [1, 2, 3, 4, 1], "tags": {"building": "apartments", "building:levels": "5",
+                                                                       "name": "Some Name", "addr:street": "Private"}},
+        {"type": "way", "id": 200, "nodes": [10, 11, 12, 13, 10], "tags": {}},
+        {"type": "relation", "id": 300, "tags": {"type": "multipolygon", "building": "church"},
+         "members": [{"type": "way", "ref": 200, "role": "outer"}]}]}
+
+
+def _overpass_down(query):
+    raise TimeoutError("all query workers are busy")
+
+
+def test_when_overpass_fails_the_osm_api_answers_with_checked_fields_only():
+    r = osm.building_at(41.0, 2.0, 30, fetch=_overpass_down, fetch_fallback=lambda la, lo, rad: _osm_api_answer())
+    assert r["found"] and r["via"] == "osm_api" and r["match"] == "contains"
+    assert r["facts"]["storeys"] == 5 and r["facts"]["building_type"] == "apartments"
+    assert "Some Name" not in str(r) and "Private" not in str(r)  # rule 8: no tag text leaves the module
+
+
+def test_a_building_mapped_as_a_relation_is_read():
+    els = osm.from_osm_api(_osm_api_answer())
+    rel = [e for e in els if e["type"] == "relation"][0]
+    assert rel["id"] == 300 and len(rel["geometry"]) >= 4
+    r = osm.summarise(rel, 41.0011, 2.0011, "contains", 0.0, "t")
+    assert r["osm"] == {"type": "relation", "id": 300} and r["facts"]["building_type"] == "church"
+
+
+def test_both_routes_failing_is_unavailable_and_tests_never_reach_the_network():
+    def down(*a):
+        raise TimeoutError
+    assert osm.building_at(41.0, 2.0, 30, fetch=down, fetch_fallback=down)["reason"] == "unavailable"
+    assert osm.building_at(41.0, 2.0, 30, fetch=down)["reason"] == "unavailable"  # a fake fetch: no real fallback
+
+
+def test_the_fallback_asks_only_for_a_small_box(monkeypatch):
+    seen = {}
+
+    class Resp:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def read(self): return b'{"elements": []}'
+
+    def fake_urlopen(req, timeout=None, context=None):
+        seen["url"] = req.full_url
+        return Resp()
+    monkeypatch.setattr(osm.urllib.request, "urlopen", fake_urlopen)
+    osm.fetch_osm_api(41.0, 2.0, 200)
+    w, s, e, n = map(float, seen["url"].split("bbox=")[1].split(","))
+    assert (n - s) * 111_320 <= 2 * osm.FALLBACK_RADIUS_MAX + 1

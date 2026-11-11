@@ -12,12 +12,13 @@ PHI-Net task 1, scene level [53][55]: 224 x 224 px images in three classes, exac
 ConvNeXt-tiny pre-trained on ImageNet, trained as the element model's second run (D52: reshuffled batches, crops, light and colour changes, cosine learning rate, label smoothing, test-time flip), 8 rounds; 10 % of train picks the best round. Probabilities calibrated with a temperature fitted on the validation images.
 
 ## The rule (written, `src/quality/scene.py`)
-- **Crack photo:** if the probability of P is under `CLOSE_UP_MIN`, the answer is **Retake**: "This looks like a wider view, not a close-up of the wall: hold the phone 20 to 40 cm from the crack." The crack model does not run.
+- **Crack photo:** if the probability of P is under `CLOSE_UP_MIN`, the answer is **Retake**: "This looks like a whole element (or building), not a wall with a crack: go closer, about 1 m or nearer, so the crack and the wall around it fill most of the photo." The crack model does not run. (Until 11 Nov the hint said 20 to 40 cm; dropped in D68: larger cracks need about 1 m.)
+- **Crack photo with a bank card found (D68):** the card shows the photo is a wall at a known distance, so only a photo that looks most like a whole building is a Retake. Field test of 11 Nov: a clear crack and the card from about 50 cm read as "a whole element" and were sent to retake, because PHI-Net's close-ups are much closer. The card is looked for first, only with the tick (D56).
 - `CLOSE_UP_MIN` is chosen on the validation images: the highest value at which at most 5 % of real close-ups are sent to retake (illustrative target: a needless retake costs one more photo; a wide view let through gives false cracks).
 - **Element photo:** the element model runs only if the scene model does not read it as a close-up (P highest): a close-up cannot show which element it is. Otherwise "This is a close-up: step back so the whole column, beam or wall is in the photo."
 - The scene answer and its probability are part of the result (JSON), like every other step.
 
-- **With a card placed (D58):** a card and the hand holding it can pull the whole photo away from "close-up". Only when the sender ticked the card and the whole photo is under `CLOSE_UP_MIN`, the four halves (top, bottom, left, right) are read too; 2 of 4 read as a close-up are enough.
+- **With a card found and a photo read as a whole building (D58, kept with D68):** a card and the hand holding it can pull a dark wall's photo to "a whole building". Then the four halves (top, bottom, left, right) are read too; 2 of 4 read as a close-up are enough. Without a card found the halves are not used.
 
 ## Reported (`docs/experiments/2026-11-11_scene_gate_phinet1.md`)
 The confusion table on the test images; at `CLOSE_UP_MIN`: the share of close-ups sent to retake, and the share of O and S photos let through as close-ups (the false cracks it would still allow).
