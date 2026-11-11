@@ -302,8 +302,8 @@ def _inside(inner, outer) -> bool:
 
 def _side_contrast(grey_small, q, d: float = 4.0) -> float:
     """A card is one object: along all four sides the inside differs from the outside the same way (lighter or
-    darker). Returns the weakest side's contrast in grey levels when all four agree, else 0. A shape over print or
-    over a crack has the same surface on both sides of at least one side."""
+    darker), just outside and 3 times farther out. Returns the weakest side's contrast in grey levels when all four
+    agree, else 0. A shape over print or over a crack has the same surface on both sides of at least one side."""
     c = q.mean(axis=0)
     diffs = []
     for k in range(4):
@@ -313,8 +313,12 @@ def _side_contrast(grey_small, q, d: float = 4.0) -> float:
         n = np.array([-u[1], u[0]])
         n = n if np.dot(c - (a + b) / 2, n) > 0 else -n
         inside = ndimage.map_coordinates(grey_small, [(p + n * d)[:, 1], (p + n * d)[:, 0]], order=1, mode="nearest")
-        outside = ndimage.map_coordinates(grey_small, [(p - n * d)[:, 1], (p - n * d)[:, 0]], order=1, mode="nearest")
-        diffs.append(float(np.median(inside - outside)))
+        near, far = (ndimage.map_coordinates(grey_small, [(p - n * k)[:, 1], (p - n * k)[:, 0]], order=1,
+                                             mode="nearest") for k in (d, 3 * d))
+        a1, a2 = float(np.median(inside - near)), float(np.median(inside - far))
+        # just outside and a little farther out must both be wall (D59): a drawn line round a card shape is dark
+        # just outside, and beyond it the same wall as inside, so it is not a card
+        diffs.append(min(a1, a2, key=abs) if a1 * a2 > 0 else 0.0)
     if min(diffs) > 0:
         return min(diffs)
     return -max(diffs) if max(diffs) < 0 else 0.0
@@ -353,11 +357,12 @@ def detect_card(rgb: np.ndarray) -> CardDetection | None:
     accepted = candidates(_quads(small)) + candidates(q for _, q in _line_quads(small))
     if not accepted:
         return None
+    # inside differs from outside on all four sides, always (D56): lines that only outline a card shape (texture, a
+    # crack, a frame) are never a card; before 11 Nov the shapes without it were used when none had it. Checked first
+    # (D59): such an outline around the card must not hide the card below as "print on it"
+    accepted = [a for a in accepted if a[3] >= MIN_SIDE_CONTRAST]
     # a shape lying wholly inside another card-shaped one is print on the card (a letter, a logo box), not the card
     outer = [a for a in accepted if not any(b is not a and b[1] > 1.5 * a[1] and _inside(a[2], b[2]) for b in accepted)]
-    # inside differs from outside on all four sides, always (D56): lines that only outline a card shape (texture, a
-    # crack, a frame) are never a card; before 11 Nov the shapes without it were used when none had it
-    outer = [a for a in outer if a[3] >= MIN_SIDE_CONTRAST]
     if not outer:
         return None
     best = max(a[0] for a in outer)  # of the shapes that lie well on edges, the largest
@@ -369,3 +374,51 @@ def detect_card(rgb: np.ndarray) -> CardDetection | None:
     if det is None or det.reprojection > MAX_REPROJECTION:
         det = from_corners(coarse, rgb.shape)
     return det
+
+
+FAR_MAX_REPROJECTION = 0.05  # a card of a few dozen pixels fits less exactly; its look is checked too (D59)
+
+
+def find_card_near(rgb: np.ndarray, box: tuple[float, float, float, float]) -> np.ndarray | None:
+    """The card's exact corners in a small window around `box` (x0, y0, x1, y1, full photo pixels), where the far
+    element photo's other edges do not crowd the search (D59). The same two searches as detect_card; the candidate
+    closest to the box in place and size wins. None: no card-shaped outline there."""
+    rgb = np.ascontiguousarray(rgb[..., :3], dtype=np.uint8)
+    h, w = rgb.shape[:2]
+    x0, y0, x1, y1 = box
+    bw, bh = x1 - x0, y1 - y0
+    wx0, wy0 = int(max(0, x0 - bw)), int(max(0, y0 - bh))
+    wx1, wy1 = int(min(w, x1 + bw)), int(min(h, y1 + bh))
+    part = rgb[wy0:wy1, wx0:wx1]
+    f = min(1.0, DETECT_LONG_SIDE / max(part.shape[:2]))
+    small = cv2.resize(part, (round(part.shape[1] * f), round(part.shape[0] * f)), interpolation=cv2.INTER_AREA) \
+        if f < 1 else np.ascontiguousarray(part)
+    if min(small.shape[:2]) < 20:
+        return None
+    edges = _edge_map(small)
+    grey = cv2.GaussianBlur(cv2.cvtColor(small, cv2.COLOR_RGB2GRAY), (5, 5), 0).astype(float)
+    centre = np.array([(x0 + x1) / 2, (y0 + y1) / 2])
+    size = math.hypot(bw, bh)
+    best = None
+    for q in list(_quads(small)) + [q for _, q in _line_quads(small)]:
+        full = q / f + (wx0, wy0)
+        diag = float(np.linalg.norm(full[2] - full[0]) + np.linalg.norm(full[3] - full[1])) / 2
+        off = float(np.linalg.norm(full.mean(axis=0) - centre))
+        if not 0.7 * size <= diag <= 1.4 * size or off > 0.3 * size:
+            continue
+        short = min(np.linalg.norm(q[1] - q[0]), np.linalg.norm(q[2] - q[1]))
+        if _side_contrast(grey, q, float(np.clip(0.05 * short, 1.5, 4.0))) < MIN_SIDE_CONTRAST:
+            continue  # stay outside print near the card's edge (a stripe), then the card must stand out (D56)
+        if _edge_score(edges, q) < MIN_EDGE_SCORE:
+            continue
+        pose = card_pose(full, rgb.shape)
+        if not pose or pose[0] > FAR_MAX_REPROJECTION or pose[1] > MAX_TILT_DEG:
+            continue
+        score = off / size + abs(diag - size) / size
+        if best is None or score < best[0]:
+            best = (score, full)
+    if best is None:
+        return None
+    grey_full = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
+    side = float(np.linalg.norm(best[1][1] - best[1][0]))
+    return order_corners(refine_corners(grey_full, best[1], max(2.0, 0.05 * side)))

@@ -53,7 +53,7 @@ def test_close_up_passes():
                                          ({"object": 0.9, "close_up": 0.05, "structure": 0.05}, "element")])
 def test_wide_view_is_a_retake_with_a_hint(probs, word):
     a = scene.crack_photo_check(probs, close_up_min=0.1)
-    assert not a.ok and word in a.reason and "20 to 40 cm" in a.reason
+    assert not a.ok and word in a.reason and "about 1 m" in a.reason and "20 to 40" not in a.reason
 
 
 def test_element_photo_must_not_be_a_close_up():
@@ -76,7 +76,7 @@ def test_threshold_is_the_highest_that_keeps_close_up_retakes_under_target():
 def test_a_wide_view_never_reaches_the_crack_model():
     spy = Spy()
     r = run_measured(_demo(1.0)[0], spy, scene_model=FakeScene("structure"), card_placed=True)
-    assert r.statement == "Retake" and not spy.called and "close-up" in r.reason
+    assert r.statement == "Retake" and not spy.called and "go closer" in r.reason
     assert r.to_dict()["scene"]["ok"] is False
 
 
@@ -104,3 +104,23 @@ def test_the_trained_scene_model_loads():
     m = scene.load()
     p = scene.probabilities(m, _demo(1.0)[0])
     assert set(p) == set(scene.SCENES) and abs(sum(p.values()) - 1) < 1e-5
+
+
+def test_with_the_card_a_photo_from_about_a_metre_is_not_a_retake():
+    """Field test of 11 Nov (D60): a crack and the card from about 50 cm read as 'a whole element'; the card shows it
+    is a wall, so only a whole building is a retake then."""
+    element_like = {"object": 0.8, "close_up": 0.05, "structure": 0.15}
+    assert not scene.crack_photo_check(element_like).ok  # without a card: as before (D54)
+    assert scene.crack_photo_check(element_like, card_found=True).ok
+    building = {"object": 0.2, "close_up": 0.02, "structure": 0.78}
+    a = scene.crack_photo_check(building, card_found=True)
+    assert not a.ok and "building" in a.reason
+
+
+def test_through_the_app_the_card_lets_an_element_like_photo_through():
+    spy = Spy()
+    r = run_measured(_demo(1.0)[0], spy, scene_model=FakeScene("object"), card_placed=True)
+    assert spy.called and r.card is not None and r.statement == "Crack found"
+    spy2 = Spy()
+    r2 = run_measured(_demo(1.0)[0], spy2, scene_model=FakeScene("object"), card_placed=False)
+    assert r2.statement == "Retake" and not spy2.called  # no card ticked: the check of D54 as before

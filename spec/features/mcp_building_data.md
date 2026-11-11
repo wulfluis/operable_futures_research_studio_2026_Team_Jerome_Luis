@@ -49,3 +49,9 @@ Parsing of levels, years, types, materials and heights, including ambiguous and 
 
 ## Not yet
 The agent harness that decides when to call it (26 Nov); further sources (the Haiti and Nepal building surveys, national registers); the building risk score itself (`building_score.md`, not coded); a check of how much of a real informal neighbourhood is mapped.
+
+## Fallback to the official OSM API (11 Nov 2026, D64)
+On the evening of 11 Nov all public Overpass servers failed even a one-node query (502 "at capacity", 504, timeouts), while OpenStreetMap itself answered. So when Overpass fails, `building_at` asks the official OSM API's map call (`api/0.6/map.json`) for a small box around the point (at most 60 m from it: that API is meant for editing and wants small, rare requests) and reads the same checked fields. A building mapped as a multipolygon relation gets the outline of its largest outer way. Every answer says which route it came from (`"via": "overpass"` or `"osm_api"`). Tests use fakes and never reach the network.
+- Live check, 11 Nov 2026 about 19:30, through the MCP tool: Overpass unavailable, fallback found the test landmark (Basílica de la Sagrada Família, relation 9194723, building type church).
+- Limit: for a large building mapped as a relation, the box holds only part of its outline, so the footprint can be far too small (302.6 m² for the test landmark) and the match can read "nearest" although the point is inside. Storeys, type, material and year are unaffected.
+- Also fixed that evening: the laptop's Python could not verify HTTPS certificates; requests now use certifi's certificates.

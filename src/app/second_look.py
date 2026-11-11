@@ -141,12 +141,20 @@ def shared():
             load_scene_model(device=device))
 
 
+@st.cache_resource(show_spinner="Loading SAM 3.1 (about 10 s, once)...")
+def parts_model():
+    """SAM 3.1 for the part the crack lies on (D62); None when its weights are not on this laptop."""
+    from element.parts import load_parts_model
+    return load_parts_model()
+
+
 def phone_page() -> None:
     st.markdown(f"<h1>{logo_title()}</h1>", unsafe_allow_html=True)
     st.markdown(f'<p class="quote">{WALL_QUOTE}</p>', unsafe_allow_html=True)  # wraps: a phone is too narrow
     st.markdown("Photograph a crack in concrete or plaster. Second Look marks the crack in red and says what it sees.")
-    st.markdown("**Get close:** hold the phone 20 to 40 cm from the wall so the wall fills the whole photo. "
-                "No windows, edges, sky or people: the model only knows close-ups and reads other lines as cracks.")
+    st.markdown("**Get close:** about 1 m from the wall or nearer, so the crack and the wall around it fill most of the "
+                "photo (go nearer for a fine crack). No windows, edges, sky or people: the model reads other lines as "
+                "cracks.")
     st.markdown("**Measure it in mm (optional):** put a bank-card-sized card flat on the wall next to the crack, all "
                 "four corners visible. Cover the number and name, or use the back. Hold the phone parallel to the "
                 "wall and upright, and tick \"I put a bank card next to the crack\". Without the tick the app never looks for a "
@@ -196,8 +204,9 @@ def classification_block(result, key: str) -> None:
     seen = st.session_state.setdefault("element_seen", {})
     if second is not None and seen.get(key) != second.file_id:
         try:
-            with st.spinner("Looking at the element..."):
-                analyse_element(second.getvalue(), result, wall, element_model, device, gpu, scene_model)
+            sam = parts_model()
+            with st.spinner("Looking at the element..." + (" SAM 3.1 adds about 10 s." if sam else "")):
+                analyse_element(second.getvalue(), result, wall, element_model, device, gpu, scene_model, sam)
             seen[key] = second.file_id
         except PhotoRejected as e:
             st.error(str(e))
@@ -208,11 +217,89 @@ def classification_block(result, key: str) -> None:
                    red=a is not None and a.could_be_column),
              _cell("Type", "—" if s is None or s.pattern is None else PATTERN_NAMES[s.pattern].capitalize(),
                    _type_sub(result, s)),
-             _cell("Position", "not known", "counts as an end zone")]
+             _position_cell(result.location)]
+    if result.parts is not None:
+        cells.append(_cell("Lies on", *parts_words(result.parts)))
     st.markdown('<div class="m-grid">' + "".join(cells) + "</div>", unsafe_allow_html=True)
     if a is not None:
         st.markdown(f'<p class="note">{a.reason}</p>', unsafe_allow_html=True)
+    if result.parts is not None:
+        pr = result.parts
+        st.markdown(f'<p class="note"><b>SAM 3.1:</b> {pr["reason"]}'
+                    + (f' Wall: {pr["note"]}.' if pr.get("note") else "")
+                    + " Shown only: the level does not use it.</p>", unsafe_allow_html=True)
+    if result.location is not None:
+        loc = result.location
+        if loc.get("direction"):  # against the room's true vertical (D61); no type or level by itself
+            st.markdown(f'<p class="m-line"><b>Direction: {loc["direction"]}</b>, '
+                        f'{loc["crack_to_vertical_deg"]:.0f}° from vertical, read against the room\'s vertical lines '
+                        '(door and window frames, corners, the ceiling) in the second photo.</p>',
+                        unsafe_allow_html=True)
+        st.markdown(f'<p class="note">{loc["reason"]}</p>', unsafe_allow_html=True)
+    if result.location_preview is not None:  # the sender's own element photo; never on the wall (rule 9)
+        st.image(result.location_preview, width=360,
+                 caption="Red ring: where the crack is. White: your close-up. Cyan: the bank card. Yellow: the "
+                         "element's edges. Orange (not linked): where the card's look matched best.")
+    if result.parts_preview is not None:  # the sender's own element photo; never on the wall (rule 9)
+        from element.parts import COLOURS, PART_NAMES
+        legend = " · ".join(f'<span style="color:rgb{COLOURS[p]}">■</span> {PART_NAMES[p]}'
+                            for p in (result.parts or {}).get("found", {}))
+        st.image(result.parts_preview, width=360, caption="SAM 3.1: the parts it found. Red ring: the crack.")
+        if legend:
+            st.markdown(f'<p class="note">{legend}</p>', unsafe_allow_html=True)
+    if result.location is not None:
+        with st.expander("What the app found in the two photos (for testing)"):
+            st.markdown(diagnosis_html(result.location.get("diag") or {}), unsafe_allow_html=True)
     level_block(result)
+
+
+def parts_words(parts: dict) -> tuple[str, str]:
+    """The 'Lies on' cell: the part SAM 3.1 holds most of the crack (D62), or not clear."""
+    if not parts.get("on"):
+        return "not clear", "SAM 3.1"
+    sub = f'SAM 3.1, {parts["confidence"]:.0%}' if parts.get("confidence") is not None else "SAM 3.1"
+    if parts.get("border_name"):
+        sub = f'border with {parts["border_name"].lower()} · ' + sub
+    return parts["name"], sub
+
+
+POSITION_WORDS = {"end_zone": "End zone", "middle": "Middle", "unknown": "not known"}
+
+
+def diagnosis_html(d: dict) -> str:
+    """Each step of linking the two photos, in plain words, for field tests (D59). No photo, only numbers."""
+    yes = lambda v: "yes" if v else "no"  # noqa: E731
+    rows = [("Bank card in the close-up", yes(d.get("card_in_close_up")) + ("" if d.get("card_in_close_up") else
+             " (tick \"I put a bank card next to the crack\", or the card was not found there)")),
+            ("Crack line in the close-up", yes(d.get("crack_line_in_close_up"))),
+            ("Element photo size", " x ".join(map(str, d.get("element_photo_px", []))) + " px")]
+    if "card_plainness" in d:
+        rows.append(("Card print (needs 4 or more)", str(d["card_plainness"])))
+    if "card_upright_in_photo" in d:
+        rows.append(("Card lies upright in the photo", yes(d["card_upright_in_photo"])))
+    if "look_scores" in d:
+        rows.append(("Best places by the card's look (needs 0.5)", ", ".join(map(str, d["look_scores"])) or "none"))
+        rows.append(("Card outline found there", ", ".join(yes(v) for v in d.get("outline_found", [])) or "none"))
+        if d.get("outline_look"):
+            rows.append(("Outline looks like the card (needs 0.5)", ", ".join(map(str, d["outline_look"]))))
+    if "card_link" in d:
+        rows.append(("Link through the card", d["card_link"]))
+    if "key_points" in d:
+        rows.append(("Matching key points (needs 20)", str(d["key_points"])))
+    if "true_vertical_found" in d:
+        rows.append(("Room lines for the true vertical (needs 2)", f'{d.get("room_lines", 0)}, '
+                     + ("found" if d["true_vertical_found"] else "not enough")))
+    if "element_edges" in d:
+        rows.append(("Two long edges of the element found", yes(d["element_edges"])))
+    return "".join(f'<p class="note"><b>{k}:</b> {v}</p>' for k, v in rows)
+
+
+def _position_cell(location: dict | None) -> str:
+    """Position on the element: from the two photos linked (D58), else not known, counted as an end zone."""
+    pos = (location or {}).get("position", "unknown")
+    if pos == "unknown":
+        return _cell("Position", "not known", "counts as an end zone")
+    return _cell("Position", POSITION_WORDS[pos], "from the two photos")
 
 
 def _type_sub(result, s) -> str:
@@ -348,8 +435,10 @@ def where_what_html(d: dict) -> str:
     if t:
         cells = [_big("Element", (t["element_name"] or "not clear").capitalize(), "",
                       f'element model, {t["element_probability"]:.0%}'),
-                 _big("Position", t["position_name"].split(" (")[0].capitalize(), "", "counts as an end zone"),
+                 _big("Position", t["position_name"].split(" (")[0].capitalize(), "",
+                      "counts as an end zone" if t.get("position", "unknown") == "unknown" else "from the two photos"),
                  _big("Type", (t["pattern_name"] or "not clear").capitalize(), "", "written rules"),
+                 *_parts_big(d),
                  _big("Level", t["level"], "", "risk matrix, written rules", red=t["engineer_review"])]
         tail = (f'<p class="d-line">{t["reason"]} {t.get("why") or ""} {t["next_step"]}</p>'
                 + ('<p class="d-line d-red"><b>An engineer must confirm this result.</b></p>'
@@ -358,9 +447,18 @@ def where_what_html(d: dict) -> str:
         cells = [_big("Element", (e["name"] or ELEMENT_WORDS.get(e["answer"], e["answer"])).capitalize(), "",
                       f'model, {e["probability"]:.0%}', red=e["could_be_column"]),
                  _big("Type", (s["pattern_name"] or "not clear").capitalize() if s else "—", "",
-                      "suggested by the written rules" if s and s["pattern_name"] else "not clear")]
+                      "suggested by the written rules" if s and s["pattern_name"] else "not clear"),
+                 *_parts_big(d)]
         tail = f'<p class="d-line">{WAITING}</p>'
     return '<div class="d-grid d-words">' + "".join(cells) + "</div>" + tail
+
+
+def _parts_big(d: dict) -> list[str]:
+    """The result page's 'Lies on' cell from SAM 3.1 (D62), when it ran; shown only, not used by the level."""
+    if not d.get("parts"):
+        return []
+    value, sub = parts_words(d["parts"])
+    return [_big("Lies on", value, "", sub)]
 
 
 def _big(label: str, value: str, unit: str = "", sub: str = "", red: bool = False) -> str:

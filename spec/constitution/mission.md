@@ -7,6 +7,12 @@ In dense, ageing neighbourhoods, residents see cracks every day but cannot tell 
 Engineers are too few to inspect every building. Tripoli, February 2026: two blocks collapsed on 8 February (14 to 15 dead, AFP and Reuters),
 and 114 buildings were ordered evacuated. Rana Plaza, Dhaka, 2013: cracks were visible the day before the collapse.
 
+## Why AI is needed
+- **The number of buildings outgrows the number of engineers.** Checking a building today means an engineer on site, looking at it and posting it green, yellow or red (ATC-20 [103]). When many buildings need it at once this does not scale: after the February 2023 earthquakes, Türkiye completed damage assessments for 1,712,182 buildings in 11 provinces within a month [102]. Ageing neighbourhoods face the same shortage without a disaster.
+- **The step that takes an expert's eye is reading the crack in the photo.** Finding which pixels are crack, measuring its width in millimetres from a reference, telling its direction against the element, and recognising the element cannot be written as simple rules; learned models do it, the same way for every photo, in seconds (U-Net pre-trained on ImageNet and fine-tuned on public crack photos, D48; element model, D52; SAM 3.1 for the parts, D62).
+- **What stays without AI:** the risk level comes from written, auditable rules (rule 5), and an engineer confirms every Category 3 and every referral. A surface photo cannot show what is inside the structure (out of scope), so the tool ranks where an engineer should go first; it never says a building is safe.
+- **How we know it helps:** each feature is measured against the non-AI way of doing it. First, the width in mm against a crack-width gauge (`docs/width_gauge/`, `src/measure/width_check.py`); then the whole triage against an engineer's visual check of the same photos (`spec/features/evaluation.md`).
+
 ## Mission
 Give residents and field workers a fast, cheap early-warning triage from a phone photo, and give scarce engineers a ranked list of which buildings to visit first.
 

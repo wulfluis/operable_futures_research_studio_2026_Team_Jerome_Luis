@@ -77,6 +77,15 @@ class MeasuredResult:
     wall_number: int | None = None  # the result's number on the live wall, when shared
     scene: scene_mod.SceneAnswer | None = None  # close-up check of the crack photo (D54)
     pixel_shape: dict | None = None  # crack shape read in the photo's pixels, without a bank card (D57)
+    location: dict | None = None  # where on the element, from the two photos linked (D58); None: no element photo
+    location_preview: Image.Image | None = field(default=None, repr=False)  # element photo with the link; not shared
+    link_grey: np.ndarray | None = field(default=None, repr=False)  # the crack photo, small and grey, in memory only
+    link_line_px: np.ndarray | None = field(default=None, repr=False)  # its crack line in link_grey pixels
+    link_card: tuple | None = field(default=None, repr=False)  # the card: corners in link_grey pixels, its look (D59)
+    link_card_size: float | None = None  # the card's long side / the crack photo's long side
+    link_crack_element: np.ndarray | None = field(default=None, repr=False)  # crack line in the element photo (D58)
+    parts: dict | None = None  # which part the crack lies on, from SAM 3.1 (D62); None: no SAM or no element photo
+    parts_preview: Image.Image | None = field(default=None, repr=False)  # element photo with SAM's masks; not shared
 
     @property
     def measured(self) -> bool:
@@ -96,6 +105,9 @@ class MeasuredResult:
             shape = self.pixel_shape  # no card: angles and ratios read in the photo (D57)
         else:
             return None
+        angle, source = axis_angle(self.location, element)
+        if angle is not None:  # the element's own edges (D58), else the room's true vertical (D61)
+            shape = {**shape, "angle_to_vertical_deg": round(angle, 1), "angle_source": source}
         return suggest(shape, element, at_joint=at_joint, spalling=spalling, rust_stain=rust_stain)
 
     def to_dict(self) -> dict:
@@ -109,6 +121,8 @@ class MeasuredResult:
                 "element": None if self.element is None else element_dict(self.element),
                 "pattern_suggestion": _suggestion_dict(self.suggested_pattern()),
                 "triage": self.triage,
+                "location": self.location,
+                "parts": self.parts,
                 "scene": None if self.scene is None else self.scene.to_dict(),
                 "note": "Measurement only, never a safety statement. Thresholds illustrative until calibrated."}
 
@@ -125,19 +139,47 @@ def _full_mask(prob: np.ndarray, keep: np.ndarray, size: tuple[int, int]) -> np.
     return (p > PIXEL_THRESHOLD) & k
 
 
-def pixel_shape(full: Image.Image, prob: np.ndarray, keep: np.ndarray) -> dict | None:
-    """The crack's shape without a bank card (D57): the U-Net's crack line measured in the photo's pixels, with the
-    same code as with a card. Angles and ratios only, no millimetres; the angle is the photo's, not the wall's."""
+def pixel_line(full: Image.Image, prob: np.ndarray, keep: np.ndarray) -> CrackMeasurement | None:
+    """The U-Net's crack line measured in the photo's pixels (no millimetres), with the same code as with a card."""
     line = longest_piece(_full_mask(prob, keep, full.size))
     if not line.any():
         return None
-    grey = np.asarray(full.convert("L"), dtype=float)
-    m = measure(grey, line, lambda p: np.asarray(p, dtype=float))
+    m = measure(np.asarray(full.convert("L"), dtype=float), line, lambda p: np.asarray(p, dtype=float))
+    return m if m.found else None
+
+
+def pixel_shape(m: CrackMeasurement | None) -> dict | None:
+    """The crack's shape without a bank card (D57). Angles and ratios only; the angle is the photo's, not the wall's."""
+    if m is None:
+        return None
     shape = m.to_dict()["shape"]
-    if not m.found or any(shape[k] is None for k in ("angle_to_vertical_deg", "straightness", "coherence",
-                                                       "branch_ratio")):
+    if any(shape[k] is None for k in ("angle_to_vertical_deg", "straightness", "coherence", "branch_ratio")):
         return None
     return {**shape, "source": "read in the photo's pixels, no bank card: phone tilt unknown"}
+
+
+def axis_angle(location: dict | None, element: str | None) -> tuple[float | None, str | None]:
+    """The angle the type rules read 'to vertical' (D43): against a column's or beam's own edges in the element
+    photo (D58), else against the room's true vertical there (D61); (None, None) when neither was read."""
+    if not location:
+        return None, None
+    if element in ("column", "beam") and location.get("crack_to_axis_deg") is not None:
+        a = float(location["crack_to_axis_deg"])
+        return (a if element == "column" else 90.0 - a), "against the element's edges in the element photo"
+    if location.get("crack_to_vertical_deg") is not None:
+        return float(location["crack_to_vertical_deg"]), "against the room's vertical lines in the element photo"
+    return None, None
+
+
+def _keep_for_link(r: MeasuredResult, full: Image.Image, line_px: np.ndarray | None) -> None:
+    """A small grey copy of the crack photo and its crack line, kept in memory to link the element photo (D58)."""
+    from element.locate import card_patch, card_view, to_link_size
+    r.link_grey, k = to_link_size(np.asarray(full.convert("L")))
+    r.link_line_px = None if line_px is None else np.asarray(line_px, dtype=float) * k
+    if r.card is not None:  # the bridge to the element photo, where the crack itself may be too thin to see (D59)
+        patch, q = card_patch(np.asarray(full), r.card.corners_px)
+        r.link_card = (q * k, patch, card_view(np.asarray(full), q))
+        r.link_card_size = float(np.linalg.norm(q[1] - q[0])) / max(full.size)
 
 
 def _draw_card_and_widest(overlay: Image.Image, scale: float, card, crack) -> Image.Image:
@@ -169,7 +211,9 @@ def run_measured(photo: Image.Image, model, device: str = "cpu", scene_model=Non
     if problems:
         reason = f"The photo is {' and '.join(problems)}; please take it again."
         return MeasuredResult("Retake", reason, None, draw_overlay(work, np.zeros((h, w), bool), "Retake", reason))
-    scene = scene_mod.check(scene_model, full, device, "crack") if scene_model is not None else None
+    rgb = np.asarray(full)
+    card = card_mod.detect_card(rgb) if card_placed else None  # first: a found card shows the photo is a wall (D60)
+    scene = scene_mod.check(scene_model, full, device, "crack", card is not None) if scene_model is not None else None
     if scene is not None and not scene.ok:
         r = MeasuredResult("Retake", scene.reason, None, draw_overlay(work, np.zeros((h, w), bool), "Retake",
                                                                        scene.reason))
@@ -177,8 +221,6 @@ def run_measured(photo: Image.Image, model, device: str = "cpu", scene_model=Non
         return r
 
     prob = probability(model, img, device)[:h, :w]
-    rgb = np.asarray(full)
-    card = card_mod.detect_card(rgb) if card_placed else None
     k = w / full.width  # full photo -> working size
     if card is not None:  # the card's edges are straight dark lines: never read them as the crack
         prob = np.where(reference_mask((h, w), card.corners_px * k, CARD_PAD * max(w, h)), 0.0, prob)
@@ -193,7 +235,9 @@ def run_measured(photo: Image.Image, model, device: str = "cpu", scene_model=Non
         r = MeasuredResult(d.statement, line, d.confidence, draw_overlay(work, d.mask, d.statement, line), d)
         r.scene = scene
         if d.statement in (CRACK, UNSURE):  # the type needs no scale; the answer above stays the original's
-            r.pixel_shape = pixel_shape(full, prob, d.mask)
+            m = pixel_line(full, prob, d.mask)
+            r.pixel_shape = pixel_shape(m)
+            _keep_for_link(r, full, None if m is None else m.main_path_px)
         return r
 
     r = MeasuredResult(d.statement, line, d.confidence, work, d, card)
@@ -235,6 +279,9 @@ def run_measured(photo: Image.Image, model, device: str = "cpu", scene_model=Non
     elif d.statement == NO_CRACK:
         r.measure_note = "Bank card found; there is no crack to measure."
 
+    if d.statement in (CRACK, UNSURE):
+        found = r.crack is not None and r.crack.found
+        _keep_for_link(r, full, r.crack.main_path_px if found else None)
     if r.measured:
         c = r.crack
         line = (f"{d.reason} Confidence {d.confidence:.0%}. Widest {c.width_max_mm:.2f} ± "
@@ -352,7 +399,7 @@ def element_dict(a: ElementAnswer) -> dict:
 
 
 def analyse_element(data: bytes, result: MeasuredResult, wall: Wall, model, device: str = "cpu",
-                    gpu: threading.Lock | None = None, scene_model=None) -> ElementAnswer:
+                    gpu: threading.Lock | None = None, scene_model=None, parts_model=None) -> ElementAnswer:
     """The second photo, of the whole element: same checks as the crack photo, only pixels read, never saved (rule 9).
     A close-up cannot show the element: with a scene model it is refused with a hint (D54). The answer is stored on
     the result and, when shared, on its wall entry."""
@@ -364,8 +411,46 @@ def analyse_element(data: bytes, result: MeasuredResult, wall: Wall, model, devi
             if not s.ok:
                 raise PhotoRejected(s.reason)
         result.element = read_element(model, photo, device)
+    locate_crack(result, photo)
+    if parts_model is not None:
+        find_parts_for(result, photo, parts_model, gpu)
     auto_triage(result, wall)
     return result.element
+
+
+def locate_crack(result: MeasuredResult, photo: Image.Image) -> None:
+    """Where on the element the crack is, from the two photos linked (D58). No crack photo kept: nothing is read."""
+    from element.locate import locate
+    from element.predict import matrix_element
+    if result.link_grey is None:
+        return
+    loc = locate(result.link_grey, result.link_line_px, np.asarray(ImageOps.exif_transpose(photo).convert("RGB")),
+                 matrix_element(result.element), result.link_card, result.link_card_size)
+    result.location, result.location_preview = loc.to_dict(), loc.preview
+    result.link_crack_element = loc.crack_px
+
+
+PARTS_SIDE = 1600  # the element photo's long side for SAM 3.1 (it reads 644 px anyway)
+
+
+def find_parts_for(result: MeasuredResult, photo: Image.Image, segment, gpu: threading.Lock | None = None) -> None:
+    """Which part the crack lies on, from SAM 3.1's masks (D62). Shown only: the level, the element it uses, the
+    position and the angle stay as they are (rule 5). If SAM fails (memory), the app goes on without it."""
+    from element.parts import find_parts
+    rgb = np.asarray(ImageOps.exif_transpose(photo).convert("RGB"))
+    k = min(1.0, PARTS_SIDE / max(rgb.shape[:2]))
+    if k < 1.0:
+        rgb = np.asarray(Image.fromarray(rgb).resize((round(rgb.shape[1] * k), round(rgb.shape[0] * k))))
+    crack = None if result.link_crack_element is None else result.link_crack_element * k
+    try:
+        with gpu or threading.Lock():
+            p = find_parts(rgb, crack, segment)
+    except Exception as e:  # noqa: BLE001  any failure of the optional model must not stop the triage
+        result.parts = {"on": None, "name": None, "reason": f"SAM 3.1 could not run on this photo ({type(e).__name__}).",
+                        "source": "SAM 3.1 (D62)"}
+        result.parts_preview = None
+        return
+    result.parts, result.parts_preview = p.to_dict(), p.preview
 
 
 def level_for(result: MeasuredResult, element: str | None, position: str, pattern: str | None,
@@ -383,7 +468,8 @@ def level_for(result: MeasuredResult, element: str | None, position: str, patter
 def auto_triage(result: MeasuredResult, wall: Wall | None = None) -> LevelResult | None:
     """The level, given by itself once the element photo is in (D55): the model's element, the written rules' type
     and the written risk matrix. Any doubt gives Expert needed, never a category: an element the model is unsure of,
-    a type the rules call unclear, no width. The position is not known, so it counts as an end zone (never lower).
+    a type the rules call unclear, no width. The position comes from the two photos when they can be linked
+    (D58); otherwise it is unknown and counts as an end zone (never lower).
     Stored on the result and on its wall entry; None before the element photo."""
     from element.predict import matrix_element
     if result.element is None or result.statement not in ("Crack found", "Expert needed"):
@@ -392,7 +478,8 @@ def auto_triage(result: MeasuredResult, wall: Wall | None = None) -> LevelResult
     s = result.suggested_pattern()
     pattern = s.pattern if s is not None and s.pattern and s.clear else None
     conf = min(result.confidence if result.confidence is not None else 0.0, result.element.probability)
-    level = level_for(result, element, "unknown", pattern, confidence=conf)
+    position = (result.location or {}).get("position", "unknown")
+    level = level_for(result, element, position, pattern, confidence=conf)
     why = [result.element.reason] if element is None else []
     if not result.measured:
         why.append("The width needs a bank card next to the crack." if s is not None and s.pattern else
@@ -401,8 +488,9 @@ def auto_triage(result: MeasuredResult, wall: Wall | None = None) -> LevelResult
         why.append("The crack type is not clear from the photo.")
     result.triage = {"source": AUTO_SOURCE, "element": element,
                      "element_name": ELEMENTS.get(element) if element else None,
-                     "element_probability": round(result.element.probability, 3), "position": "unknown",
-                     "position_name": POSITION_NAMES["unknown"], "pattern": pattern,
+                     "element_probability": round(result.element.probability, 3), "position": position,
+                     "position_name": POSITION_NAMES[position],
+                     "position_reason": (result.location or {}).get("reason"), "pattern": pattern,
                      "pattern_name": PATTERN_NAMES.get(pattern) if pattern else None,
                      "pattern_suggested": s.pattern if s is not None else None,
                      "confidence": round(conf, 3), "level": level.level, "reason": level.reason,
