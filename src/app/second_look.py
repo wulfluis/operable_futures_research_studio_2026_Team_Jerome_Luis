@@ -216,11 +216,13 @@ def classification_block(result, key: str) -> None:
 
 
 def _type_sub(result, s) -> str:
-    if result.crack is None or not result.crack.found:
-        return "needs the bank-card measurement (direction and shape)"
+    if (result.crack is None or not result.crack.found) and result.pixel_shape is None:
+        return "no crack line to read its direction and shape"
     if s is None or s.pattern is None:
         return "not clear from the photo: an engineer decides"
-    return "suggested by the written rules" + ("" if s.clear else ", unclear")
+    no_card = result.crack is None or not result.crack.found
+    return ("suggested by the written rules" + (", read in the photo (no card)" if no_card else "")
+            + ("" if s.clear else ", unclear"))
 
 
 def level_block(result) -> None:
@@ -406,9 +408,10 @@ def result_page(number: int) -> None:
     if d.get("width_band_of_upper_end"):
         html.append(f'<p class="d-line">Width band of the risk matrix: <b>{d["width_band_of_upper_end"]}</b>. Not a '
                     'level: the level also needs the crack pattern and the element.</p>')
-    sh = c.get("shape") or {}
-    if c.get("found") and sh.get("angle_to_vertical_deg") is not None:
-        html.append(f'<p class="d-note">Crack shape: {sh["angle_to_vertical_deg"]:.0f}° from vertical · straightness '
+    sh = (c.get("shape") if c.get("found") else None) or d.get("shape_in_pixels") or {}
+    if sh.get("angle_to_vertical_deg") is not None:
+        html.append(f'<p class="d-note">Crack shape{" (in the photo, no card)" if sh.get("source") else ""}: '
+                    f'{sh["angle_to_vertical_deg"]:.0f}° from vertical · straightness '
                     f'{sh["straightness"]:.2f} · coherence {sh["coherence"]:.2f} · {sh["n_loops"]} closed cells · '
                     f'branches {sh["branch_ratio"]:.1f}x main length</p>')
     for w in d.get("warnings") or []:

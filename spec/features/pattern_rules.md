@@ -40,6 +40,13 @@ Column: vertical. Beam: horizontal. Walls and slabs: no axis. The angle φ betwe
 | 14 | Column or beam: φ at most 25 without a rust stain | `along_bar` | **no**: on a column, a vertical crack can also be crushing under load; an engineer decides |
 | 15 | φ between bands (25 to 35, 55 to 65) | the nearer band's pattern | no |
 
+## Shape without a bank card (11 Nov, D57)
+The shape the rules read (angle to vertical, straightness, coherence, closed loops, branch ratio) does not need millimetres: each is an angle or a ratio. So without a bank card the app reads the shape from the U-Net's crack line in the photo's pixels (`src/app/core.py`, `pixel_shape`), the same line and the same code (`measure.crack.measure`) as with a card, only with pixels in place of mm.
+- What it gives: the type suggestion, shown in the app and on the result page as "read in the photo (no card)".
+- What it does not: the level. The risk matrix needs the width, so without a card the level stays Expert needed; only the reason changes (width missing, not type missing). It never lowers a level.
+- Limit: without the card the phone's tilt is unknown and the photo's perspective is not corrected, so the angle is the one in the photo, not on the wall (with a card, a tilt over 20 degrees is a retake). An upright phone is still assumed. When the card is there but the tilt is over 20 degrees, no shape is read.
+- Not read for "No crack found" or "Retake".
+
 ## Limits
 - One crack, one pattern. A crack that changes direction (flexural turning into shear) is read by its main direction only, and its straightness drops.
 - The phone must be upright; a sideways photo swaps vertical and horizontal. The app does not yet read the phone's orientation (prepare.py strips the metadata that holds it).

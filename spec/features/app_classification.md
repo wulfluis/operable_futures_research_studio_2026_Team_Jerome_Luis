@@ -9,7 +9,7 @@ Until now the app said only whether there is a crack and, with a bank card, how 
 | Question | Resident | Answered by |
 |---|---|---|
 | Element (column, beam, wall) | never asked | element model on the second photo (D52), with "doubt means column" |
-| Crack type (pattern) | never asked | written rules from the crack's shape and that element (D43); needs the bank card |
+| Crack type (pattern) | never asked | written rules from the crack's shape and that element (D43); with a bank card the shape is measured on the wall, without one it is read in the photo's pixels (D57) |
 | Position on the element | never asked | not known from the photos: counts as an end zone (never lowers a level) |
 | Level | - | the written risk matrix, by itself (rule 5, D55) |
 
@@ -24,6 +24,7 @@ Until now the app said only whether there is a crack and, with a bank card, how 
 - Confidence: the lower of the crack model's and the element model's probability.
 - Position: unknown, so an end zone.
 - Width: the widest width with its uncertainty from the bank card; none without a card.
+- Without a card the type is still read, from the U-Net's crack line in pixels (D57); the level stays Expert needed, since the matrix needs the width, and the reason says the width is missing rather than the type.
 - Any missing piece gives Expert needed through the matrix, with a sentence saying why. Category 3 and Expert needed are flagged for the engineer (rule 4).
 
 ## Live wall

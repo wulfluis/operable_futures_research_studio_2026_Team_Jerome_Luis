@@ -76,6 +76,7 @@ class MeasuredResult:
     triage: dict | None = None  # the matrix's inputs and level, given automatically after the element photo (D55)
     wall_number: int | None = None  # the result's number on the live wall, when shared
     scene: scene_mod.SceneAnswer | None = None  # close-up check of the crack photo (D54)
+    pixel_shape: dict | None = None  # crack shape read in the photo's pixels, without a bank card (D57)
 
     @property
     def measured(self) -> bool:
@@ -89,10 +90,13 @@ class MeasuredResult:
 
     def pattern(self, element=None, at_joint=None, spalling=None, rust_stain=False) -> PatternSuggestion | None:
         """Draft rules (D43); never asked of the resident (D25)."""
-        if self.crack is None or not self.crack.found:
+        if self.crack is not None and self.crack.found:
+            shape = self.crack.to_dict()["shape"]
+        elif self.pixel_shape is not None:
+            shape = self.pixel_shape  # no card: angles and ratios read in the photo (D57)
+        else:
             return None
-        return suggest(self.crack.to_dict()["shape"], element, at_joint=at_joint, spalling=spalling,
-                       rust_stain=rust_stain)
+        return suggest(shape, element, at_joint=at_joint, spalling=spalling, rust_stain=rust_stain)
 
     def to_dict(self) -> dict:
         return {"version": MEASURE_VERSION, "statement": self.statement, "reason": self.reason,
@@ -100,6 +104,7 @@ class MeasuredResult:
                 "card": None if self.card is None else self.card.to_dict(),
                 "measured": self.measured, "measure_note": self.measure_note, "warnings": self.warnings,
                 "crack": None if self.crack is None else self.crack.to_dict(),
+                "shape_in_pixels": self.pixel_shape,
                 "width_band_of_upper_end": self.band(),
                 "element": None if self.element is None else element_dict(self.element),
                 "pattern_suggestion": _suggestion_dict(self.suggested_pattern()),
@@ -118,6 +123,21 @@ def _full_mask(prob: np.ndarray, keep: np.ndarray, size: tuple[int, int]) -> np.
     p = np.asarray(Image.fromarray(prob.astype(np.float32), "F").resize(size, Image.BILINEAR))
     k = np.asarray(Image.fromarray(keep.astype(np.uint8) * 255).resize(size, Image.BILINEAR)) > 0
     return (p > PIXEL_THRESHOLD) & k
+
+
+def pixel_shape(full: Image.Image, prob: np.ndarray, keep: np.ndarray) -> dict | None:
+    """The crack's shape without a bank card (D57): the U-Net's crack line measured in the photo's pixels, with the
+    same code as with a card. Angles and ratios only, no millimetres; the angle is the photo's, not the wall's."""
+    line = longest_piece(_full_mask(prob, keep, full.size))
+    if not line.any():
+        return None
+    grey = np.asarray(full.convert("L"), dtype=float)
+    m = measure(grey, line, lambda p: np.asarray(p, dtype=float))
+    shape = m.to_dict()["shape"]
+    if not m.found or any(shape[k] is None for k in ("angle_to_vertical_deg", "straightness", "coherence",
+                                                       "branch_ratio")):
+        return None
+    return {**shape, "source": "read in the photo's pixels, no bank card: phone tilt unknown"}
 
 
 def _draw_card_and_widest(overlay: Image.Image, scale: float, card, crack) -> Image.Image:
@@ -172,6 +192,8 @@ def run_measured(photo: Image.Image, model, device: str = "cpu", scene_model=Non
                      " Width unknown: add a bank card (or the scale card) next to the crack.")
         r = MeasuredResult(d.statement, line, d.confidence, draw_overlay(work, d.mask, d.statement, line), d)
         r.scene = scene
+        if d.statement in (CRACK, UNSURE):  # the type needs no scale; the answer above stays the original's
+            r.pixel_shape = pixel_shape(full, prob, d.mask)
         return r
 
     r = MeasuredResult(d.statement, line, d.confidence, work, d, card)
@@ -373,7 +395,8 @@ def auto_triage(result: MeasuredResult, wall: Wall | None = None) -> LevelResult
     level = level_for(result, element, "unknown", pattern, confidence=conf)
     why = [result.element.reason] if element is None else []
     if not result.measured:
-        why.append("The crack type and width need a bank card next to the crack.")
+        why.append("The width needs a bank card next to the crack." if s is not None and s.pattern else
+                   "The width needs a bank card next to the crack, and the crack type is not clear from the photo.")
     elif pattern is None:
         why.append("The crack type is not clear from the photo.")
     result.triage = {"source": AUTO_SOURCE, "element": element,
