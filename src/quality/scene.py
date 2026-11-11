@@ -64,13 +64,22 @@ def probabilities(model, photo: Image.Image, device: str = "cpu") -> dict[str, f
     return dict(zip(SCENES, map(float, calibrate(p.cpu().numpy()[0], TEMPERATURE))))
 
 
-def crack_photo_check(probs: dict[str, float] | None, close_up_min: float = CLOSE_UP_MIN) -> SceneAnswer:
-    """A crack photo must be a close-up; otherwise Retake (rule 2: an unusable photo means retake)."""
+HALVES_NEEDED = 2  # with a card placed: this many of the photo's four halves read as a close-up are enough (D58)
+
+
+def crack_photo_check(probs: dict[str, float] | None, close_up_min: float = CLOSE_UP_MIN,
+                      halves: list[float] | None = None) -> SceneAnswer:
+    """A crack photo must be a close-up; otherwise Retake (rule 2: an unusable photo means retake).
+    halves: the close-up probability of the photo's top, bottom, left and right halves, given only when the sender
+    placed a card (D58): a card and the hand holding it, never seen in training, must not overrule the wall."""
     if probs is None:
         return SceneAnswer(None, None, True, "No scene check (model not installed).")
     best = max(probs, key=probs.get)
     if probs["close_up"] >= close_up_min:
         return SceneAnswer(best, probs["close_up"], True, f"A close-up ({probs['close_up']:.0%}).")
+    if halves is not None and sum(h >= close_up_min for h in halves) >= HALVES_NEEDED:
+        return SceneAnswer("close_up", max(halves), True, f"A close-up: {sum(h >= close_up_min for h in halves)} of "
+                           "the photo's 4 halves read as one (the card and the hand do not count against it).")
     seen = NAMES["structure" if probs["structure"] >= probs["object"] else "object"]
     return SceneAnswer(best, probs["close_up"], False, RETAKE_WIDE.format(seen=seen))
 
@@ -93,6 +102,19 @@ def choose_close_up_min(p_close_up: np.ndarray, is_close_up: np.ndarray, target:
     return max(ok) if ok else min(candidates)
 
 
-def check(model, photo: Image.Image, device: str = "cpu", kind: str = "crack") -> SceneAnswer:
+def halves_of(photo: Image.Image) -> list[Image.Image]:
+    """Top, bottom, left and right halves."""
+    img = ImageOps.exif_transpose(photo)
+    w, h = img.size
+    return [img.crop((0, 0, w, h // 2)), img.crop((0, h // 2, w, h)), img.crop((0, 0, w // 2, h)),
+            img.crop((w // 2, 0, w, h))]
+
+
+def check(model, photo: Image.Image, device: str = "cpu", kind: str = "crack", card_placed: bool = False) -> SceneAnswer:
     probs = None if model is None else probabilities(model, photo, device)
-    return crack_photo_check(probs) if kind == "crack" else element_photo_check(probs)
+    if kind != "crack":
+        return element_photo_check(probs)
+    halves = None
+    if card_placed and probs is not None and probs["close_up"] < CLOSE_UP_MIN:
+        halves = [probabilities(model, h, device)["close_up"] for h in halves_of(photo)]
+    return crack_photo_check(probs, halves=halves)

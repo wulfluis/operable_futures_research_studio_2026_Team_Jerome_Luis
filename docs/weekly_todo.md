@@ -27,6 +27,10 @@ Owner: J = Jerome, L = Luis, C = coding agent (Claude). Fill in the blanks.
 - [x] Card finder took a window blind, then wall texture, for a bank card: card search only with the tick, and a card must stand out from the wall (C, 11 Nov, D56)
 - [x] Scene check (close-up or not) in the app; dark patches are not cracks (C, 11 Nov, D54)
 - [x] The app gives the category by itself; any doubt gives Expert needed (C, 11 Nov, D55)
+- [x] Photo 2 gives place, size and spalling; ten logical simulated cases; spalling model (C, 11 Nov, D59 to D61)
+- [x] Ten real two-photo test cases from the Haiti photos, same crack in both photos, both photos on the wall (C, 11 Nov, D62, D63)
+- [ ] **Send the Haiti licence email now** (santiago.pujol@canterbury.ac.nz): until it is answered the Haiti cases stay on this laptop, never on GitHub, slides or the public link (J)
+- [ ] Each crack in 3D, Grasshopper + wall viewer (C, 11 Nov, D57): first run in Rhino 8 and on the wall (J), then merge into main
 - [ ] Next: ask the element photo only when it can change the level; one video instead of two photos (hackathon); photos of crack-free frames, sockets and corners to teach the crack model (J + L)
 - [ ] Retest D51 in the app with the wall-ceiling photo and a few real cracks; restart the launcher first (J)
 - [ ] Decide the proposal of 10 Nov: a wide-view model (cracks, windows, elements), element classification and video (would supersede D30 in part) (J + L)

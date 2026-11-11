@@ -16,6 +16,8 @@ EDGE_BAND = 0.015  # share of the straight part's length: pixels this close to i
 EDGE_BAND_PX = 4  # ... and never less than this many pixels (the line has a width)
 EDGE_SHARE = 0.5  # share of the group's pixels on its straight part: less, and the group is a crack with a straight bit
 EDGE_REST_STRAIGHT = 0.85  # a leftover piece with this share on its own straight line is part of the corner
+EDGE_WANDER_MAX = 0.006  # centre line's stray / length: above it, a crack, not a corner (11 Nov: real corners 0.0005
+                         # to 0.0025, synthetic cracks 0.0087 to 0.019; illustrative until checked on real photos)
 
 # A crack is a line: a thick, round patch is not counted as one (D54; illustrative until calibrated)
 BLOB_MAX_ELONGATION = 3.0  # length / width at or under this: a patch, not a line (a round patch is about 1)
@@ -103,6 +105,31 @@ def reaches_side(ys: np.ndarray, xs: np.ndarray, shape: tuple[int, int]) -> bool
     return bool(ys.min() <= m or ys.max() >= h - 1 - m or xs.min() <= m or xs.max() >= w - 1 - m)
 
 
+def centre_wander(ys: np.ndarray, xs: np.ndarray, inside: np.ndarray, bin_px: float = 8.0) -> float:
+    """How far the group's centre line strays from the straight part's line, as a share of that line's length (D51,
+    11 Nov). The painted crack area is about twice as wide as the crack, so a gently wandering crack still fits a
+    straight band; its centre line does not. Per step along the line, the median offset across of all the group's
+    pixels there within 4 bands of the line (a branch going off sideways does not count); returns their
+    root-mean-square (a corner: about 0)."""
+    pts = np.column_stack([xs, ys]).astype(float)
+    c = pts[inside].mean(axis=0)
+    d = np.linalg.svd(pts[inside] - c, full_matrices=False)[2]
+    along, across = (pts - c) @ d[0], (pts - c) @ d[1]
+    lo, hi = along[inside].min(), along[inside].max()
+    near = 4 * max(EDGE_BAND_PX, EDGE_BAND * (hi - lo))  # close to the line: a branch going off sideways is not wander
+    keep = (along >= lo) & (along <= hi) & (np.abs(across) <= near)
+    bins = np.floor((along[keep] - lo) / bin_px).astype(int)
+    order = np.argsort(bins)
+    b, a = bins[order], across[keep][order]
+    starts = np.flatnonzero(np.r_[True, b[1:] != b[:-1]])
+    medians = np.array([np.median(s) for s in np.split(a, starts[1:])])
+    if len(medians) < 3:
+        return 0.0
+    k = np.arange(len(medians))
+    resid = medians - np.polyval(np.polyfit(k, medians, 1), k)  # straight-line trend removed
+    return float(np.sqrt(np.mean(resid ** 2)) / max(hi - lo, 1.0))
+
+
 def edge_pixels(ys: np.ndarray, xs: np.ndarray, shape: tuple[int, int]) -> np.ndarray | None:
     """Of one group of crack pixels: True for those that are a corner or an edge (D51); None when it holds none.
     An edge is a long straight line, most of the group, reaching a side of the photo. What is left of the group is
@@ -114,6 +141,8 @@ def edge_pixels(ys: np.ndarray, xs: np.ndarray, shape: tuple[int, int]) -> np.nd
     inside, length = fit
     if (inside.mean() < EDGE_SHARE or length < EDGE_MIN_LENGTH * min(shape)
             or not reaches_side(ys[inside], xs[inside], shape)):
+        return None
+    if centre_wander(ys, xs, inside) > EDGE_WANDER_MAX:  # its centre line wanders: a crack, however straight its area
         return None
     out = inside.copy()
     rest = np.zeros(shape, bool)

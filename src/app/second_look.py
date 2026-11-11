@@ -15,6 +15,7 @@ import threading
 from pathlib import Path
 
 import streamlit as st
+import streamlit.components.v1 as components
 import torch
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -22,10 +23,13 @@ if str(ROOT / "src") not in sys.path:
     sys.path.insert(0, str(ROOT / "src"))
 from app.background import background_css, crack_underline_css, model_line  # the original's look, unchanged
 from app.logo import LOGO_CSS, logo_title
-from app.core import (NOT_A_SAFETY_CHECK, STATEMENTS, WAITING, ConsentMissing, PhotoRejected, Wall, analyse,
-                      analyse_element, make_qr, wall_key_ok)
+from app.viewer3d import HEIGHT as VIEW_HEIGHT, viewer_html
+from app.inbox import INBOX, start as start_inbox
+from app.core import (EXPORT_DIR, NOT_A_SAFETY_CHECK, STATEMENTS, WAITING, ConsentMissing, PhotoRejected, Wall,
+                      analyse, analyse_element, make_qr, wall_key_ok)
 from element.predict import load as load_element_model
 from quality.scene import load as load_scene_model
+from element.spalling import load as load_spalling_model
 from measure.card import TILT_OK_DEG, TILT_RETAKE_DEG
 from segmentation.decide import CRACK, UNSURE
 from segmentation.train import load_checkpoint
@@ -102,6 +106,8 @@ h1, h2, h3 { color: #ffffff !important; font-weight: 800 !important; text-transf
 .stApp .wall-photo .badge { position: absolute; left: 0.4rem; top: 0.4rem; background: #0b0b0b; color: #ffffff;
                             font: 800 0.95rem/1.2 inherit; padding: 0.15rem 0.45rem; text-transform: uppercase; }
 .stApp .wall-photo .badge-low { top: auto; bottom: 0.4rem; font-size: 0.8rem; }
+.stApp .wall-photo .badge-test { left: auto; right: 0.4rem; background: #d62728; }
+.stApp .wall-photo img.inset { position: absolute; right: 0.4rem; bottom: 0.4rem; width: 36%; border: 2px solid #0b0b0b; }
 </style>"""
 
 DETAIL_STYLE = """<style>
@@ -137,8 +143,13 @@ def shared():
     """The crack model, one GPU lock, one wall, the element model (D53) and the scene model (D54) for every visitor
     of this run; the last two are None when their file is missing."""
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    return (load_checkpoint(MODEL, device), device, threading.Lock(), Wall(), load_element_model(device=device),
-            load_scene_model(device=device))
+    export = Path(os.environ.get("SECOND_LOOK_EXPORT_DIR") or EXPORT_DIR)  # read now: tests point it elsewhere
+    out = (load_checkpoint(MODEL, device), device, threading.Lock(), Wall(export_dir=export),
+           load_element_model(device=device), load_scene_model(device=device), load_spalling_model(device=device))
+    model, _, gpu, wall, element_model, scene_model, spalling_model = out
+    start_inbox(wall, model, device, gpu, element_model, scene_model, spalling_model,
+                inbox=Path(os.environ.get("SECOND_LOOK_INBOX") or INBOX))  # when the inbox folder exists
+    return out
 
 
 def phone_page() -> None:
@@ -164,7 +175,7 @@ def phone_page() -> None:
         return
     done = st.session_state.setdefault("done", {})
     if upload.file_id not in done:  # analyse each upload once, even when the page reruns
-        model, device, gpu, wall, _, scene_model = shared()
+        model, device, gpu, wall, _, scene_model, _ = shared()
         try:
             with st.spinner("Looking at the photo..."):
                 done[upload.file_id] = analyse(upload.getvalue(), consent, share, wall, model, device, gpu,
@@ -187,7 +198,7 @@ def classification_block(result, key: str) -> None:
     """Where the crack is and what type it is (spec/features/app_classification.md, D53). The resident only sends a
     second photo; the element model and the written rules read element and type; the written risk matrix gives the
     level by itself (D55). Any doubt gives Expert needed."""
-    _, device, gpu, wall, element_model, scene_model = shared()
+    _, device, gpu, wall, element_model, scene_model, _ = shared()
     st.markdown('<p class="m-head">Where is the crack?</p>', unsafe_allow_html=True)
     st.markdown("Step back and photograph the **whole** column, beam or wall that has the crack, top to bottom if "
                 "you can. Hold the phone upright.")
@@ -197,7 +208,8 @@ def classification_block(result, key: str) -> None:
     if second is not None and seen.get(key) != second.file_id:
         try:
             with st.spinner("Looking at the element..."):
-                analyse_element(second.getvalue(), result, wall, element_model, device, gpu, scene_model)
+                analyse_element(second.getvalue(), result, wall, element_model, device, gpu, scene_model,
+                                shared()[0], shared()[6])
             seen[key] = second.file_id
         except PhotoRejected as e:
             st.error(str(e))
@@ -208,11 +220,20 @@ def classification_block(result, key: str) -> None:
                    red=a is not None and a.could_be_column),
              _cell("Type", "—" if s is None or s.pattern is None else PATTERN_NAMES[s.pattern].capitalize(),
                    _type_sub(result, s)),
-             _cell("Position", "not known", "counts as an end zone")]
+             _cell("Position", *_position_cell(result))]
+    if result.on_element is not None and result.on_element.overlay is not None:
+        st.image(result.on_element.overlay, caption="Photo 2: the whole element, the crack in red", width="stretch")
     st.markdown('<div class="m-grid">' + "".join(cells) + "</div>", unsafe_allow_html=True)
     if a is not None:
         st.markdown(f'<p class="note">{a.reason}</p>', unsafe_allow_html=True)
     level_block(result)
+
+
+def _position_cell(result) -> tuple[str, str]:
+    t = result.triage or {}
+    if t.get("position") in ("end_zone", "middle"):
+        return ("End zone" if t["position"] == "end_zone" else "Middle"), "from photo 2"
+    return "not known", "counts as an end zone"
 
 
 def _type_sub(result, s) -> str:
@@ -311,7 +332,9 @@ def wall_grid() -> None:
     cells = "".join(
         f'<a class="wall-photo" href="{_wall_href(item=e.number)}" target="_self" title="Open result {e.number}">'
         f'<img src="data:image/jpeg;base64,{base64.b64encode(e.thumb).decode()}" alt="Result {e.number}">'
-        f'{_photo_badge(e.stats)}</a>' for e in mine)
+        + (f'<img class="inset" src="data:image/jpeg;base64,{base64.b64encode(e.photo2).decode()}" '
+           f'alt="Photo 2 of result {e.number}">' if e.photo2 else "")
+        + f'{_photo_badge(e.stats)}</a>' for e in mine)
     st.markdown(f'<div class="wall-gallery">{cells}</div>', unsafe_allow_html=True)
 
 
@@ -319,7 +342,7 @@ def _photo_badge(stats: dict) -> str:
     """On the photo in the gallery: the widest width when measured (top), and the level once confirmed, else the
     model's element (bottom; D53)."""
     c = stats.get("crack") or {}
-    out = ""
+    out = '<span class="badge badge-test">TEST</span>' if stats.get("test") else ""
     if stats.get("measured") and c.get("width_max_mm") is not None:
         out += f'<span class="badge">{c["width_max_mm"]:.2f} mm</span>'
     label = where_what(stats)
@@ -346,7 +369,8 @@ def where_what_html(d: dict) -> str:
     if t:
         cells = [_big("Element", (t["element_name"] or "not clear").capitalize(), "",
                       f'element model, {t["element_probability"]:.0%}'),
-                 _big("Position", t["position_name"].split(" (")[0].capitalize(), "", "counts as an end zone"),
+                 _big("Position", t["position_name"].split(" (")[0].capitalize(), "",
+                      "from photo 2" if t.get("position") in ("end_zone", "middle") else "counts as an end zone"),
                  _big("Type", (t["pattern_name"] or "not clear").capitalize(), "", "written rules"),
                  _big("Level", t["level"], "", "risk matrix, written rules", red=t["engineer_review"])]
         tail = (f'<p class="d-line">{t["reason"]} {t.get("why") or ""} {t["next_step"]}</p>'
@@ -378,11 +402,17 @@ def result_page(number: int) -> None:
     d = entry.stats
     card, c = d.get("card"), d.get("crack") or {}
     conf = d.get("confidence")
-    st.markdown(f'<p class="d-title">{entry.statement}<span class="d-num">#{entry.number}</span></p>'
+    st.markdown(f'<p class="d-title">{entry.statement}<span class="d-num">#{entry.number}'
+                f'{" · TEST" if d.get("test") else ""}</span></p>'
                 f'<p class="d-line">{d.get("reason", "")}</p>', unsafe_allow_html=True)
     left, right = st.columns([1.15, 1], gap="large")
-    left.markdown(f'<img class="d-photo" src="data:image/jpeg;base64,{base64.b64encode(entry.large).decode()}" '
-                  f'alt="Result {entry.number}">', unsafe_allow_html=True)
+    left.markdown('<p class="d-lab">Photo 1 · the crack, close up</p>'
+                  f'<img class="d-photo" src="data:image/jpeg;base64,{base64.b64encode(entry.large).decode()}" '
+                  f'alt="Result {entry.number}, photo 1">'
+                  + ('<p class="d-lab" style="margin-top:1rem">Photo 2 · the whole element</p>'
+                     f'<img class="d-photo" src="data:image/jpeg;base64,{base64.b64encode(entry.photo2).decode()}" '
+                     f'alt="Result {entry.number}, photo 2">' if entry.photo2 else
+                     '<p class="d-note">No photo of the whole element yet.</p>'), unsafe_allow_html=True)
     html = []
     if d.get("measured"):
         html.append('<div class="d-hero">' + _big("Width, widest point", f'{c["width_max_mm"]:.2f}', " mm",
@@ -390,6 +420,11 @@ def result_page(number: int) -> None:
         cells = [_big("Width, median", f'{c["width_median_mm"]:.2f}', " mm"),
                  _big("Length", f'{c["length_main_mm"]:.0f}', " mm", f'all branches {c["length_total_mm"]:.0f} mm'),
                  _big("Pixels across", f'{c["px_across_at_widest"]:.1f}', " px", "need ≥ 3, best 6–8")]
+    elif d.get("estimate"):  # TEST cases only (D62): an estimate, never a measurement
+        e = d["estimate"]
+        html.append('<div class="d-hero">' + _big("Width of the marked damage, ESTIMATED (not measured)", f'≈ {e["width_max_mm"]:g}', " mm",
+                                                  f'± {e["uncertainty_mm"]:g} mm · {e["basis"]}') + "</div>")
+        cells = [_big("Length, estimated", f'≈ {e["length_mm"]}', " mm", "from photo 2")]
     else:
         why = d.get("measure_note") or "No bank card in the photo: no measurement in mm."
         html.append(f'<p class="d-none">Width not measured</p><p class="d-line">{why}</p>')
@@ -415,6 +450,36 @@ def result_page(number: int) -> None:
         html.append(f'<p class="d-note">{w}</p>')
     html.append(f'<p class="d-note">{NOT_A_SAFETY_CHECK} Thresholds illustrative until calibrated.</p>')
     right.markdown("".join(html), unsafe_allow_html=True)
+    model_3d(number, d)
+
+
+def model_3d(number: int, stats: dict) -> None:
+    """The crack in 3D, built by Grasshopper (D57): shown when its file is there, else waited for."""
+    st.markdown('<p class="d-lab" style="margin-top:1.6rem">3D model · Grasshopper</p>', unsafe_allow_html=True)
+    from gh3d.layout import build
+    if build({"number": number, **stats}) is None:  # the same test Grasshopper uses: no model to wait for
+        st.markdown('<p class="d-note">No 3D model: the crack is drawn in 3D when it was measured with a bank card, '
+                    'or, for test cases, placed from the photo of the whole element.</p>', unsafe_allow_html=True)
+        return
+    path = shared()[3].mesh_path(number)
+    if path is None:
+        waiting_for_3d(number)
+        return
+    try:
+        model = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        waiting_for_3d(number)  # being written: next check
+        return
+    components.html(viewer_html(model), height=VIEW_HEIGHT + 4)
+
+
+@st.fragment(run_every=3)
+def waiting_for_3d(number: int) -> None:
+    """Until Grasshopper has written the model: a note, checked again every 3 s; then the whole page shows it."""
+    if shared()[3].mesh_path(number) is not None:
+        st.rerun(scope="app")
+    st.markdown('<p class="d-note">3D model being drawn (Grasshopper). It appears here by itself; Rhino must be open '
+                'with second_look.gh.</p>', unsafe_allow_html=True)
 
 
 def wall_page() -> None:

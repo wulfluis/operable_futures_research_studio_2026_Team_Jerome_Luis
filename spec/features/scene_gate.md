@@ -17,6 +17,8 @@ ConvNeXt-tiny pre-trained on ImageNet, trained as the element model's second run
 - **Element photo:** the element model runs only if the scene model does not read it as a close-up (P highest): a close-up cannot show which element it is. Otherwise "This is a close-up: step back so the whole column, beam or wall is in the photo."
 - The scene answer and its probability are part of the result (JSON), like every other step.
 
+- **With a card placed (D58):** a card and the hand holding it can pull the whole photo away from "close-up". Only when the sender ticked the card and the whole photo is under `CLOSE_UP_MIN`, the four halves (top, bottom, left, right) are read too; 2 of 4 read as a close-up are enough.
+
 ## Reported (`docs/experiments/2026-11-11_scene_gate_phinet1.md`)
 The confusion table on the test images; at `CLOSE_UP_MIN`: the share of close-ups sent to retake, and the share of O and S photos let through as close-ups (the false cracks it would still allow).
 

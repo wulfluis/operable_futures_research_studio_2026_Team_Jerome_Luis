@@ -42,6 +42,8 @@ Every output carries a one-sentence reason. Never output "safe", a clearance or 
 - `src/segmentation/`: crack model (prepare, train, predict, decide, evaluate). `src/measure/`: bank-card detection, camera tilt, crack width and length in mm. `src/triage/dispatch.py` and `src/triage/pattern_rules.py`: visit rule and pattern suggestion. `src/app/`: the class demo app (phone page, live wall). `src/mcp_osm/`: the MCP server for building data (OpenStreetMap). Model weights live on GitHub Releases, never in git (D39).
 - `src/quality/scene.py`: scene check, close-up or not (D54).
 - `src/element/predict.py`: the element model in the app (D52, D53); `src/triage/element_rule.py`: "doubt means column".
+- `src/element/photo2.py` and `src/element/spalling.py`: what the second photo adds (D61). `src/app/inbox.py`, `src/app/simulate.py`: simulated residents (D59).
+- `src/gh3d/`: each crack in 3D (D57): `layout.py` (the model, plain Python) and `second_look_gh.py` (the Grasshopper Python 3 script, Rhino 8); `src/app/viewer3d.py`: the 3D view on the wall.
 - `src/app/logo.py`: the logo (word mark, D38). `data/`: local datasets, never committed.
 
 ## Data rules

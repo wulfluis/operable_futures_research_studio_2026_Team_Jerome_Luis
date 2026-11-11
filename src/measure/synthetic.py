@@ -47,8 +47,11 @@ def camera_homography(size, tilt_lr_deg=0.0, tilt_ud_deg=0.0, px_per_mm=6.0, cen
 
 
 def make_demo(width_mm: float = 1.0, size=(1200, 900), seed: int = 0, sub: int = 2, tilt_lr_deg: float = 12.0,
-              tilt_ud_deg: float = -6.0, px_per_mm: float = 6.0, texture_amp: float = 1.0):
-    """Return (grey image as float 0-255, truth). About px_per_mm pixels per mm at the centre of the wall."""
+              tilt_ud_deg: float = -6.0, px_per_mm: float = 6.0, texture_amp: float = 1.0, crack_mm=None):
+    """Return (grey image as float 0-255, truth). About px_per_mm pixels per mm at the centre of the wall.
+    crack_mm: the crack's centre line in the wall plane (mm, y down); default CRACK_MM. The view covers about
+    0 to 200 mm across and 0 to 150 mm down; the card sits at x 15 to 101, y 60 to 114."""
+    line = CRACK_MM if crack_mm is None else np.asarray(crack_mm, dtype=float)
     w, h = size
     H_mm_to_px, tilt = camera_homography(size, tilt_lr_deg, tilt_ud_deg, px_per_mm)
     H_px_to_mm = np.linalg.inv(H_mm_to_px)
@@ -64,7 +67,7 @@ def make_demo(width_mm: float = 1.0, size=(1200, 900), seed: int = 0, sub: int =
             card = ((mx >= CARD_ORIGIN_MM[0]) & (mx <= CARD_ORIGIN_MM[0] + CARD_MM[0]) &
                     (my >= CARD_ORIGIN_MM[1]) & (my <= CARD_ORIGIN_MM[1] + CARD_MM[1]))
             val[card] = 225.0
-            val[_dist_to_polyline(mx, my, CRACK_MM) <= width_mm / 2] = 55.0
+            val[_dist_to_polyline(mx, my, line) <= width_mm / 2] = 55.0
             acc += val
     rng = np.random.default_rng(seed)
     wall = acc / sub ** 2
@@ -82,8 +85,8 @@ def make_demo(width_mm: float = 1.0, size=(1200, 900), seed: int = 0, sub: int =
 
     cx, cy = CARD_ORIGIN_MM
     card_px = to_px([(cx, cy), (cx + CARD_MM[0], cy), (cx + CARD_MM[0], cy + CARD_MM[1]), (cx, cy + CARD_MM[1])])
-    crack_px = to_px(CRACK_MM)
+    crack_px = to_px(line)
     roi = (*(crack_px.min(axis=0) - 25), *(crack_px.max(axis=0) + 25))
-    truth = {"width_mm": width_mm, "length_mm": float(np.linalg.norm(np.diff(CRACK_MM, axis=0), axis=1).sum()),
+    truth = {"width_mm": width_mm, "length_mm": float(np.linalg.norm(np.diff(line, axis=0), axis=1).sum()),
              "card_corners_px": card_px.tolist(), "roi_px": [float(v) for v in roi], "tilt_deg": tilt}
     return grey, truth

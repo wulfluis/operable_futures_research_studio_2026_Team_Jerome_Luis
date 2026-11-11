@@ -104,3 +104,40 @@ def test_the_trained_scene_model_loads():
     m = scene.load()
     p = scene.probabilities(m, _demo(1.0)[0])
     assert set(p) == set(scene.SCENES) and abs(sum(p.values()) - 1) < 1e-5
+
+
+# ---------- with a card placed, the halves of the photo count too (D58) ----------
+
+def test_with_a_card_two_wall_halves_are_enough():
+    probs = {"object": 0.17, "close_up": 0.05, "structure": 0.78}  # the card and the hand pull the whole photo away
+    assert not scene.crack_photo_check(probs).ok
+    a = scene.crack_photo_check(probs, halves=[0.98, 0.08, 0.98, 0.08])
+    assert a.ok and "halves" in a.reason
+
+
+def test_with_a_card_one_wall_half_is_not_enough():
+    probs = {"object": 0.2, "close_up": 0.05, "structure": 0.75}
+    assert not scene.crack_photo_check(probs, halves=[0.9, 0.02, 0.03, 0.01]).ok
+
+
+class HalfScene(torch.nn.Module):
+    """Reads a close-up only where the picture is bright (a wall), a building where it is dark (the card and hand)."""
+
+    def forward(self, x):
+        bright = (x.mean((1, 2, 3)) > 1.0).float()  # mostly wall (the card and hand pull the mean down)
+        out = torch.zeros(x.shape[0], len(scene.SCENES))
+        out[:, scene.SCENES.index("close_up")] = 8 * bright
+        out[:, scene.SCENES.index("structure")] = 8 * (1 - bright)
+        return out
+
+
+def _wall_with_a_dark_corner():
+    a = np.full((800, 600, 3), 220, np.uint8)
+    a[300:, 250:] = 10  # the card and the hand, darker than the wall, over a quarter and more
+    return Image.fromarray(a)
+
+
+def test_halves_are_used_only_when_a_card_was_placed():
+    photo = _wall_with_a_dark_corner()
+    assert not scene.check(HalfScene(), photo, kind="crack").ok
+    assert scene.check(HalfScene(), photo, kind="crack", card_placed=True).ok

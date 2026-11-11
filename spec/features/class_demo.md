@@ -49,3 +49,6 @@ Model v3 (brick no-crack photos added, D32) still read 28 of the 30 as "Crack fo
 
 ## Tests (`tests/test_app_core.py`)
 Consent is required, only shared results reach the wall, the wall keeps the newest 24, counts, wall key check, link read from the tunnel's output, QR code made.
+
+## Simulated residents: the test inbox (11 Nov, D59)
+To show the wall, the levels and the 3D models without a class full of phones, `py src/app/simulate.py` drops test cases into `data/inbox/` (local, ignored by git), one every few seconds. The running app picks each one up only if that folder exists, and treats it as a resident's upload: same pipeline, consent by sending, shared on the wall, written for Grasshopper. A case is a folder with `crack.jpg`, optionally `element.jpg`, and `case.json` (`card_placed`, `kind`). Every simulated result is marked **TEST** on the wall and in its numbers. The cases: synthetic photos with a bank card and cracks of known width and direction (`src/measure/synthetic.py`) paired with real column, beam and wall photos from the PHI-Net task 6 test set; real building-concrete crack close-ups without a card (Özgenel test tiles [49]); a wall without a crack; a whole building (PHI-Net task 1 test). Processed cases move to `data/inbox/done/`.

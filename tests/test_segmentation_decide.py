@@ -212,3 +212,26 @@ def test_a_wavy_wide_crack_with_a_wide_spot_is_still_a_crack():
     prob = _wavy(np.full((416, 416), 0.05), y0=200, amp=12)
     prob = _disk(prob, 200, 150, 12)  # one wide spot along it
     assert decide(prob).statement == CRACK
+
+
+def test_a_gently_wandering_crack_to_the_edge_is_not_a_corner():
+    """11 Nov: a diagonal crack whose painted area is wide enough to fit a straight band was cut as a corner (the
+    length came out 29 mm of 136). Its centre line wanders; a corner's does not (D51)."""
+    prob = np.full((416, 416), 0.05)
+    for y in range(0, 300):  # from the top side, about 45 degrees, wandering a few pixels, 9 px wide
+        x = int(round(80 + 0.9 * y + 7 * np.sin(y / 28)))
+        prob[y, x - 4:x + 5] = 0.9
+    d = decide(prob)
+    assert d.statement == CRACK and d.edges_ignored == 0
+
+
+def test_centre_wander_of_a_line_and_a_wavy_line():
+    from segmentation.decide import centre_wander, straight_part
+    line = np.zeros((300, 300), bool); line[100:108, 0:300] = True
+    ys, xs = np.nonzero(line)
+    assert centre_wander(ys, xs, straight_part(ys, xs)[0]) < 0.002
+    wavy = np.zeros((300, 300), bool)
+    for x in range(300):
+        y = int(150 + 8 * np.sin(x / 30)); wavy[y - 4:y + 5, x] = True
+    ys, xs = np.nonzero(wavy)
+    assert centre_wander(ys, xs, straight_part(ys, xs)[0]) > 0.006
