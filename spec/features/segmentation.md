@@ -24,6 +24,23 @@ The model gives every pixel a crack probability. A written rule turns that map i
 
 Confidence = mean probability of the pixels in the largest group. "No crack found" is never a safety statement (rule 1). The thresholds are checked on the val split, never on the test split.
 
+### Straight edges are not cracks (10 Nov, D51)
+The model reads the line between a wall and a ceiling, a wall corner or a frame as a crack (a thin dark line). Before the rule above, each group of crack pixels is searched for an edge (illustrative until calibrated):
+
+1. **Its main straight line.** Over every direction in 1° steps, the narrow band (8 px wide at the working size) holding the most of the group's pixels is found (a Hough transform); a straight line is fitted to those pixels and refitted until it stops moving. Pixels within 1.5 % of the line's length (at least 4 px) belong to it. A corner stays straight under perspective; a crack wanders out of such a band.
+2. **That line is an edge** when it holds at least half of the group's pixels, is at least 40 % of the photo's short side long, and reaches a side of the photo (within 3 % of the long side). One side is enough: a wall-ceiling line often ends at the room corner inside the photo.
+3. **What is left of the group** is split into pieces. A piece with at least 85 % of its pixels on its own straight line (the short corner where two walls meet below the ceiling) goes with the edge. A piece that wanders (a crack leaving the corner) stays a crack.
+
+- The edge pixels are taken out; everything else in the photo is judged by the rule above as before. So an edge plus a crack is still "Crack found", with only the crack drawn (team, 10 Nov).
+- An ignored edge is not drawn in red and is never measured.
+- The reason says so: "A long straight line running across the photo was read as a corner or edge and ignored; a crack running exactly along an edge is not checked."
+- Known risk, accepted by the team (D51): a real crack that is very straight and reaches a side of the photo, such as a crack running exactly along a wall-ceiling joint, is ignored; so is a short straight crack hanging from an edge.
+- First version (same day) asked for two sides of the photo and a straight whole group; the first app test (a wall-ceiling line from the top of the photo to the room corner, with a short bend down) was still "Crack found". Checked again on the red line of that result's screenshot: "No crack found", edge ignored.
+- Not handled: an edge the model marks in several separate pieces, each shorter than 40 % of the short side.
+
+### Dark patches are not cracks (11 Nov, D54)
+After the edge rule, a group of at least 50 pixels (at 416 px) whose length is at most 3 times its width (`BLOB_MAX_ELONGATION`, illustrative; width from the distance transform, 95th percentile, so one wide spot does not turn a long crack into a patch) is not counted. If the only thing left is a large patch (at least the crack size), the answer is Expert needed with "a dark patch, not a line: it could be a stain, an object or spalling", and the patch is drawn; it is never No crack found. A wide crack is still a crack: width alone never makes a patch.
+
 ## Scores (test split, `docs/experiments/`)
 - Pixels: precision, recall, F1 and IoU for the crack class, per dataset.
 - Photos: crack / no crack / Expert needed against the truth (crack if the mask has any crack pixel), as a confusion table (`src/triage/evaluate.py` style). The worst error is a missed crack.

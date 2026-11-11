@@ -17,6 +17,9 @@ The crack width in mm inside the class demo, with its look unchanged (`app/backg
    - The overlay shows the card outline and a ring at the widest point; the reason line carries the width and the length.
 5. The statements stay the original four. The tool never outputs "safe", a clearance or a level. Tilt over 20° or fewer than 3 px across: "Width not measured" with the reason, and the statement is unchanged.
 
+## Only when a card was placed (11 Nov, D56)
+The card search runs only when the sender ticks "I put a bank card next to the crack". A found card must differ from the wall on all four sides by at least 8 grey levels; shapes that only outline a card (texture, a crack, a frame) are never a card. Ticked and not found: the reason says how to place it.
+
 ## Live wall: a page per result (added 4 Nov)
 - As the original: one button per statement opens its collection.
 - New in the copy: each photo is a link to its own page, `/?wall=<key>&item=<n>`, and carries its widest width as a small label.

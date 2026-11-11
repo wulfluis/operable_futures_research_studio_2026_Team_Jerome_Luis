@@ -19,6 +19,16 @@ Owner: J = Jerome, L = Luis, C = coding agent (Claude). Fill in the blanks.
 - [ ] **Take the photos for the width check:** print `docs/width_gauge/width_gauge_v2.pdf` at 100 % (check the 100 mm bar), about 10 photos of the gauge and about 10 real cracks with 3 photos each, as in `spec/features/measurement.md`, "Width check" (J + L; one hour)
 - [ ] Run `py src/measure/width_check.py <photos> <truth.csv>` and read the report together; agree with the engineer what error the matrix can accept (C, J + L)
 - [x] Element model, method B run on PHI-Net task 6 after a bug fix: not accurate enough alone (C, 10 Nov). Open: method A, slabs and beams, a rule for a hidden or unknown element for the engineer
+- [x] Wall-ceiling line read as a crack: a written rule ignores a long straight line across the photo unless another crack is there; 9 tests (C, 10 Nov, D51)
+- [x] Element model, second run: ConvNeXt-tiny, calibrated; column confidently wrong 20.5 % -> 4.9 %, 86 % right, 67 % answered; "doubt means column" rule written but barely acts (C, 10 Nov, D52)
+- [x] Element and type in the app, first Category 1/2/3 after a field worker confirms; local branch `element-in-app`, not pushed (C, 11 Nov, D53)
+- [ ] Test D53 on a phone: crack close-up with a card, then a photo of the whole element, then confirm as field worker (J)
+- [ ] Element model file to a GitHub release before another laptop runs the app (D39) (J, when pushing)
+- [x] Card finder took a window blind, then wall texture, for a bank card: card search only with the tick, and a card must stand out from the wall (C, 11 Nov, D56)
+- [x] Scene check (close-up or not) in the app; dark patches are not cracks (C, 11 Nov, D54)
+- [x] The app gives the category by itself; any doubt gives Expert needed (C, 11 Nov, D55)
+- [ ] Next: ask the element photo only when it can change the level; one video instead of two photos (hackathon); photos of crack-free frames, sockets and corners to teach the crack model (J + L)
+- [ ] Retest D51 in the app with the wall-ceiling photo and a few real cracks; restart the launcher first (J)
 - [ ] Decide the proposal of 10 Nov: a wide-view model (cracks, windows, elements), element classification and video (would supersede D30 in part) (J + L)
 - [ ] Deck for Thursday's studio (J + L)
 

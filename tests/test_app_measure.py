@@ -53,7 +53,7 @@ def test_without_a_card_the_answer_is_the_original_pixel_for_pixel():
 
 def test_with_a_card_the_crack_is_measured_in_mm():
     photo, truth = _demo(1.0)
-    r = run_measured(photo, DEMO_MODEL)
+    r = run_measured(photo, DEMO_MODEL, card_placed=True)
     assert r.statement == "Crack found" and r.card is not None and r.measured
     assert abs(r.crack.width_max_mm - truth["width_mm"]) < 0.25
     assert abs(r.crack.length_main_mm - truth["length_mm"]) / truth["length_mm"] < 0.05
@@ -67,14 +67,14 @@ def test_card_edges_are_not_read_as_the_crack():
     photo, _ = _demo(1.0)
     a = np.asarray(photo).copy()
     a[:, 700:] = 200  # wipe the crack (the demo card sits on the left)
-    r = run_measured(Image.fromarray(a), DEMO_MODEL)
+    r = run_measured(Image.fromarray(a), DEMO_MODEL, card_placed=True)
     assert r.card is not None and r.statement == "No crack found" and not r.measured
     assert "no crack to measure" in r.measure_note
 
 
 def test_result_never_says_safe():
     photo, _ = _demo(1.0)
-    d = run_measured(photo, DEMO_MODEL).to_dict()
+    d = run_measured(photo, DEMO_MODEL, card_placed=True).to_dict()
     import re
     assert not re.search(r"\bsafe\b|clearance|permit", str(d), re.I)
     assert "not a safety check" in NOT_A_SAFETY_CHECK
@@ -86,9 +86,9 @@ def test_only_shared_results_reach_the_wall():
     buf = io.BytesIO()
     photo.save(buf, "PNG")
     wall = Wall()
-    analyse(buf.getvalue(), True, False, wall, DEMO_MODEL)
+    analyse(buf.getvalue(), True, False, wall, DEMO_MODEL, card_placed=True)
     assert wall.items() == []
-    analyse(buf.getvalue(), True, True, wall, DEMO_MODEL)
+    analyse(buf.getvalue(), True, True, wall, DEMO_MODEL, card_placed=True)
     assert wall.counts()["Crack found"] == 1
 
 
@@ -102,7 +102,7 @@ def page(monkeypatch):
 def test_phone_page_keeps_the_original_layout_and_adds_the_card_hint(page):
     at = page.run()
     assert not at.exception
-    assert len(at.checkbox) == 1 and at.checkbox[0].label == "Share results"
+    assert [c.label for c in at.checkbox] == ["I put a bank card next to the crack", "Share results"]  # D56
     text = " ".join(m.value for m in at.markdown)
     assert "temporary disguise" in text and "By sending a photo you confirm you took it" in text
     assert "bank-card-sized card" in text
@@ -137,7 +137,7 @@ def test_length_comes_from_the_unet_line_when_the_edges_are_found_only_in_pieces
         return keep
 
     monkeypatch.setattr(cmod, "segment", pieces)
-    r = run_measured(photo, DEMO_MODEL)
+    r = run_measured(photo, DEMO_MODEL, card_placed=True)
     assert r.measured
     assert abs(r.crack.length_main_mm - truth["length_mm"]) / truth["length_mm"] < 0.08
     assert abs(r.crack.width_max_mm - truth["width_mm"]) < 0.3
@@ -160,7 +160,7 @@ MODEL_FILE = ROOT / "models" / "unet_crack.pt"
 @pytest.mark.skipif(not MODEL_FILE.exists(), reason="the wall loads models/unet_crack.pt (team release, not in git)")
 def test_result_page_shows_the_stats_large(page, monkeypatch):
     photo, _ = _demo(1.0)
-    r = run_measured(photo, DEMO_MODEL)
+    r = run_measured(photo, DEMO_MODEL, card_placed=True)
     from app.core import WallEntry
     buf = io.BytesIO()
     r.overlay.convert("RGB").save(buf, "JPEG")
@@ -175,3 +175,16 @@ def test_result_page_shows_the_stats_large(page, monkeypatch):
     assert "Back to the wall" in text and "#7" in text
     page.query_params["item"] = "8"
     assert "Result gone" in " ".join(m.value for m in page.run().markdown)
+
+
+# ---------- the card only when the sender says one was placed (D56) ----------
+
+def test_no_tick_means_no_card_search_even_with_a_card_in_the_photo():
+    photo, _ = _demo(1.0)  # the demo photo holds a real card
+    r = run_measured(photo, DEMO_MODEL)  # but nobody said so
+    assert r.card is None and not r.measured and "mm" not in r.reason.replace("mm)", "")
+
+
+def test_tick_without_a_card_says_the_card_was_not_found():
+    r = run_measured(_plain_wall_with_line(), FakeModel(), card_placed=True)
+    assert r.card is None and "Bank card not found" in r.reason

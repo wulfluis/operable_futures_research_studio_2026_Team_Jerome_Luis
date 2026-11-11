@@ -35,7 +35,7 @@ FOCAL_PRIOR = 0.75  # x long side of the photo; assumption
 LINE_CANNY = ((8, 24), (15, 45), (30, 90))
 LINE_MAX = 30
 MIN_EDGE_SCORE, EDGE_SCORE_SLACK = 0.6, 0.25  # illustrative
-MIN_SIDE_CONTRAST = 1.0  # grey levels (illustrative)
+MIN_SIDE_CONTRAST = 8.0  # grey levels: a card must stand out from the wall on all four sides (D56; illustrative)
 BORDER_FRAC = 0.005  # share of the long side: a candidate closer to the photo's edge is rejected
 LINE_MIN_SIDE, LINE_MIN_MEAN = 0.45, 0.7
 
@@ -355,8 +355,11 @@ def detect_card(rgb: np.ndarray) -> CardDetection | None:
         return None
     # a shape lying wholly inside another card-shaped one is print on the card (a letter, a logo box), not the card
     outer = [a for a in accepted if not any(b is not a and b[1] > 1.5 * a[1] and _inside(a[2], b[2]) for b in accepted)]
-    distinct = [a for a in outer if a[3] >= MIN_SIDE_CONTRAST]  # inside differs from outside on all four sides
-    outer = distinct or outer
+    # inside differs from outside on all four sides, always (D56): lines that only outline a card shape (texture, a
+    # crack, a frame) are never a card; before 11 Nov the shapes without it were used when none had it
+    outer = [a for a in outer if a[3] >= MIN_SIDE_CONTRAST]
+    if not outer:
+        return None
     best = max(a[0] for a in outer)  # of the shapes that lie well on edges, the largest
     good = [a for a in outer if a[0] >= max(MIN_EDGE_SCORE, best - EDGE_SCORE_SLACK)]
     coarse = max(good, key=lambda a: (a[1], a[0]))[2] if good else max(outer, key=lambda a: a[0])[2]

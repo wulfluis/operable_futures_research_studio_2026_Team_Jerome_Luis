@@ -40,6 +40,8 @@ Every output carries a one-sentence reason. Never output "safe", a clearance or 
 - `src/triage/matrix.py`: risk matrix and decision rules. `src/triage/evaluate.py`: confusion tables and metrics.
 - `src/quality/gate.py`: photo quality gate. `src/pilot/prepare.py`: strips photo metadata. `src/experiments/`: tests on real data. `src/viz/figures.py`: figures.
 - `src/segmentation/`: crack model (prepare, train, predict, decide, evaluate). `src/measure/`: bank-card detection, camera tilt, crack width and length in mm. `src/triage/dispatch.py` and `src/triage/pattern_rules.py`: visit rule and pattern suggestion. `src/app/`: the class demo app (phone page, live wall). `src/mcp_osm/`: the MCP server for building data (OpenStreetMap). Model weights live on GitHub Releases, never in git (D39).
+- `src/quality/scene.py`: scene check, close-up or not (D54).
+- `src/element/predict.py`: the element model in the app (D52, D53); `src/triage/element_rule.py`: "doubt means column".
 - `src/app/logo.py`: the logo (word mark, D38). `data/`: local datasets, never committed.
 
 ## Data rules

@@ -145,3 +145,17 @@ def test_card_wins_over_print_on_it_and_a_shadow_running_to_the_edge():
     assert d is not None
     dist = np.linalg.norm(corners[:, None, :] - np.asarray(d.corners_px)[None], axis=2).min(axis=1)
     assert dist.max() < 4, dist
+
+
+def test_an_outline_with_the_same_wall_inside_and_out_is_never_a_card():
+    """App test of 11 Nov: a card was 'found' where thin lines (texture, the crack) outlined a card shape on a plain
+    wall. A card is an object: it must differ from the wall on all four sides (D56)."""
+    import cv2
+    from measure.card import detect_card
+    rng = np.random.default_rng(5)
+    img = np.full((1200, 900), 175.0) + rng.normal(0, 4, (1200, 900))
+    corners = np.array([[300, 500], [640, 500], [640, 715], [300, 715]], np.int32)  # card-shaped, 85.6 x 54 ratio
+    cv2.polylines(img, [corners], True, 90, 2)  # only an outline: the wall inside is the wall outside
+    img[100:1100, 450:454] = 70  # a crack running through it
+    rgb = np.repeat(np.clip(img, 0, 255).astype(np.uint8)[..., None], 3, axis=2)
+    assert detect_card(rgb) is None

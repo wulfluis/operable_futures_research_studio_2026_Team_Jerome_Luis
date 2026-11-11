@@ -206,7 +206,7 @@ def measure_gauge(row: dict, rgb: np.ndarray) -> list[dict]:
 
 def measure_crack(row: dict, photo: Image.Image, model, device: str) -> dict:
     from app.core import run_measured  # the very pipeline the app uses
-    r = run_measured(photo, model, device)
+    r = run_measured(photo, model, device, card_placed=True)  # every width-check photo holds the card (D56)
     out = _empty(row, "")
     if r.card is None:
         out["outcome"] = "no bank card found"

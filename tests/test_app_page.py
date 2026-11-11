@@ -16,7 +16,9 @@ def page(monkeypatch):
 def test_phone_page_has_one_tick_and_states_the_consent_terms(page):
     at = page.run()
     assert not at.exception
-    assert len(at.checkbox) == 1 and at.checkbox[0].label == "Share results" and not at.checkbox[0].disabled
+    labels = [c.label for c in at.checkbox]  # the card tick (D56) and the share tick; consent is the upload (D34)
+    assert labels == ["I put a bank card next to the crack", "Share results"]
+    assert not any(c.value for c in at.checkbox)  # both off: no card search, nothing shared, unless ticked
     text = " ".join(m.value for m in at.markdown)
     assert "temporary disguise" in text  # the team's quote under the title
     assert "By sending a photo you confirm you took it" in text and "no faces" in text  # consent is the upload (D34)

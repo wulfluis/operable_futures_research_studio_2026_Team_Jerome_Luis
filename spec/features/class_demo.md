@@ -30,6 +30,12 @@ Title "Second Look" as the word mark (below), then the team's quote in bold capi
 - No QR on the wall (1 Nov). The QR has its own page, `http://localhost:8501/?qr`: the code alone, centred, 80 % of the screen height, shown on the projector when students should scan. (Before: a fixed bottom-right corner.)
 - Refreshes every 4 seconds without dimming the page; each result is stored once as a small JPEG, so a refresh re-encodes nothing (30 Oct: the first version re-encoded every photo every 3 s and looked frozen).
 
+## Location and type (11 Nov, D53)
+After "Crack found" or "Expert needed" the phone page asks for a photo of the whole element and shows element, suggested type and position; the risk category follows by itself (D55). The wall's photos and result pages carry element and level. Spec: `spec/features/app_classification.md`.
+
+## Card tick (11 Nov, D56)
+A second tick above the upload, "I put a bank card next to the crack", off by default: without it the app never looks for a card. It sits above "Share results".
+
 ## Photos (rule 9)
 - Processed in memory, never written to disk; GPS and other metadata are never read (only the pixels are used).
 - The wall keeps shared results in memory only, a small copy of the answer image; they are gone when the app stops.
@@ -39,6 +45,7 @@ Title "Second Look" as the word mark (below), then the team's quote in bold capi
 The model is trained on public close-ups of cracks (`docs/experiments/2026-10-29_unet_first_training.md`).
 Checked on 30 Oct with 30 full-resolution photos of damaged buildings (Haiti 2010 engineer photos, local only): all 30 came back "Crack found" at about 90 % confidence, in 0.25 s each (1.4 s at most). On close-ups it marked the real cracks; on whole scenes it also marked window frames, wires, roof edges and people. The model has never seen anything but close-ups of surfaces.
 Model v3 (brick no-crack photos added, D32) still read 28 of the 30 as "Crack found". Model v4 (building-concrete crack masks added, D48) has not been run on these 30 photos yet; it was trained on close-ups too, so the same limit is expected. So the phone page asks for close-ups (20 to 40 cm, wall fills the photo). A real fix needs a "close-up of a surface?" check before the model, or training with photos of non-crack lines (brick joints, edges, frames). Until then, wrong answers are part of the demo: an engineer confirms.
+10 Nov (D51): the model still marked the line between a wall and a ceiling as a crack. A written rule now ignores a long straight line that reaches a side of the photo (`spec/features/segmentation.md`, "Straight edges are not cracks"); the answer says so in its reason.
 
 ## Tests (`tests/test_app_core.py`)
 Consent is required, only shared results reach the wall, the wall keeps the newest 24, counts, wall key check, link read from the tunnel's output, QR code made.

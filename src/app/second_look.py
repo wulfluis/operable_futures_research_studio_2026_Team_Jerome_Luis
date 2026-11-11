@@ -22,17 +22,22 @@ if str(ROOT / "src") not in sys.path:
     sys.path.insert(0, str(ROOT / "src"))
 from app.background import background_css, crack_underline_css, model_line  # the original's look, unchanged
 from app.logo import LOGO_CSS, logo_title
-from app.core import (NOT_A_SAFETY_CHECK, STATEMENTS, ConsentMissing, PhotoRejected, Wall, analyse,
-                      make_qr, wall_key_ok)
+from app.core import (NOT_A_SAFETY_CHECK, STATEMENTS, WAITING, ConsentMissing, PhotoRejected, Wall, analyse,
+                      analyse_element, make_qr, wall_key_ok)
+from element.predict import load as load_element_model
+from quality.scene import load as load_scene_model
 from measure.card import TILT_OK_DEG, TILT_RETAKE_DEG
+from segmentation.decide import CRACK, UNSURE
 from segmentation.train import load_checkpoint
-from triage.matrix import ELEMENTS
+from triage.element_rule import UNSURE as UNSURE_ELEMENT
+from triage.matrix import ELEMENTS, PATTERN_NAMES
 
 MODEL = ROOT / "models" / "unet_crack.pt"
 PUBLIC_URL = os.environ.get("SECOND_LOOK_URL", "")
 WALL_KEY = os.environ.get("SECOND_LOOK_WALL_KEY", "")
 APP_VERSION = "v1.0"
 ELEMENT_KEYS = {"unknown": None, **{name: key for key, name in ELEMENTS.items()}}
+ELEMENT_WORDS = {"column": "Column", "beam": "Beam", "wall": "Wall", "others": "Not an element", "unsure": "Unsure"}
 WALL_GALLERY_COLUMNS = 6  # photos per row in an opened collection
 WALL_QUOTE = ("A repair that conceals a crack without addressing its root cause is not a solution, It is a "
               "temporary disguise for a potentially continuing defect.")
@@ -96,6 +101,7 @@ h1, h2, h3 { color: #ffffff !important; font-weight: 800 !important; text-transf
 .stApp .wall-photo img { width: 100%; display: block; }
 .stApp .wall-photo .badge { position: absolute; left: 0.4rem; top: 0.4rem; background: #0b0b0b; color: #ffffff;
                             font: 800 0.95rem/1.2 inherit; padding: 0.15rem 0.45rem; text-transform: uppercase; }
+.stApp .wall-photo .badge-low { top: auto; bottom: 0.4rem; font-size: 0.8rem; }
 </style>"""
 
 DETAIL_STYLE = """<style>
@@ -119,6 +125,7 @@ DETAIL_STYLE = """<style>
 .stApp .d-red { color: #d62728; }
 .stApp .d-none { font-size: 2.6rem; font-weight: 800; text-transform: uppercase; color: #d62728; margin: 0 0 0.3rem; }
 .stApp .d-line { font-size: 1.15rem; font-weight: 600; color: #d9d9d9; }
+.stApp .d-words .d-val { font-size: 2.3rem; line-height: 1.1; }  /* words (element, type, level), not numbers */
 .stApp .d-note { font-size: 0.9rem; color: #8c8c8c; margin: 0.35rem 0; }
 @media (max-width: 800px) { .stApp .d-title { font-size: 2.4rem; } .stApp .d-hero .d-val { font-size: 4rem; }
                             .stApp .d-val { font-size: 2.4rem; } }
@@ -127,9 +134,11 @@ DETAIL_STYLE = """<style>
 
 @st.cache_resource
 def shared():
-    """One model, one GPU lock and one wall for every visitor of this run."""
+    """The crack model, one GPU lock, one wall, the element model (D53) and the scene model (D54) for every visitor
+    of this run; the last two are None when their file is missing."""
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    return load_checkpoint(MODEL, device), device, threading.Lock(), Wall()
+    return (load_checkpoint(MODEL, device), device, threading.Lock(), Wall(), load_element_model(device=device),
+            load_scene_model(device=device))
 
 
 def phone_page() -> None:
@@ -140,7 +149,9 @@ def phone_page() -> None:
                 "No windows, edges, sky or people: the model only knows close-ups and reads other lines as cracks.")
     st.markdown("**Measure it in mm (optional):** put a bank-card-sized card flat on the wall next to the crack, all "
                 "four corners visible. Cover the number and name, or use the back. Hold the phone parallel to the "
-                "wall and upright. Without a card you get the same answer as before, without millimetres.")
+                "wall and upright, and tick \"I put a bank card next to the crack\". Without the tick the app never looks for a "
+                "card, and you get the answer without millimetres.")
+    card_placed = st.checkbox("I put a bank card next to the crack")  # no tick: no card search (D56)
     share = st.checkbox("Share results")
     # one tick only (D34): sending the photo is the consent, so its terms stand right above the upload
     st.markdown('<p class="note">By sending a photo you confirm you took it, it shows no faces, house numbers or '
@@ -153,10 +164,11 @@ def phone_page() -> None:
         return
     done = st.session_state.setdefault("done", {})
     if upload.file_id not in done:  # analyse each upload once, even when the page reruns
-        model, device, gpu, wall = shared()
+        model, device, gpu, wall, _, scene_model = shared()
         try:
             with st.spinner("Looking at the photo..."):
-                done[upload.file_id] = analyse(upload.getvalue(), consent, share, wall, model, device, gpu)
+                done[upload.file_id] = analyse(upload.getvalue(), consent, share, wall, model, device, gpu,
+                                               scene_model, card_placed)
         except (ConsentMissing, PhotoRejected) as e:
             st.error(str(e))
             return
@@ -166,7 +178,61 @@ def phone_page() -> None:
     st.image(result.overlay, width="stretch")
     if result.card is not None:
         measurement_block(result, upload.name)
+    if result.statement in (CRACK, UNSURE):
+        classification_block(result, upload.file_id)
     st.markdown(f'<p class="note">{NOT_A_SAFETY_CHECK}</p>', unsafe_allow_html=True)
+
+
+def classification_block(result, key: str) -> None:
+    """Where the crack is and what type it is (spec/features/app_classification.md, D53). The resident only sends a
+    second photo; the element model and the written rules read element and type; the written risk matrix gives the
+    level by itself (D55). Any doubt gives Expert needed."""
+    _, device, gpu, wall, element_model, scene_model = shared()
+    st.markdown('<p class="m-head">Where is the crack?</p>', unsafe_allow_html=True)
+    st.markdown("Step back and photograph the **whole** column, beam or wall that has the crack, top to bottom if "
+                "you can. Hold the phone upright.")
+    second = st.file_uploader("Photo of the whole element", type=["jpg", "jpeg", "png"], max_upload_size=10,
+                              key=f"element_{key}")
+    seen = st.session_state.setdefault("element_seen", {})
+    if second is not None and seen.get(key) != second.file_id:
+        try:
+            with st.spinner("Looking at the element..."):
+                analyse_element(second.getvalue(), result, wall, element_model, device, gpu, scene_model)
+            seen[key] = second.file_id
+        except PhotoRejected as e:
+            st.error(str(e))
+    a, s = result.element, result.suggested_pattern()
+    cells = [_cell("Element", "—" if a is None else (ELEMENT_WORDS.get(a.element, a.element)),
+                   "send the photo above" if a is None else
+                   (f"model, {a.probability:.0%}" if a.element != UNSURE_ELEMENT else "model unsure"),
+                   red=a is not None and a.could_be_column),
+             _cell("Type", "—" if s is None or s.pattern is None else PATTERN_NAMES[s.pattern].capitalize(),
+                   _type_sub(result, s)),
+             _cell("Position", "not known", "counts as an end zone")]
+    st.markdown('<div class="m-grid">' + "".join(cells) + "</div>", unsafe_allow_html=True)
+    if a is not None:
+        st.markdown(f'<p class="note">{a.reason}</p>', unsafe_allow_html=True)
+    level_block(result)
+
+
+def _type_sub(result, s) -> str:
+    if result.crack is None or not result.crack.found:
+        return "needs the bank-card measurement (direction and shape)"
+    if s is None or s.pattern is None:
+        return "not clear from the photo: an engineer decides"
+    return "suggested by the written rules" + ("" if s.clear else ", unclear")
+
+
+def level_block(result) -> None:
+    t = result.triage
+    if t is None:
+        st.markdown(f'<p class="m-line"><b>{WAITING}</b></p>', unsafe_allow_html=True)
+        return
+    st.markdown(f'<p class="statement">{t["level"]}</p><p class="reason">{t["reason"]}</p>'
+                + (f'<p class="m-line">{t["why"]}</p>' if t.get("why") else "")
+                + f'<p class="m-line">{t["next_step"]}</p>'
+                + ('<p class="m-line m-red"><b>An engineer must confirm this result.</b></p>'
+                   if t["engineer_review"] else ""), unsafe_allow_html=True)
 
 
 def _cell(label: str, value: str, sub: str = "", red: bool = False) -> str:
@@ -203,25 +269,7 @@ def measurement_block(result, name: str) -> None:
         st.markdown(f'<p class="note">Crack shape: {c.angle_to_vertical_deg:.0f}° from vertical · straightness '
                     f'{c.straightness:.2f} · coherence {c.coherence:.2f} · {c.n_loops} closed cells · branches '
                     f'{c.branch_ratio:.1f}x main length</p>', unsafe_allow_html=True)
-    pattern = None
-    if c is not None and c.found:
-        with st.expander("Field worker: pattern suggestion"):
-            st.markdown('<p class="note">Answered by a field worker, never asked of the resident (D25). The rules '
-                        'read the direction against up and down, so the phone must be held upright.</p>',
-                        unsafe_allow_html=True)
-            element = ELEMENT_KEYS[st.selectbox("Element", list(ELEMENT_KEYS), index=0)]
-            at_joint = st.checkbox("At a beam-column joint")
-            spalling = st.checkbox("Spalling or exposed bar")
-            rust = st.checkbox("Rust stain along the crack")
-            pattern = result.pattern(element, at_joint, spalling, rust)
-            if pattern is not None:
-                p = pattern.to_dict()
-                st.markdown(f'<p class="m-line"><b>Rule {p["rule"]}: {p["pattern_name"] or "none"}</b>'
-                            f'{"" if p["clear"] else " · unclear"}. {p["reason"]}</p>'
-                            '<p class="note">A field worker confirms or corrects it; only a confirmed pattern goes '
-                            'into the risk matrix (draft rules, illustrative).</p>', unsafe_allow_html=True)
-    report = {"photo": Path(name).stem, **result.to_dict(),
-              "pattern_suggestion": None if pattern is None else pattern.to_dict()}
+    report = {"photo": Path(name).stem, **result.to_dict()}
     buf = io.BytesIO()
     result.overlay.save(buf, "PNG")
     d1, d2 = st.columns(2)
@@ -268,11 +316,49 @@ def wall_grid() -> None:
 
 
 def _photo_badge(stats: dict) -> str:
-    """The widest width on the photo in the gallery, when it was measured."""
+    """On the photo in the gallery: the widest width when measured (top), and the level once confirmed, else the
+    model's element (bottom; D53)."""
     c = stats.get("crack") or {}
+    out = ""
     if stats.get("measured") and c.get("width_max_mm") is not None:
-        return f'<span class="badge">{c["width_max_mm"]:.2f} mm</span>'
+        out += f'<span class="badge">{c["width_max_mm"]:.2f} mm</span>'
+    label = where_what(stats)
+    if label:
+        out += f'<span class="badge badge-low">{label}</span>'
+    return out
+
+
+def where_what(stats: dict) -> str:
+    """Short label: the confirmed level and element, or the model's element; empty when neither is known."""
+    t, e = stats.get("triage"), stats.get("element")
+    if t:
+        return f'{t["level"]} · {(t["element_name"] or "element unknown").capitalize()}'
+    if e:
+        return (e["name"] or ELEMENT_WORDS.get(e["answer"], e["answer"])).capitalize()
     return ""
+
+
+def where_what_html(d: dict) -> str:
+    """The result page's block: element, position, type and level, each with where it comes from (D53)."""
+    t, e, s = d.get("triage"), d.get("element"), d.get("pattern_suggestion")
+    if not (t or e):
+        return ""
+    if t:
+        cells = [_big("Element", (t["element_name"] or "not clear").capitalize(), "",
+                      f'element model, {t["element_probability"]:.0%}'),
+                 _big("Position", t["position_name"].split(" (")[0].capitalize(), "", "counts as an end zone"),
+                 _big("Type", (t["pattern_name"] or "not clear").capitalize(), "", "written rules"),
+                 _big("Level", t["level"], "", "risk matrix, written rules", red=t["engineer_review"])]
+        tail = (f'<p class="d-line">{t["reason"]} {t.get("why") or ""} {t["next_step"]}</p>'
+                + ('<p class="d-line d-red"><b>An engineer must confirm this result.</b></p>'
+                   if t["engineer_review"] else ""))
+    else:
+        cells = [_big("Element", (e["name"] or ELEMENT_WORDS.get(e["answer"], e["answer"])).capitalize(), "",
+                      f'model, {e["probability"]:.0%}', red=e["could_be_column"]),
+                 _big("Type", (s["pattern_name"] or "not clear").capitalize() if s else "—", "",
+                      "suggested by the written rules" if s and s["pattern_name"] else "not clear")]
+        tail = f'<p class="d-line">{WAITING}</p>'
+    return '<div class="d-grid d-words">' + "".join(cells) + "</div>" + tail
 
 
 def _big(label: str, value: str, unit: str = "", sub: str = "", red: bool = False) -> str:
@@ -316,6 +402,7 @@ def result_page(number: int) -> None:
         cells.append(_big("Model confidence", f"{conf:.0%}"))
     if cells:
         html.append('<div class="d-grid">' + "".join(cells) + "</div>")
+    html.append(where_what_html(d))
     if d.get("width_band_of_upper_end"):
         html.append(f'<p class="d-line">Width band of the risk matrix: <b>{d["width_band_of_upper_end"]}</b>. Not a '
                     'level: the level also needs the crack pattern and the element.</p>')
