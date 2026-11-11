@@ -30,7 +30,10 @@ Owner: J = Jerome, L = Luis, C = coding agent (Claude). Fill in the blanks.
 - [x] Photo 2 gives place, size and spalling; ten logical simulated cases; spalling model (C, 11 Nov, D59 to D61)
 - [x] Ten real two-photo test cases from the Haiti photos, same crack in both photos, both photos on the wall (C, 11 Nov, D62, D63)
 - [x] Luis's work of 11 Nov merged into main: type without a card, position from the linked photos, true vertical, SAM 3.1 parts, capture visibility, OSM fallback; his decisions renumbered D65 to D72; where both built the same, both kept (C, 11 Nov, D73)
-- [ ] SAM 3.1 on Jerome's laptop: request access on Hugging Face, download the weights, install the tokenizer (README) (J)
+- [x] SAM 3.1 on Jerome's laptop (access granted, weights local, 11 Nov)
+- [x] Same crack in photo 1, photo 2 and 3D: photo 1's crack carried by the link, every branch, the element's own outline from SAM (C, 11 Nov, D74, D75)
+- [ ] Crack model marks electric cables as cracks (one Haiti case): add crack-free cable photos to its training (J + L)
+- [ ] Haiti test cases: photo 1 is a 30 % crop, so it holds one crack of a network; try a larger crop (C)
 - [ ] Record Ultralytics (AGPL-3.0, needed by SAM 3.1) as a decision against D9 (J + L)
 - [ ] **Send the Haiti licence email now** (santiago.pujol@canterbury.ac.nz): until it is answered the Haiti cases stay on this laptop, never on GitHub, slides or the public link (J)
 - [ ] Each crack in 3D, Grasshopper + wall viewer (C, 11 Nov, D57): first run in Rhino 8 and on the wall (J), then merge into main

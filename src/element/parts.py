@@ -63,6 +63,7 @@ class Parts:
     found: dict = field(default_factory=dict)  # part -> number of things found (score >= MIN_CONF)
     seconds: float | None = None
     preview: Image.Image | None = field(default=None, repr=False)  # the element photo with the masks; never shared
+    things: list | None = field(default=None, repr=False)  # (part, mask, score) at the photo's size, in memory only
 
     def to_dict(self) -> dict:
         r = lambda v: None if v is None else round(float(v), 3)  # noqa: E731
@@ -138,6 +139,7 @@ def find_parts(rgb: np.ndarray, crack: np.ndarray | None, segment: Segmenter) ->
     things = [f for f in as_parts(segment(rgb)) if f[2] >= MIN_CONF]
     out = lies_on(things, crack, rgb.shape[:2], time.perf_counter() - t)
     out.preview = preview(rgb, things, crack, out.on)
+    out.things = things
     return out
 
 

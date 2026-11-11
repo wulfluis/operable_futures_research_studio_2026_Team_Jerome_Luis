@@ -60,6 +60,15 @@ class Location:
     diag: dict = field(default_factory=dict)  # what each step found, shown for testing
     preview: Image.Image | None = field(default=None, repr=False)  # element photo with the link drawn; never shared
     crack_px: np.ndarray | None = field(default=None, repr=False)  # the crack's line in the element photo's pixels
+    link_map: tuple | None = field(default=None, repr=False)  # (H, kc, ke): close_grey pixels -> element photo (D75)
+
+    def carry(self, close_px: np.ndarray) -> np.ndarray | None:
+        """Points of the crack photo (close_grey pixels, as given to locate) in the element photo's own pixels, through
+        the same link that placed the crack line (D75): the bank card or the key points."""
+        if self.link_map is None or close_px is None or len(close_px) == 0:
+            return None
+        H, kc, ke = self.link_map
+        return cv2.perspectiveTransform(np.float32(np.asarray(close_px, float) * kc)[None], H)[0].astype(float) / ke
 
     def angle_for_rules(self, element: str) -> float | None:
         """The angle the type rules read as 'to vertical' (D43), taken against the element's own axis."""
@@ -431,6 +440,7 @@ def locate(close_grey: np.ndarray, crack_px: np.ndarray | None, element_rgb: np.
 
     def with_direction(loc: Location) -> Location:
         loc.crack_px = crack / ke  # for the part it lies on (D70); in the element photo's own pixels
+        loc.link_map = (H, kc, ke)  # every branch of the crack is carried with it (D75)
         if to_vertical is not None:
             loc.crack_to_vertical_deg, loc.direction = to_vertical, direction_word(to_vertical)
         return loc

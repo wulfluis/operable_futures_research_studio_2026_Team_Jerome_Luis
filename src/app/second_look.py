@@ -148,7 +148,8 @@ def shared():
            load_element_model(device=device), load_scene_model(device=device), load_spalling_model(device=device))
     model, _, gpu, wall, element_model, scene_model, spalling_model = out
     start_inbox(wall, model, device, gpu, element_model, scene_model, spalling_model,
-                inbox=Path(os.environ.get("SECOND_LOOK_INBOX") or INBOX))  # when the inbox folder exists
+                inbox=Path(os.environ.get("SECOND_LOOK_INBOX") or INBOX),  # when the inbox folder exists
+                parts_loader=parts_model)  # SAM 3.1, the same copy as the phone page, loaded on first use
     return out
 
 
@@ -510,7 +511,12 @@ def result_page(number: int) -> None:
                   + ('<p class="d-lab" style="margin-top:1rem">Photo 2 · the whole element</p>'
                      f'<img class="d-photo" src="data:image/jpeg;base64,{base64.b64encode(entry.photo2).decode()}" '
                      f'alt="Result {entry.number}, photo 2">' if entry.photo2 else
-                     '<p class="d-note">No photo of the whole element yet.</p>'), unsafe_allow_html=True)
+                     '<p class="d-note">No photo of the whole element yet.</p>')
+                  + ('<p class="d-lab" style="margin-top:1rem">Photo 2 read by SAM 3.1 · the parts it found</p>'
+                     f'<img class="d-photo" src="data:image/jpeg;base64,{base64.b64encode(entry.parts_img).decode()}" '
+                     f'alt="Result {entry.number}, parts found by SAM 3.1">'
+                     f'<p class="d-note">{(d.get("parts") or {}).get("reason", "")} Shown only: the level does not '
+                     'use it.</p>' if entry.parts_img else ""), unsafe_allow_html=True)
     html = []
     if d.get("measured"):
         html.append('<div class="d-hero">' + _big("Width, widest point", f'{c["width_max_mm"]:.2f}', " mm",

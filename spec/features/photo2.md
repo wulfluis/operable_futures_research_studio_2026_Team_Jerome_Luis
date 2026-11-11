@@ -47,3 +47,12 @@ With photo 2's crack: the crack is drawn **where photo 2 shows it and at its len
 - **Width estimated, never measured, test cases only.** These photos have no bank card. For TEST cases only, the width and length are estimated from photo 2: the element is assumed to fill the photo (the same assumption as its place, D61) and to have its typical size (`src/gh3d/layout.py`: column and wall 3000 mm high, beam 4000 mm long), which gives millimetres per pixel; the crack's width in pixels on photo 2 times that is the estimate, with an uncertainty of one pixel (coarse: about 13 mm per pixel on a 224 px column photo). Everything carrying it says "estimated from the assumed element size, not measured". A real upload without a card is unchanged: no width, Expert needed.
 - **Both photos.** The phone page, the wall's gallery and the result page show photo 1 (the close-up) and photo 2 (the whole element), each with the crack in red.
 - **The 3D crack** follows photo 2's crack line point by point (its zigzag and turns); the red frame keeps a small margin.
+
+## Same crack in both photos, every branch, the element's own outline (11 Nov, D74, D75)
+- **Linked photos (bank card or key points):** photo 2's crack is photo 1's crack, every branch, carried through the link's homography. Its source is stated ("photo 1's crack carried into photo 2 through the bank card").
+- **Not linked:** photo 2's own crack model only for a TEST case without a card; otherwise the place is not known (counted as an end zone).
+- **Every branch** of the crack is kept and drawn in 3D, not only the longest line.
+- **Element's outline:** SAM 3.1's column, beam or wall mask holding at least 25 % of the crack (the element model's answer first) sets the frame for place, extent, position and the TEST estimate; else the whole photo, said so.
+- **On the wall:** photo 2 with the crack in red and the outline in white; below it, SAM's coloured parts and its reason.
+- **TEST width estimate:** never when photo 1 has a card; when linked, photo 1's pixel width carried at the link's local scale.
+

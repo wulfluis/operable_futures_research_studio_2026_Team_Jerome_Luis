@@ -76,14 +76,15 @@ def build(stats: dict) -> dict | None:
     measured = bool(g.get("crack_path_mm")) and len(g["crack_path_mm"]) >= 2
     if not measured and not (placed and est):  # nothing measured with a card, and no test estimate (D62)
         return None
-    if placed:  # D61: where photo 2 shows the crack, at its proportion on the element (face mm, centre of the face = 0)
-        path = [[(u - 0.5) * dx, (v - 0.5) * dz] for u, v in on["path_uv"]]
+    if placed:  # D61, D74: every branch where photo 2 shows it, relative to the element's outline (face mm, centre 0)
+        branches = [b for b in (on.get("network_uv") or [on["path_uv"]]) if len(b) >= 2]
+        paths = [[[(u - 0.5) * dx, (v - 0.5) * dz] for u, v in b] for b in branches]
         card = []  # the card is in photo 1, not on photo 2's element
         cx = cy = 0.0
     else:
-        path = [list(map(float, p)) for p in g["crack_path_mm"]]
+        paths = [[list(map(float, p)) for p in g["crack_path_mm"]]]
         card = [list(map(float, p)) for p in g.get("card_corners_mm") or []]
-    xs, ys = [p[0] for p in path], [p[1] for p in path]
+    xs, ys = [p[0] for b in paths for p in b], [p[1] for b in paths for p in b]
     if not placed:
         cx, cy = (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2  # the crack is centred on the face (assumption)
 
@@ -98,13 +99,17 @@ def build(stats: dict) -> dict | None:
 
     v, f, edges = _box(x0, y0, z_base, dx, dy, dz)
     width = g.get("width_median_mm") or g.get("width_max_mm") or est.get("width_median_mm") or 1.0
-    rv, rf = _ribbon(path, float(width) / 2)
+    rv, rf = [], []
+    for b in paths:  # one mesh for all branches
+        bv, bf = _ribbon(b, float(width) / 2)
+        rf += [[a + len(rv), c + len(rv), d + len(rv)] for a, c, d in bf]
+        rv += bv
     objects = [
         {"name": "element", "kind": "mesh", "color": COLOURS["element"], "vertices": v, "faces": f},
         {"name": "element_edges", "kind": "segments", "color": COLOURS["edges"], "segments": edges},
         {"name": "crack", "kind": "mesh", "color": COLOURS["crack"], "vertices": [to3(p) for p in rv], "faces": rf},
-        {"name": "crack_line", "kind": "polyline", "color": COLOURS["crack"], "points": [to3(p) for p in path]},
-    ]
+    ] + [{"name": "crack_line", "kind": "polyline", "color": COLOURS["crack"], "points": [to3(p) for p in b]}
+         for b in paths]
     if g.get("widest_point_mm") and not placed:
         wx, wy = map(float, g["widest_point_mm"])
         objects.append({"name": "widest", "kind": "polyline", "color": COLOURS["marker"],
@@ -138,7 +143,9 @@ def label(stats: dict, shape: str, known: bool, placed: bool = False) -> list[st
     level = f"Level: {t['level']}" if t.get("level") else "Level: send the photo of the whole element"
     if placed:
         sp = " Spalling or exposed bars seen on photo 2." if (stats.get("photo2") or {}).get("spalling_seen") else ""
-        note = PLACED_NOTE if g.get("width_max_mm") is not None else ("Crack drawn from photo 2, relative to the "
-                                                                       "element; element size assumed.")
-        return [head, widths, level, note + sp, ZONE_NOTE]
+        note = PLACED_NOTE if g.get("width_max_mm") is not None else ("Crack drawn from photo 2, every branch, "
+                                                                       "relative to the element; element size assumed.")
+        on = (stats.get("photo2") or {}).get("crack_on_element") or {}
+        frame = f" Element in photo 2: {on['frame_source']}." if on.get("frame_source") else ""
+        return [head, widths, level, note + sp + frame, ZONE_NOTE]
     return [head, widths, level, SCHEMATIC, ZONE_NOTE[:-1] + "; the crack is drawn at real size."]

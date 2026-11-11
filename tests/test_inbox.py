@@ -78,3 +78,15 @@ def test_ten_cases_with_a_card_and_an_element_photo():
     assert len(simulate.CASES) == 10 and {c[2] for c in simulate.CASES} == {"column", "beam", "wall"}
     assert all(isinstance(c[3], int) for c in simulate.CASES)  # a real PHI-Net photo for photo 2
     assert all(c[1] >= 0.6 for c in simulate.CASES)  # thinner is under 3 px at the synthetic scale
+
+
+def test_sam_reaches_the_simulated_residents_too(tmp_path):
+    """D70: the test inbox hands SAM 3.1 to each case like the phone page, so the wall shows 'Lies on' for them."""
+    box = tmp_path / "inbox"
+    box.mkdir()
+    _case(box, "a", _crack(), _crack().convert("L").convert("RGB"))
+    wall = Wall(export_dir=tmp_path / "cracks")
+    calls = []
+    info = inbox.process_case(inbox.ready_cases(box)[0], wall, DEMO_MODEL, "cpu", threading.Lock(),
+                              FakeElementModel("beam"), None, parts_model=lambda rgb: calls.append(1) or [])
+    assert calls and wall.get(info["number"]).stats["parts"] is not None

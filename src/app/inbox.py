@@ -19,8 +19,10 @@ INBOX = Path(__file__).resolve().parents[2] / "data" / "inbox"
 POLL_S = 1.0
 
 
-def process_case(case: Path, wall, model, device, gpu, element_model, scene_model, spalling_model=None) -> dict:
-    """One simulated resident. Returns what happened (for the log); never raises."""
+def process_case(case: Path, wall, model, device, gpu, element_model, scene_model, spalling_model=None,
+                 parts_model=None) -> dict:
+    """One simulated resident. Returns what happened (for the log); never raises.
+    parts_model: SAM 3.1's segmenter (D70), or None."""
     info = {"case": case.name}
     try:
         meta = json.loads((case / "case.json").read_text(encoding="utf-8")) if (case / "case.json").exists() else {}
@@ -30,7 +32,8 @@ def process_case(case: Path, wall, model, device, gpu, element_model, scene_mode
         if (case / "element.jpg").exists() and r.statement in ("Crack found", "Expert needed"):
             try:
                 a = analyse_element((case / "element.jpg").read_bytes(), r, wall, element_model, device, gpu,
-                                    scene_model, model, spalling_model)
+                                    scene_model, crack_model=model, spalling_model=spalling_model,
+                                    parts_model=parts_model)
                 info.update(element=a.element, level=(r.triage or {}).get("level"))
             except PhotoRejected as e:
                 info["element_refused"] = str(e)
@@ -49,13 +52,15 @@ def ready_cases(inbox: Path) -> list[Path]:
 
 
 def start(wall, model, device, gpu, element_model, scene_model, spalling_model=None,
-          inbox: Path = INBOX) -> threading.Thread:
-    """A background thread that empties the inbox whenever the folder exists (it does nothing while it does not)."""
+          inbox: Path = INBOX, parts_loader=None) -> threading.Thread:
+    """A background thread that empties the inbox whenever the folder exists (it does nothing while it does not).
+    parts_loader: a function giving SAM 3.1 (D70) or None, called when a case arrives (it loads once)."""
 
     def loop():
         while True:
             for case in (ready_cases(inbox) if inbox.is_dir() else []):
-                info = process_case(case, wall, model, device, gpu, element_model, scene_model, spalling_model)
+                info = process_case(case, wall, model, device, gpu, element_model, scene_model, spalling_model,
+                                    parts_loader() if parts_loader is not None else None)
                 print("test inbox:", info, flush=True)
             time.sleep(POLL_S)
 

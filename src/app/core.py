@@ -93,8 +93,12 @@ class MeasuredResult:
     link_card: tuple | None = field(default=None, repr=False)  # the card: corners in link_grey pixels, its look (D67)
     link_card_size: float | None = None  # the card's long side / the crack photo's long side
     link_crack_element: np.ndarray | None = field(default=None, repr=False)  # crack line in the element photo (D66)
+    link_map: tuple | None = field(default=None, repr=False)  # the link itself (locate.Location.link_map, D75)
+    link_network_px: list | None = field(default=None, repr=False)  # every branch of photo 1's crack, link_grey px (D75)
+    link_width_px: tuple | None = field(default=None, repr=False)  # photo 1's crack width max, median (link_grey px)
     parts: dict | None = None  # which part the crack lies on, from SAM 3.1 (D70); None: no SAM or no element photo
     parts_preview: Image.Image | None = field(default=None, repr=False)  # element photo with SAM's masks; not shared
+    parts_things: list | None = field(default=None, repr=False)  # SAM's masks, in memory only (D74)
 
     @property
     def measured(self) -> bool:
@@ -224,11 +228,19 @@ def axis_angle(location: dict | None, element: str | None) -> tuple[float | None
     return None, None
 
 
-def _keep_for_link(r: MeasuredResult, full: Image.Image, line_px: np.ndarray | None) -> None:
-    """A small grey copy of the crack photo and its crack line, kept in memory to link the element photo (D66)."""
+def _keep_for_link(r: MeasuredResult, full: Image.Image, line_px: np.ndarray | None, mask: np.ndarray | None = None,
+                   width_px: tuple | None = None) -> None:
+    """A small grey copy of the crack photo and its crack line, kept in memory to link the element photo (D66); also
+    every branch of the crack (mask: the crack model's, working size) and its width in the photo's pixels (D75)."""
     from element.locate import card_patch, card_view, to_link_size
+    from element.photo2 import MIN_BRANCH_SHARE, trace_network
     r.link_grey, k = to_link_size(np.asarray(full.convert("L")))
     r.link_line_px = None if line_px is None else np.asarray(line_px, dtype=float) * k
+    if mask is not None and mask.any():
+        to_full = full.width / mask.shape[1]  # working size -> full photo (padding is at the right and bottom only)
+        r.link_network_px = [b * to_full * k for b in trace_network(mask, MIN_BRANCH_SHARE * max(mask.shape))]
+    if width_px is not None and width_px[0] is not None:
+        r.link_width_px = (float(width_px[0]) * k, float(width_px[1] or width_px[0]) * k)
     if r.card is not None:  # the bridge to the element photo, where the crack itself may be too thin to see (D67)
         patch, q = card_patch(np.asarray(full), r.card.corners_px)
         r.link_card = (q * k, patch, card_view(np.asarray(full), q))
@@ -290,7 +302,8 @@ def run_measured(photo: Image.Image, model, device: str = "cpu", scene_model=Non
         if d.statement in (CRACK, UNSURE):  # the type needs no scale; the answer above stays the original's
             m = pixel_line(full, prob, d.mask)
             r.pixel_shape = pixel_shape(m)
-            _keep_for_link(r, full, None if m is None else m.main_path_px)
+            _keep_for_link(r, full, None if m is None else m.main_path_px, d.mask,
+                           None if m is None else (m.width_max_mm, m.width_median_mm))  # pixels: no card
         return r
 
     r = MeasuredResult(d.statement, line, d.confidence, work, d, card)
@@ -335,7 +348,8 @@ def run_measured(photo: Image.Image, model, device: str = "cpu", scene_model=Non
 
     if d.statement in (CRACK, UNSURE):
         found = r.crack is not None and r.crack.found
-        _keep_for_link(r, full, r.crack.main_path_px if found else None)
+        m = None if found else pixel_line(full, prob, d.mask)  # a tilted card spoils the mm, not the crack's place
+        _keep_for_link(r, full, r.crack.main_path_px if found else (None if m is None else m.main_path_px), d.mask)
     if r.measured:
         c = r.crack
         line = (f"{d.reason} Confidence {d.confidence:.0%}. Widest {c.width_max_mm:.2f} ± "
@@ -356,6 +370,7 @@ class WallEntry:
     large: bytes  # JPEG, long side WALL_LARGE, for the result's own page
     stats: dict  # MeasuredResult.to_dict()
     photo2: bytes | None = None  # JPEG of photo 2 (the whole element) with the crack in red (D62)
+    parts_img: bytes | None = None  # JPEG of photo 2 with SAM 3.1's parts in colour (D74); in memory only
 
 
 EXPORT_DIR = Path(os.environ.get("SECOND_LOOK_EXPORT_DIR", Path(__file__).resolve().parents[2] / "data" / "results"
@@ -433,8 +448,9 @@ class Wall:
         with self._lock:
             return list(self._items)
 
-    def set_photo2(self, number: int, image: Image.Image) -> bool:
-        """Photo 2 with its crack in red, for the gallery and the result page (D62); in memory only, as photo 1."""
+    def set_photo2(self, number: int, image: Image.Image, attr: str = "photo2") -> bool:
+        """Photo 2 with its crack in red (D62), or with SAM 3.1's parts (attr "parts_img", D74), for the gallery and
+        the result page; in memory only, as photo 1."""
         img = image.convert("RGB")
         img.thumbnail((WALL_LARGE, WALL_LARGE))
         buf = io.BytesIO()
@@ -442,7 +458,7 @@ class Wall:
         with self._lock:
             for e in self._items:
                 if e.number == number:
-                    e.photo2 = buf.getvalue()
+                    setattr(e, attr, buf.getvalue())
                     return True
         return False
 
@@ -529,13 +545,111 @@ def analyse_element(data: bytes, result: MeasuredResult, wall: Wall, model, devi
             from element.spalling import seen
             result.spalling, result.spalling_p = seen(spalling_model, photo, device)
     locate_crack(result, photo)
+    crack_from_link(result, photo)
     if parts_model is not None:
         find_parts_for(result, photo, parts_model, gpu)
+        frame_from_parts(result)
     result.estimate = estimate_from_photo2(result) if result.test else None
     if result.wall_number is not None and result.on_element is not None and result.on_element.overlay is not None:
-        wall.set_photo2(result.wall_number, result.on_element.overlay)
+        wall.set_photo2(result.wall_number, photo2_picture(result))
+    if result.wall_number is not None and result.parts_preview is not None:
+        wall.set_photo2(result.wall_number, result.parts_preview, "parts_img")
     auto_triage(result, wall)
     return result.element
+
+
+LINKED = "photo 1's crack carried into photo 2 through the {via} (the same crack)"
+NOT_LINKED = ("Photo 2 could not be linked to photo 1, and from far away the crack model can mark something else: "
+              "the crack's place on the element is not known.")
+
+
+def crack_from_link(result: MeasuredResult, photo: Image.Image) -> None:
+    """The crack in photo 2 (D75). Linked (bank card or key points): photo 1's crack, every branch, carried across by
+    the link: the same crack by construction, even where it is too thin to see from far. Not linked: photo 2's own
+    reading only for a TEST case without a card (a crop of photo 2, D63); otherwise the place is not known, since the
+    crack model on a far photo can mark a plant or a frame (Luis's field test, 11 Nov)."""
+    from element import photo2
+    on, loc = result.on_element, result.location or {}
+    if on is None or not on.size_px:
+        return
+    linked = loc.get("linked") and result.link_crack_element is not None
+    if not linked:
+        if not (result.test and result.card is None) and on.found:
+            plain = ImageOps.exif_transpose(photo).convert("RGB").resize(on.size_px)
+            result.on_element = photo2.CrackOnElement(False, reason=NOT_LINKED, size_px=on.size_px)
+            result.on_element.overlay = plain
+        return
+    from element.locate import Location
+    lm = Location(True, "unknown", "")
+    lm.link_map = result.link_map
+    full_w = ImageOps.exif_transpose(photo).width
+    s = on.size_px[0] / full_w  # element photo's own pixels -> photo 2 as analysed
+    main = result.link_crack_element * s
+    branches = [c * s for c in (lm.carry(b) for b in (result.link_network_px or [])) if c is not None and len(c) >= 2]
+    new = photo2.place(main, on.size_px, None, branches or None)
+    via = loc.get("via") or "link"
+    new.frame_source, new.source = photo2.WHOLE_PHOTO, LINKED.format(via=via)
+    new.reason = f"{new.reason[:-1]}, {new.source}."
+    if result.link_width_px is not None and len(main) >= 2:  # photo 1's width, carried at the link's local scale
+        c = np.asarray(result.link_line_px, float)
+        a = lm.carry(c[[0, -1]])
+        k = float(np.linalg.norm(a[1] - a[0]) * s / max(np.linalg.norm(c[-1] - c[0]), 1e-6))
+        new.width_px_max, new.width_px_median = result.link_width_px[0] * k, result.link_width_px[1] * k
+        new.length_px = float(np.linalg.norm(np.diff(main, axis=0), axis=1).sum())
+    img = ImageOps.exif_transpose(photo).convert("RGB").resize(on.size_px)
+    d = ImageDraw.Draw(img)
+    lw = max(3, img.width // 160)
+    for b in (branches or [main]):
+        d.line([tuple(p) for p in b], fill=(214, 39, 40), width=lw)
+    new.overlay = img
+    result.on_element = new
+
+
+FRAME_PARTS = ("column", "beam", "wall")  # SAM parts that can be the element holding the crack (D74)
+FRAME_MIN_SHARE = 0.25  # the outline must hold at least this share of the crack's points (illustrative)
+
+
+def frame_from_parts(result: MeasuredResult) -> None:
+    """The element's outline in photo 2 from SAM 3.1 (D74): the column, beam or wall mask holding most of photo 2's
+    crack, the model's element first when it holds enough. The crack is then read relative to that outline, not to
+    the whole photo. Without SAM, or no outline holding the crack, the whole photo stays the frame (said so)."""
+    on, parts = result.on_element, result.parts
+    things = getattr(result, "parts_things", None)
+    if on is None or not on.found or not things or not on.network_px or not on.size_px:
+        return
+    w, h = on.size_px
+    pts = np.vstack(on.network_px)
+    want = (result.element.element if result.element is not None else None)
+    best = None
+    for part, mask, score in things:
+        if part not in FRAME_PARTS:
+            continue
+        mh, mw = mask.shape
+        xs = np.clip((pts[:, 0] / max(w - 1, 1) * (mw - 1)).round().astype(int), 0, mw - 1)
+        ys = np.clip((pts[:, 1] / max(h - 1, 1) * (mh - 1)).round().astype(int), 0, mh - 1)
+        share = float(mask[ys, xs].mean())
+        key = (share >= FRAME_MIN_SHARE and part == want, share)
+        if share >= FRAME_MIN_SHARE and (best is None or key > best[0]):
+            best = (key, part, mask, score, share)
+    if best is None:
+        return
+    _, part, mask, score, share = best
+    yy, xx = np.nonzero(mask)
+    mh, mw = mask.shape
+    frame = (xx.min() / mw, yy.min() / mh, (xx.max() + 1) / mw, (yy.max() + 1) / mh)
+    on.reframe(frame, f"SAM 3.1's outline of the {part} ({share:.0%} of the crack on it, score {score:.2f})")
+
+
+def photo2_picture(result: MeasuredResult) -> Image.Image:
+    """Photo 2 with the crack in red and, when SAM gave it, the element's outline box in white (D74)."""
+    on = result.on_element
+    img = on.overlay.convert("RGB").copy()
+    if on.frame is not None and tuple(on.frame) != (0.0, 0.0, 1.0, 1.0):
+        x0, y0, x1, y1 = on.frame
+        d = ImageDraw.Draw(img)
+        d.rectangle([x0 * img.width, y0 * img.height, x1 * img.width - 1, y1 * img.height - 1],
+                    outline=(255, 255, 255), width=max(2, img.width // 200))
+    return img
 
 
 def estimate_from_photo2(result: MeasuredResult) -> dict | None:
@@ -545,20 +659,22 @@ def estimate_from_photo2(result: MeasuredResult) -> dict | None:
     from element.predict import matrix_element
     from gh3d.layout import MATRIX_TO_SHAPE, SIZES
     on = result.on_element
-    if result.measured or on is None or not on.found or on.width_px_max is None or not on.size_px:
+    if result.measured or result.card is not None or on is None or not on.found or on.width_px_max is None \
+            or not on.size_px:  # never with a card in photo 1: a tilted card asks for a retake, not a guess (D75)
         return None
     shape = MATRIX_TO_SHAPE.get(matrix_element(result.element) or "", "wall")
     if shape == "slab":
         return None
     (dx, _, dz), _ = SIZES[shape]
-    w, h = on.size_px
-    mm_per_px = dx / w if shape == "beam" else dz / h  # a beam spans the photo's width, a column or wall its height
+    x0, y0, x1, y1 = on.frame or (0.0, 0.0, 1.0, 1.0)
+    w, h = on.size_px[0] * (x1 - x0), on.size_px[1] * (y1 - y0)  # the element's size in photo 2's pixels
+    mm_per_px = dx / w if shape == "beam" else dz / h  # a beam spans its outline's width, a column or wall its height
     return {"width_max_mm": round(on.width_px_max * mm_per_px, 1),
             "width_median_mm": round((on.width_px_median or on.width_px_max) * mm_per_px, 1),
             "uncertainty_mm": round(mm_per_px, 1), "length_mm": round((on.length_px or 0) * mm_per_px),
             "mm_per_px": round(mm_per_px, 2),
             "basis": f"the width of the damage marked on photo 2 (often a spalled strip, not the crack's opening), "
-                     f"estimated with the {shape} assumed to fill the photo and to be "
+                     f"estimated with the {shape} assumed to fill {on.frame_source} and to be "
                      f"{dx if shape == 'beam' else dz} mm {'long' if shape == 'beam' else 'high'}; not measured (TEST only)"}
 
 
@@ -572,6 +688,7 @@ def locate_crack(result: MeasuredResult, photo: Image.Image) -> None:
                  matrix_element(result.element), result.link_card, result.link_card_size)
     result.location, result.location_preview = loc.to_dict(), loc.preview
     result.link_crack_element = loc.crack_px
+    result.link_map = loc.link_map
 
 
 PARTS_SIDE = 1600  # the element photo's long side for SAM 3.1 (it reads 644 px anyway)
@@ -586,6 +703,10 @@ def find_parts_for(result: MeasuredResult, photo: Image.Image, segment, gpu: thr
     if k < 1.0:
         rgb = np.asarray(Image.fromarray(rgb).resize((round(rgb.shape[1] * k), round(rgb.shape[0] * k))))
     crack = None if result.link_crack_element is None else result.link_crack_element * k
+    on = result.on_element
+    if crack is None and on is not None and on.found and on.path_px is not None and on.size_px:
+        # not linked (no card, too few key points): photo 2's own crack line, the same crack (D62, D74)
+        crack = on.path_px * (rgb.shape[1] / on.size_px[0])
     try:
         with gpu or threading.Lock():
             p = find_parts(rgb, crack, segment)
@@ -595,6 +716,7 @@ def find_parts_for(result: MeasuredResult, photo: Image.Image, segment, gpu: thr
         result.parts_preview = None
         return
     result.parts, result.parts_preview = p.to_dict(), p.preview
+    result.parts_things = [(part, m, s) for part, m, s in (p.things or [])]  # in memory only, for the frame (D74)
 
 
 def level_for(result: MeasuredResult, element: str | None, position: str, pattern: str | None,

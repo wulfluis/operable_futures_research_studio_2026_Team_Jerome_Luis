@@ -102,3 +102,69 @@ def test_never_safe_with_both_photos(measured):
     measured.spalling, measured.spalling_p = False, 0.1
     auto_triage(measured, Wall())
     assert not re.search(r"\bsafe\b|clearance|permit", str(measured.to_dict()), re.I)
+
+
+# ---------- D74: every branch, and the element's own outline as the frame ----------
+
+def test_every_branch_of_a_crack_is_kept():
+    m = np.zeros((200, 200), bool)
+    m[20:180, 99:101] = True  # a vertical crack ...
+    m[100:102, 100:180] = True  # ... with a branch to the right
+    branches = photo2.trace_network(m, 10)
+    assert len(branches) >= 2
+    on = photo2.place(branches[0], (200, 200), None, branches)
+    assert len(on.network_uv) == len(branches)
+    xs = [p[0] for b in on.network_uv for p in b]
+    assert max(xs) > 0.85  # the branch reaches the right, not only the main line
+
+
+def test_the_crack_is_read_relative_to_the_element_outline():
+    path = np.array([[50, 25], [50, 75]], float)  # middle of a 100 x 100 photo
+    on = photo2.place(path, (100, 100), frame=(0.0, 0.0, 1.0, 0.5))  # the element is only the top half
+    assert on.path_uv[0] == pytest.approx([0.5, 0.5], abs=0.02)  # from its middle ...
+    assert on.path_uv[-1] == pytest.approx([0.5, 0.0], abs=0.02)  # ... down to its bottom edge (clipped)
+    whole = photo2.place(path, (100, 100))
+    assert whole.centre_uv[1] == pytest.approx(0.5, abs=0.01) and on.centre_uv[1] < 0.3
+
+
+def test_the_3d_draws_every_branch():
+    stats = {"number": 1, "triage": {"element": "column", "level": "Category 2"},
+             "estimate": {"width_max_mm": 5, "width_median_mm": 4, "uncertainty_mm": 1, "length_mm": 300},
+             "photo2": {"crack_on_element": {"found": True, "path_uv": [[0.5, 0.2], [0.5, 0.8]],
+                                             "network_uv": [[[0.5, 0.2], [0.5, 0.8]], [[0.5, 0.5], [0.9, 0.5]]],
+                                             "frame_source": "SAM 3.1's outline of the column"}}}
+    m = layout.build(stats)
+    assert sum(o["name"] == "crack_line" for o in m["objects"]) == 2
+    assert "SAM 3.1's outline" in " ".join(m["label"])
+
+
+# ---------- D75: photo 2's crack is photo 1's crack, carried by the link ----------
+
+def test_not_linked_a_real_photo_never_takes_photo_2s_own_guess(measured):
+    from PIL import Image
+
+    from app.core import crack_from_link
+    measured.on_element = photo2.place(np.array([[10, 10], [10, 90]], float), (100, 100))  # e.g. a plant's leaf
+    measured.location = {"linked": False}
+    crack_from_link(measured, Image.new("RGB", (100, 100)))
+    assert not measured.on_element.found and "not known" in measured.on_element.reason
+
+
+def test_a_test_case_without_a_card_keeps_photo_2s_reading_when_not_linked(measured):
+    from PIL import Image
+
+    from app.core import crack_from_link
+    measured.card, measured.test = None, True
+    measured.on_element = photo2.place(np.array([[10, 10], [10, 90]], float), (100, 100))
+    measured.location = {"linked": False}
+    crack_from_link(measured, Image.new("RGB", (100, 100)))
+    assert measured.on_element.found
+
+
+def test_no_estimate_when_photo_1_has_a_card(measured):
+    from app.core import estimate_from_photo2
+    measured.test = True
+    measured.crack = None  # e.g. a tilted card: nothing measured
+    measured.on_element = CrackOnElement(True, [[0.5, 0.2], [0.5, 0.8]], 0.6, (0.5, 0.5), size_px=(624, 832),
+                                         width_px_max=10.0, width_px_median=8.0, length_px=500.0)
+    assert measured.card is not None and estimate_from_photo2(measured) is None
