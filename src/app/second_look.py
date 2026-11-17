@@ -21,11 +21,11 @@ import torch
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT / "src") not in sys.path:
     sys.path.insert(0, str(ROOT / "src"))
-from app.background import background_css, crack_underline_css, model_line  # the original's look, unchanged
+from app.theme import FONT, THEME_CSS, label, state  # GitHub's look (D76)
 from app.logo import LOGO_CSS, logo_title
 from app.viewer3d import HEIGHT as VIEW_HEIGHT, viewer_html
 from app.inbox import INBOX, start as start_inbox
-from app.core import (EXPORT_DIR, NOT_A_SAFETY_CHECK, STATEMENTS, WAITING, ConsentMissing, PhotoRejected, Wall,
+from app.core import (EXPORT_DIR, NOT_A_SAFETY_CHECK, RISK_TABS, WAITING, WAITING_SHORT, risk_group, ConsentMissing, PhotoRejected, Wall,
                       analyse, analyse_element, make_qr, wall_key_ok)
 from element.predict import load as load_element_model
 from quality.scene import load as load_scene_model
@@ -39,103 +39,127 @@ from triage.matrix import ELEMENTS, PATTERN_NAMES
 MODEL = ROOT / "models" / "unet_crack.pt"
 PUBLIC_URL = os.environ.get("SECOND_LOOK_URL", "")
 WALL_KEY = os.environ.get("SECOND_LOOK_WALL_KEY", "")
-APP_VERSION = "v1.0"
 ELEMENT_KEYS = {"unknown": None, **{name: key for key, name in ELEMENTS.items()}}
 ELEMENT_WORDS = {"column": "Column", "beam": "Beam", "wall": "Wall", "others": "Not an element", "unsure": "Unsure"}
 WALL_GALLERY_COLUMNS = 6  # photos per row in an opened collection
-WALL_QUOTE = ("A repair that conceals a crack without addressing its root cause is not a solution, It is a "
-              "temporary disguise for a potentially continuing defect.")
 MODEL_LINE = ("Model: U-Net crack segmentation, ResNet-34 encoder (crack model v4), trained on 12,477 photos: public crack "
               "close-ups, building concrete with crack masks and brick walls without cracks, plus written rules for the "
               "statement, plus bank-card measurement in mm")  # update with models/unet_crack.pt (D48)
 
-STYLE = """<style>
-""" + background_css() + LOGO_CSS + """
-[data-testid="stHeader"] { background: transparent; }
-.stApp, .stApp p, .stApp label, .stApp li { color: #f2f2f2; }
-h1, h2, h3 { color: #ffffff !important; font-weight: 800 !important; text-transform: uppercase; letter-spacing: 0.01em; }
-.statement { font-size: 2.1rem; font-weight: 800; text-transform: uppercase; margin: 0.4rem 0 0.2rem; color: #ffffff; }
-.stApp .reason { font-weight: 600; color: #d9d9d9; }
-.stApp .note { font-size: 0.85rem; color: #a6a6a6; }
-.count { font-size: 1.25rem; font-weight: 800; text-transform: uppercase; }
-.version { font-size: 1.4rem; font-weight: 800; color: #a6a6a6; margin-left: 0.6rem; }
-.count-n { font-size: 2rem; margin-left: 0.4rem; }
-/* result buttons: no box, white text; red when opened or under the mouse; one cracked line runs under the row */
-.stApp .stButton button { min-height: 4.2rem; background: transparent !important; border: none !important;
-                          box-shadow: none !important; color: #ffffff !important; }
-.stApp .stButton button p { font-size: 1.35rem; font-weight: 800; text-transform: uppercase; }
-/* the label is a <p>, which ".stApp p" keeps white: colour it directly */
-.stApp .stButton button[kind="primary"], .stApp .stButton button[kind="primary"] p,
-.stApp .stButton [data-testid="stBaseButton-primary"] p,
-.stApp .stButton button:hover, .stApp .stButton button:hover p { color: #d62728 !important; }
-""" + crack_underline_css(".crack-rule", len(STATEMENTS),
-                          '.stApp [data-testid="stVerticalBlock"]:has([data-testid="stColumn"]:nth-child({n}) '
-                          '.stButton :is(button:hover, button[kind="primary"]))') + """
+STYLE = "<style>" + THEME_CSS + LOGO_CSS + """
 /* the QR page: the code alone, centred, as large as the screen allows */
-.qr-alone { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 50; }
+.qr-alone { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 50;
+            background: #ffffff; }
 .qr-alone img { height: 80vh; max-width: 90vw; object-fit: contain; }
-.stApp .quote { font-weight: 800; text-transform: uppercase; color: #ffffff; letter-spacing: 0.01em; }
-/* wall: title and quote in one block as wide as the quote, centred on the screen; both start at its left edge */
-.stApp .wall-head { width: max-content; position: relative; left: 50%; transform: translateX(-50%); }
-/* "Reading cracks..." right of the title, under the version: typed letter by letter, held, gone, again */
-.stApp .wall-version { position: relative; }
-.stApp .reading { position: absolute; left: 0; top: 100%; white-space: nowrap; color: #a6a6a6;
-                  font: 700 1.1rem/1.4 Consolas, "Courier New", monospace; letter-spacing: 0; }
-.reading > span { display: inline-block; overflow: hidden; white-space: nowrap; vertical-align: bottom; width: 0;
-                  animation: reading-type 4s steps(17, end) infinite; }
-@keyframes reading-type { 0% { width: 0; } 55% { width: 17ch; } 85% { width: 17ch; } 86%, 100% { width: 0; } }
-.stApp .wall-quote { margin: -0.2rem 0 0.8rem; text-align: left; white-space: nowrap; font-size: 0.9vw; }
-.stApp h1.wall-title { font-size: 6rem !important; line-height: 1.05; text-align: left; padding: 0.2rem 0 0.4rem; }
-.stApp .wall-version { font-size: 3rem; font-weight: 800; text-transform: none; color: #a6a6a6; vertical-align: super; margin-left: 0.4rem; }
-/* the wall refreshes every few seconds: keep it from dimming or showing "Running" while it does */
-[data-stale="true"] { opacity: 1 !important; transition: none !important; }
-[data-testid="stStatusWidget"] { visibility: hidden; }
-/* added in the copy: the measurement block, in the same bold capitals and greys */
-.stApp .m-head { font-size: 1.25rem; font-weight: 800; text-transform: uppercase; color: #ffffff; margin: 1.2rem 0 0.3rem; }
-.stApp .m-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.9rem 1.2rem; margin: 0.4rem 0 0.6rem; }
-.stApp .m-lab { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; color: #a6a6a6; letter-spacing: 0.02em; }
-.stApp .m-val { font-size: 1.7rem; font-weight: 800; color: #ffffff; line-height: 1.15; }
-.stApp .m-sub { font-size: 0.85rem; font-weight: 600; color: #a6a6a6; }
-.stApp .m-red { color: #d62728; }
-.stApp .m-line { font-weight: 600; color: #d9d9d9; margin: 0.25rem 0; }
-/* added in the copy: wall photos are links to their result page */
-.stApp .wall-gallery { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0.8rem; margin-top: 0.6rem; }
-.stApp .wall-photo { position: relative; display: block; border: 2px solid transparent; transition: border-color .15s; }
-.stApp .wall-photo:hover { border-color: #d62728; }
-.stApp .wall-photo img { width: 100%; display: block; }
-.stApp .wall-photo .badge { position: absolute; left: 0.4rem; top: 0.4rem; background: #0b0b0b; color: #ffffff;
-                            font: 800 0.95rem/1.2 inherit; padding: 0.15rem 0.45rem; text-transform: uppercase; }
-.stApp .wall-photo .badge-low { top: auto; bottom: 0.4rem; font-size: 0.8rem; }
-.stApp .wall-photo .badge-test { left: auto; right: 0.4rem; background: #d62728; }
-.stApp .wall-photo img.inset { position: absolute; right: 0.4rem; bottom: 0.4rem; width: 36%; border: 2px solid #0b0b0b; }
+/* wall: one tab per risk level with its counter, as GitHub's tabs (Code, Issues 12, Pull requests 3) */
+.stApp .st-key-gh-tabs { gap: 8px; border-bottom: 1px solid var(--gh-border); margin-bottom: 16px; }
+.stApp .st-key-gh-tabs .stButton button, .stApp .st-key-gh-tabs .stButton button[kind="primary"],
+.stApp .st-key-gh-tabs [data-testid="stBaseButton-primary"] {
+    background: transparent !important; border: none !important; border-bottom: 2px solid transparent !important;
+    border-radius: 0 !important; box-shadow: none !important; min-height: 48px; padding: 0 8px; margin-bottom: -1px;
+    color: var(--gh-fg) !important; }
+.stApp .st-key-gh-tabs .stButton button p { font-size: 14px; color: var(--gh-fg) !important; }
+.stApp .st-key-gh-tabs .stButton button:hover { border-bottom-color: var(--gh-border) !important; }
+.stApp .st-key-gh-tabs .stButton button[kind="primary"],
+.stApp .st-key-gh-tabs [data-testid="stBaseButton-primary"] { border-bottom-color: var(--gh-tab) !important; }
+.stApp .st-key-gh-tabs .stButton button[kind="primary"] p,
+.stApp .st-key-gh-tabs [data-testid="stBaseButton-primary"] p { font-weight: 600; }
+.stApp .st-key-gh-tabs button code { display: inline-block; min-width: 20px; margin-left: 6px; padding: 0 6px;
+    font-family: """ + FONT + """ !important; font-size: 12px; font-weight: 500; line-height: 18px; text-align: center; color: var(--gh-fg) !important;
+    background: rgba(129, 139, 152, 0.12) !important; border-radius: 2em; }
+/* wall: each shared result is a card; a see-through button over it opens the result over the wall (D77) */
+.stApp .st-key-gh-cards { display: grid !important; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+                          gap: 16px !important; }
+.stApp [class*="st-key-card-"] { position: relative; gap: 0 !important; }
+.stApp [class*="st-key-open-item-"] { position: absolute !important; inset: 0; z-index: 2; margin: 0 !important; }
+.stApp [class*="st-key-open-item-"] .stButton, .stApp [class*="st-key-open-item-"] button {
+    width: 100% !important; height: 100% !important; opacity: 0; cursor: pointer; }
+.stApp .wall-photo { display: block; border: 1px solid var(--gh-border); border-radius: 6px; overflow: hidden;
+                     background: var(--gh-canvas); color: var(--gh-fg); }
+.stApp [class*="st-key-card-"]:hover .wall-photo { border-color: var(--gh-accent);
+                                                    box-shadow: 0 3px 6px rgba(140, 149, 159, 0.15); }
+/* a result opened over the wall: the wall blurred and light, the crack sharp, a window beside it (D77) */
+.stApp .st-key-sl-overlay { position: fixed !important; inset: 0; z-index: 999990; display: flex !important;
+    align-items: center; justify-content: center; padding: 6vh 6vw; background: rgba(255, 255, 255, 0.35);
+    backdrop-filter: blur(8px) brightness(1.08); -webkit-backdrop-filter: blur(8px) brightness(1.08); }
+.stApp .st-key-sl-backdrop { position: absolute !important; inset: 0; margin: 0 !important; }
+.stApp .st-key-sl-backdrop .stButton, .stApp .st-key-sl-backdrop button { width: 100% !important;
+    height: 100% !important; opacity: 0; cursor: zoom-out; }
+.stApp .st-key-sl-stage { position: relative; z-index: 1; width: min(1180px, 100%); flex-wrap: nowrap !important;
+    align-items: center !important; gap: 24px !important; }
+.stApp .st-key-sl-stage > [data-testid="stElementContainer"] { flex: 0 1 42%; min-width: 0; }
+.stApp .sl-crack { background: var(--gh-canvas); border: 1px solid var(--gh-border); border-radius: 6px;
+    overflow: hidden; box-shadow: 0 12px 28px rgba(140, 149, 159, 0.35); }
+.stApp .sl-crack img { width: 100%; max-height: 70vh; object-fit: contain; display: block; }
+.stApp .sl-crack .meta { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 8px 12px;
+    border-top: 1px solid var(--gh-border); font-size: 12px; color: var(--gh-muted); }
+.stApp .sl-crack .num { font-size: 14px; font-weight: 600; color: var(--gh-fg); margin-right: 4px; }
+.stApp .st-key-sl-window { flex: 1 1 58%; min-width: 0; max-height: 80vh; overflow-y: auto; overscroll-behavior: contain;
+    background: var(--gh-canvas); border: 1px solid var(--gh-border); border-radius: 12px; padding: 8px 24px 24px;
+    box-shadow: 0 12px 28px rgba(140, 149, 159, 0.35); }
+.stApp .st-key-sl-close { position: sticky; top: 0; z-index: 3; align-self: flex-end; margin-bottom: -40px; }
+.stApp .st-key-sl-close button { min-height: 32px; padding: 0 10px; }
+.stApp .st-key-sl-window .d-title { margin-top: 0; padding-right: 48px; }
+@media (max-width: 800px) {
+  .stApp .st-key-sl-overlay { align-items: flex-start; overflow-y: auto; padding: 16px; }
+  .stApp .st-key-sl-stage { flex-direction: column !important; }
+  .stApp .st-key-sl-window { max-height: none; } }
+.stApp .wall-photo .pic { position: relative; background: var(--gh-subtle); }
+.stApp .wall-photo .pic img { width: 100%; display: block; }
+.stApp .wall-photo .pic img.inset { position: absolute; right: 8px; bottom: 8px; width: 36%; border: 2px solid #ffffff;
+                                    border-radius: 4px; box-shadow: 0 1px 3px rgba(31, 35, 40, 0.3); }
+.stApp .wall-photo .meta { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 8px 12px;
+                           border-top: 1px solid var(--gh-border); font-size: 12px; color: var(--gh-muted); }
+.stApp .wall-photo .num { font-size: 14px; font-weight: 600; color: var(--gh-fg); margin-right: 4px; }
+.stApp .gh-blank { padding: 32px; text-align: center; color: var(--gh-muted); font-size: 14px;
+                   border: 1px solid var(--gh-border); border-radius: 6px; }
+.stApp .gh-footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--gh-border); font-size: 12px;
+                    color: var(--gh-muted); }
+/* phone page: the measurement and the element, in one bordered grid */
+.stApp .m-head { font-size: 16px; font-weight: 600; color: var(--gh-fg); margin: 24px 0 8px; padding-bottom: 8px;
+                 border-bottom: 1px solid var(--gh-border); }
+.stApp .m-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; margin: 8px 0 12px;
+                 background: var(--gh-border); border: 1px solid var(--gh-border); border-radius: 6px; overflow: hidden; }
+.stApp .m-grid > div { background: var(--gh-canvas); padding: 12px 16px; }
+.stApp .m-grid > div:last-child:nth-child(odd) { grid-column: span 2; }
+.stApp .m-lab { font-size: 12px; color: var(--gh-muted); }
+.stApp .m-val { font-size: 20px; font-weight: 600; color: var(--gh-fg); line-height: 1.3; }
+.stApp .m-sub { font-size: 12px; color: var(--gh-muted); }
+.stApp .m-red { color: var(--gh-danger); }
+.stApp .m-line { font-size: 14px; color: var(--gh-fg); margin: 4px 0; }
 </style>"""
 
 DETAIL_STYLE = """<style>
-/* a result's own page: plain black, no crack behind, the numbers large */
-.stApp { background: #000000 !important; background-image: none !important; }
-.block-container { max-width: 1500px; padding-top: 2.2rem !important; }
-.stApp a.d-back { color: #a6a6a6 !important; text-decoration: none; font-weight: 800; text-transform: uppercase;
-                  letter-spacing: 0.04em; font-size: 0.95rem; }
-.stApp a.d-back:hover { color: #d62728 !important; }
-.stApp .d-title { font-size: 4.2rem; font-weight: 800; text-transform: uppercase; color: #ffffff; line-height: 1.02;
-                  margin: 0.8rem 0 0.4rem; letter-spacing: 0.01em; }
-.stApp .d-num { font-size: 2rem; color: #6f6f6f; margin-left: 0.8rem; vertical-align: super; }
-.stApp .d-photo { width: 100%; display: block; border: 1px solid #262626; }
-.stApp .d-hero .d-val { font-size: 6.5rem; line-height: 1; }
-.stApp .d-hero { border-bottom: 3px solid #d62728; padding-bottom: 1rem; margin-bottom: 1.4rem; }
-.stApp .d-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.6rem 2rem; margin-bottom: 1.4rem; }
-.stApp .d-lab { font-size: 0.85rem; font-weight: 800; text-transform: uppercase; color: #a6a6a6; letter-spacing: 0.05em; }
-.stApp .d-val { font-size: 3.4rem; font-weight: 800; color: #ffffff; line-height: 1.05; }
-.stApp .d-unit { font-size: 0.42em; color: #a6a6a6; margin-left: 0.25rem; }
-.stApp .d-sub { font-size: 0.95rem; font-weight: 600; color: #a6a6a6; }
-.stApp .d-red { color: #d62728; }
-.stApp .d-none { font-size: 2.6rem; font-weight: 800; text-transform: uppercase; color: #d62728; margin: 0 0 0.3rem; }
-.stApp .d-line { font-size: 1.15rem; font-weight: 600; color: #d9d9d9; }
-.stApp .d-words .d-val { font-size: 2.3rem; line-height: 1.1; }  /* words (element, type, level), not numbers */
-.stApp .d-note { font-size: 0.9rem; color: #8c8c8c; margin: 0.35rem 0; }
-@media (max-width: 800px) { .stApp .d-title { font-size: 2.4rem; } .stApp .d-hero .d-val { font-size: 4rem; }
-                            .stApp .d-val { font-size: 2.4rem; } }
+/* a result's own page, as a GitHub issue: title with its number, a state pill, boxes */
+.block-container { max-width: 1280px; padding-top: 2rem !important; }
+.stApp a.d-back { font-size: 14px; }
+.stApp .d-title { font-size: 32px; font-weight: 400; line-height: 1.25; color: var(--gh-fg); margin: 8px 0; }
+.stApp .d-num { color: var(--gh-muted); font-weight: 300; margin-left: 8px; }
+.stApp .d-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding-bottom: 16px; margin-bottom: 24px;
+                 border-bottom: 1px solid var(--gh-border); }
+.stApp .d-meta p { margin: 0; color: var(--gh-muted); }
+.stApp .d-hero { border-bottom: 1px solid var(--gh-border); padding-bottom: 16px; margin-bottom: 16px; }
+.stApp .d-hero .d-val { font-size: 40px; }
+.stApp .d-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; margin-bottom: 16px; }
+.stApp .d-lab { font-size: 12px; color: var(--gh-muted); }
+.stApp .d-val { font-size: 24px; font-weight: 600; color: var(--gh-fg); line-height: 1.25; }
+.stApp .d-unit { font-size: 0.6em; font-weight: 400; color: var(--gh-muted); margin-left: 2px; }
+.stApp .d-sub { font-size: 12px; color: var(--gh-muted); }
+.stApp .d-red { color: var(--gh-danger); }
+.stApp .d-none { font-size: 16px; font-weight: 600; color: var(--gh-danger); margin: 0 0 4px; }
+.stApp .d-line { font-size: 14px; color: var(--gh-fg); }
+.stApp .d-words .d-val { font-size: 16px; }  /* words (element, type, level), not numbers */
+.stApp .d-note { font-size: 12px; color: var(--gh-muted); margin: 6px 0; }
+.stApp .d-views { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.stApp .gh-h { font-size: 16px; font-weight: 600; color: var(--gh-fg); margin: 24px 0 8px; padding-bottom: 8px;
+               border-bottom: 1px solid var(--gh-border); }
+@media (max-width: 800px) { .stApp .d-title { font-size: 24px; } .stApp .d-hero .d-val { font-size: 32px; } }
 </style>"""
+
+
+def _box(title: str, body: str) -> str:
+    """GitHub's bordered panel with a grey header row."""
+    return f'<div class="Box"><div class="Box-header">{title}</div><div class="Box-body">{body}</div></div>'
 
 
 @st.cache_resource
@@ -161,8 +185,7 @@ def parts_model():
 
 
 def phone_page() -> None:
-    st.markdown(f"<h1>{logo_title()}</h1>", unsafe_allow_html=True)
-    st.markdown(f'<p class="quote">{WALL_QUOTE}</p>', unsafe_allow_html=True)  # wraps: a phone is too narrow
+    st.markdown(f'<div class="gh-header">{logo_title()}<span class="gh-tag">Human in the loop</span></div>', unsafe_allow_html=True)
     st.markdown("Photograph a crack in concrete or plaster. Second Look marks the crack in red and says what it sees.")
     st.markdown("**Get close:** about 1 m from the wall or nearer, so the crack and the wall around it fill most of the "
                 "photo (go nearer for a fine crack). No windows, edges, sky or people: the model reads other lines as "
@@ -193,9 +216,13 @@ def phone_page() -> None:
             st.error(str(e))
             return
     result = done[upload.file_id]
-    st.markdown(f'<p class="statement">{result.statement}</p>', unsafe_allow_html=True)
+    st.markdown(f'<p class="statement">{state(result.statement)}</p>', unsafe_allow_html=True)
     st.markdown(f'<p class="reason">{result.reason}</p>', unsafe_allow_html=True)
     st.image(result.overlay, width="stretch")
+    if result.views:  # D81: the same photo as heatmaps and an enhanced view
+        with st.expander("Heatmaps and enhanced view"):
+            for name, img in result.views.items():
+                st.image(img, caption=name, width="stretch")
     if result.card is not None:
         measurement_block(result, upload.name)
     if result.statement in (CRACK, UNSURE):
@@ -338,7 +365,7 @@ def level_block(result) -> None:
     if t is None:
         st.markdown(f'<p class="m-line"><b>{WAITING}</b></p>', unsafe_allow_html=True)
         return
-    st.markdown(f'<p class="statement">{t["level"]}</p><p class="reason">{t["reason"]}</p>'
+    st.markdown(f'<p class="statement">{state(t["level"])}</p><p class="reason">{t["reason"]}</p>'
                 + (f'<p class="m-line">{t["why"]}</p>' if t.get("why") else "")
                 + f'<p class="m-line">{t["next_step"]}</p>'
                 + ('<p class="m-line m-red"><b>An engineer must confirm this result.</b></p>'
@@ -397,57 +424,59 @@ def _wall_href(**extra) -> str:
 
 @st.fragment(run_every=4)
 def wall_grid() -> None:
-    """One button per statement with its count; no photo is shown until a button opens that collection.
-    Added in the copy: each photo is a link to its own page with the stats (/?wall=...&item=<n>)."""
+    """One tab per risk level with its count, highest risk first (D78); no photo is shown until a tab opens that collection. Each card opens
+    its result over the wall, without leaving the page (D77)."""
     wall = shared()[3]
-    counts, entries = wall.counts(), wall.entries()
+    groups = {e.number: risk_group(e.stats) for e in wall.entries()}  # by risk, not by what the model saw (D78)
+    entries = [e for e in wall.entries() if groups[e.number] is not None]
+    counts = {s: sum(groups[e.number] == s for e in entries) for s in RISK_TABS}
     if "opened" not in st.session_state:  # coming back from a result's page: reopen its collection
         back = st.query_params.get("open")
-        st.session_state["opened"] = back if back in STATEMENTS else None
+        st.session_state["opened"] = back if back in RISK_TABS else None
     opened = st.session_state.get("opened")
-    for col, s in zip(st.columns(len(STATEMENTS)), STATEMENTS):
-        if col.button(f"{s}   {counts[s]}", key=f"open_{s}", width="stretch",
-                      type="primary" if opened == s else "secondary"):
-            opened = None if opened == s else s  # a second click closes it
-            st.session_state["opened"] = opened
-    st.markdown('<div class="crack-rule">' + '<div></div>' * len(STATEMENTS) + '</div>',  # one line under all four,
-                unsafe_allow_html=True)  # in pieces: the piece under a hovered or opened button turns red
+    with st.container(key="gh-tabs", horizontal=True, gap="small"):  # GitHub's tabs, each with its counter (D76)
+        for s in RISK_TABS:
+            if st.button(f"{s} `{counts[s]}`", key=f"open_{s}", width="content",
+                         type="primary" if opened == s else "secondary"):
+                opened = None if opened == s else s  # a second click closes it
+                st.session_state["opened"] = opened
     if opened is None:
+        st.markdown('<div class="gh-blank">Choose a tab to see its results.</div>', unsafe_allow_html=True)
         return
-    mine = [e for e in entries if e.statement == opened]
+    mine = [e for e in entries if groups[e.number] == opened]
     if not mine:
-        st.markdown(f'<p class="note">No photo in "{opened}" yet.</p>', unsafe_allow_html=True)
+        st.markdown(f'<div class="gh-blank">No result in "{opened}" yet.</div>', unsafe_allow_html=True)
         return
-    cells = "".join(
-        f'<a class="wall-photo" href="{_wall_href(item=e.number)}" target="_self" title="Open result {e.number}">'
-        f'<img src="data:image/jpeg;base64,{base64.b64encode(e.thumb).decode()}" alt="Result {e.number}">'
-        + (f'<img class="inset" src="data:image/jpeg;base64,{base64.b64encode(e.photo2).decode()}" '
-           f'alt="Photo 2 of result {e.number}">' if e.photo2 else "")
-        + f'{_photo_badge(e.stats)}</a>' for e in mine)
-    st.markdown(f'<div class="wall-gallery">{cells}</div>', unsafe_allow_html=True)
+    with st.container(key="gh-cards"):  # each card opens its result over the wall, on the same page (D77)
+        for e in mine:
+            with st.container(key=f"card-{e.number}"):
+                st.markdown(
+                    f'<div class="wall-photo" title="Open result {e.number}"><div class="pic">'
+                    f'<img src="data:image/jpeg;base64,{base64.b64encode(e.thumb).decode()}" alt="Result {e.number}">'
+                    + (f'<img class="inset" src="data:image/jpeg;base64,{base64.b64encode(e.photo2).decode()}" '
+                       f'alt="Photo 2 of result {e.number}">' if e.photo2 else "")
+                    + f'</div><div class="meta"><span class="num">#{e.number}</span>{_photo_badge(e.stats)}</div></div>',
+                    unsafe_allow_html=True)
+                if st.button(f"Open result {e.number}", key=f"open-item-{e.number}"):
+                    st.session_state["item"] = e.number
+                    st.rerun(scope="app")  # the overlay belongs to the page, not to this refreshing grid
 
 
 def _photo_badge(stats: dict) -> str:
-    """On the photo in the gallery: the widest width when measured (top), and the level once confirmed, else the
-    model's element (bottom; D53)."""
+    """Under the photo in the gallery, as labels: TEST, the widest width when measured, the level once given, and
+    the element (D53)."""
     c = stats.get("crack") or {}
-    out = '<span class="badge badge-test">TEST</span>' if stats.get("test") else ""
+    out = label("TEST", "severe") if stats.get("test") else ""
     if stats.get("measured") and c.get("width_max_mm") is not None:
-        out += f'<span class="badge">{c["width_max_mm"]:.2f} mm</span>'
-    label = where_what(stats)
-    if label:
-        out += f'<span class="badge badge-low">{label}</span>'
-    return out
-
-
-def where_what(stats: dict) -> str:
-    """Short label: the confirmed level and element, or the model's element; empty when neither is known."""
+        out += label(f'{c["width_max_mm"]:.2f} mm', "accent")
     t, e = stats.get("triage"), stats.get("element")
     if t:
-        return f'{t["level"]} · {(t["element_name"] or "element unknown").capitalize()}'
-    if e:
-        return (e["name"] or ELEMENT_WORDS.get(e["answer"], e["answer"])).capitalize()
-    return ""
+        out += label(t["level"]) + f'<span>{(t["element_name"] or "element unknown").capitalize()}</span>'
+    else:
+        out += label(WAITING_SHORT, "done")
+        if e:
+            out += f'<span>{(e["name"] or ELEMENT_WORDS.get(e["answer"], e["answer"])).capitalize()}</span>'
+    return out
 
 
 def where_what_html(d: dict) -> str:
@@ -462,7 +491,7 @@ def where_what_html(d: dict) -> str:
                       position_source(t) if t.get("position") in ("end_zone", "middle") else "counts as an end zone"),
                  _big("Type", (t["pattern_name"] or "not clear").capitalize(), "", "written rules"),
                  *_parts_big(d),
-                 _big("Level", t["level"], "", "risk matrix, written rules", red=t["engineer_review"])]
+                 _big("Level", state(t["level"]), "", "risk matrix, written rules")]
         tail = (f'<p class="d-line">{t["reason"]} {t.get("why") or ""} {t["next_step"]}</p>'
                 + ('<p class="d-line d-red"><b>An engineer must confirm this result.</b></p>'
                    if t["engineer_review"] else ""))
@@ -489,34 +518,47 @@ def _big(label: str, value: str, unit: str = "", sub: str = "", red: bool = Fals
             f'{value}<span class="d-unit">{unit}</span></div><div class="d-sub">{sub}</div></div>')
 
 
-def result_page(number: int) -> None:
-    """Added in the copy: one shared result on its own page, the stats large, on black."""
-    entry = shared()[3].get(number)
-    st.markdown(f'<a class="d-back" href="{_wall_href(**({"open": entry.statement} if entry else {}))}" '
-                'target="_self">&larr; Back to the wall</a>', unsafe_allow_html=True)
-    if entry is None:
-        st.markdown('<p class="d-title">Result gone</p><p class="d-line">The wall keeps only the newest 40 shared '
-                    'results, and none after the app stops.</p>', unsafe_allow_html=True)
-        return
+def _img(data: bytes, alt: str) -> str:
+    return f'<img class="d-photo" src="data:image/jpeg;base64,{base64.b64encode(data).decode()}" alt="{alt}">'
+
+
+def _head_html(entry) -> str:
+    """Title (its risk tab) with its number, the level pill, and the reason, as a GitHub issue (D78)."""
     d = entry.stats
+    level = (d.get("triage") or {}).get("level")
+    group = risk_group(d) or (level or entry.statement)
+    return (f'<p class="d-title">{group}<span class="d-num">#{entry.number}</span></p>'
+            f'<div class="d-meta">{state(level) if level else label(WAITING_SHORT, "done")}'
+            f'{label("TEST", "severe") if d.get("test") else ""}<p>{d.get("reason", "")}</p></div>')
+
+
+def _views_html(entry) -> str:
+    """Photo 1 seen three more ways (D81): width heatmap, confidence heatmap, enhanced view (not an X-ray)."""
+    views = getattr(entry, "views", None) or {}
+    if not views:
+        return ""
+    cells = "".join(f'<div><p class="d-lab">{name}</p>{_img(data, f"Result {entry.number}, {name}")}</div>'
+                    for name, data in views.items())
+    return _box("Photo 1 · heatmaps and enhanced view",
+                f'<div class="d-views">{cells}</div><p class="d-note">Shown only: the level does not use them. No '
+                'stress map: that needs a structural model with the loads and materials, not a photo.</p>')
+
+
+def _photo2_html(entry) -> str:
+    d = entry.stats
+    return ((_box("Photo 2 · the whole element", _img(entry.photo2, f"Result {entry.number}, photo 2"))
+             if entry.photo2 else _box("Photo 2 · the whole element",
+                                       '<p class="d-note">No photo of the whole element yet.</p>'))
+            + (_box("Photo 2 read by SAM 3.1 · the parts it found",
+                    _img(entry.parts_img, f"Result {entry.number}, parts found by SAM 3.1")
+                    + f'<p class="d-note">{(d.get("parts") or {}).get("reason", "")} Shown only: the level '
+                    'does not use it.</p>') if entry.parts_img else ""))
+
+
+def _facts_html(d: dict) -> str:
+    """The measurement, element, position, type and level, and the notes."""
     card, c = d.get("card"), d.get("crack") or {}
     conf = d.get("confidence")
-    st.markdown(f'<p class="d-title">{entry.statement}<span class="d-num">#{entry.number}'
-                f'{" · TEST" if d.get("test") else ""}</span></p>'
-                f'<p class="d-line">{d.get("reason", "")}</p>', unsafe_allow_html=True)
-    left, right = st.columns([1.15, 1], gap="large")
-    left.markdown('<p class="d-lab">Photo 1 · the crack, close up</p>'
-                  f'<img class="d-photo" src="data:image/jpeg;base64,{base64.b64encode(entry.large).decode()}" '
-                  f'alt="Result {entry.number}, photo 1">'
-                  + ('<p class="d-lab" style="margin-top:1rem">Photo 2 · the whole element</p>'
-                     f'<img class="d-photo" src="data:image/jpeg;base64,{base64.b64encode(entry.photo2).decode()}" '
-                     f'alt="Result {entry.number}, photo 2">' if entry.photo2 else
-                     '<p class="d-note">No photo of the whole element yet.</p>')
-                  + ('<p class="d-lab" style="margin-top:1rem">Photo 2 read by SAM 3.1 · the parts it found</p>'
-                     f'<img class="d-photo" src="data:image/jpeg;base64,{base64.b64encode(entry.parts_img).decode()}" '
-                     f'alt="Result {entry.number}, parts found by SAM 3.1">'
-                     f'<p class="d-note">{(d.get("parts") or {}).get("reason", "")} Shown only: the level does not '
-                     'use it.</p>' if entry.parts_img else ""), unsafe_allow_html=True)
     html = []
     if d.get("measured"):
         html.append('<div class="d-hero">' + _big("Width, widest point", f'{c["width_max_mm"]:.2f}', " mm",
@@ -526,7 +568,8 @@ def result_page(number: int) -> None:
                  _big("Pixels across", f'{c["px_across_at_widest"]:.1f}', " px", "need ≥ 3, best 6–8")]
     elif d.get("estimate"):  # TEST cases only (D62): an estimate, never a measurement
         e = d["estimate"]
-        html.append('<div class="d-hero">' + _big("Width of the marked damage, ESTIMATED (not measured)", f'≈ {e["width_max_mm"]:g}', " mm",
+        html.append('<div class="d-hero">' + _big("Width of the marked damage, ESTIMATED (not measured)",
+                                                  f'≈ {e["width_max_mm"]:g}', " mm",
                                                   f'± {e["uncertainty_mm"]:g} mm · {e["basis"]}') + "</div>")
         cells = [_big("Length, estimated", f'≈ {e["length_mm"]}', " mm", "from photo 2")]
     else:
@@ -541,7 +584,9 @@ def result_page(number: int) -> None:
         cells.append(_big("Model confidence", f"{conf:.0%}"))
     if cells:
         html.append('<div class="d-grid">' + "".join(cells) + "</div>")
-    html.append(where_what_html(d))
+    html = [_box("Measurement", "".join(html))]
+    if where_what_html(d):
+        html.append(_box("Element, position, type and level", where_what_html(d)))
     if d.get("width_band_of_upper_end"):
         html.append(f'<p class="d-line">Width band of the risk matrix: <b>{d["width_band_of_upper_end"]}</b>. Not a '
                     'level: the level also needs the crack pattern and the element.</p>')
@@ -554,13 +599,55 @@ def result_page(number: int) -> None:
     for w in d.get("warnings") or []:
         html.append(f'<p class="d-note">{w}</p>')
     html.append(f'<p class="d-note">{NOT_A_SAFETY_CHECK} Thresholds illustrative until calibrated.</p>')
-    right.markdown("".join(html), unsafe_allow_html=True)
-    model_3d(number, d)
+    return "".join(html)
+
+
+def result_page(number: int) -> None:
+    """One shared result on its own page (a direct link, /?wall=...&item=<n>), laid out as a GitHub issue (D76).
+    From the wall, a card opens the same result over the wall instead (result_overlay, D77)."""
+    entry = shared()[3].get(number)
+    st.markdown(f'<a class="d-back" href="{_wall_href(**({"open": risk_group(entry.stats)} if entry and risk_group(entry.stats) else {}))}" '
+                'target="_self">&larr; Back to the wall</a>', unsafe_allow_html=True)
+    if entry is None:
+        st.markdown('<p class="d-title">Result gone</p><p class="d-line">The wall keeps only the newest 200 shared '
+                    'results, and none after the app stops.</p>', unsafe_allow_html=True)
+        return
+    st.markdown(_head_html(entry), unsafe_allow_html=True)
+    left, right = st.columns([1.15, 1], gap="large")
+    left.markdown(_box("Photo 1 · the crack, close up", _img(entry.large, f"Result {entry.number}, photo 1"))
+                  + _views_html(entry) + _photo2_html(entry), unsafe_allow_html=True)
+    right.markdown(_facts_html(entry.stats), unsafe_allow_html=True)
+    model_3d(number, entry.stats)
+
+
+def close_result() -> None:
+    st.session_state["item"] = None
+
+
+def result_overlay(number: int) -> None:
+    """A result opened from the wall, on the same page (D77): the wall behind goes blurred and light, the clicked
+    crack stays sharp, and a window next to it holds everything else, scrolled inside. A click beside them or the
+    close button brings the wall back."""
+    entry = shared()[3].get(number)
+    if entry is None:
+        close_result()
+        return
+    with st.container(key="sl-overlay"):
+        st.button("Close", key="sl-backdrop", on_click=close_result)  # the blurred area itself closes it
+        with st.container(key="sl-stage", horizontal=True):
+            st.markdown(f'<div class="sl-crack">{_img(entry.large, f"Result {entry.number}, photo 1")}'
+                        f'<div class="meta"><span class="num">#{entry.number}</span>{_photo_badge(entry.stats)}</div>'
+                        '</div>', unsafe_allow_html=True)
+            with st.container(key="sl-window"):
+                st.button("✕", key="sl-close", on_click=close_result, help="Back to the wall")
+                st.markdown(_head_html(entry) + _views_html(entry) + _photo2_html(entry) + _facts_html(entry.stats),
+                            unsafe_allow_html=True)
+                model_3d(number, entry.stats)
 
 
 def model_3d(number: int, stats: dict) -> None:
     """The crack in 3D, built by Grasshopper (D57): shown when its file is there, else waited for."""
-    st.markdown('<p class="d-lab" style="margin-top:1.6rem">3D model · Grasshopper</p>', unsafe_allow_html=True)
+    st.markdown('<p class="gh-h">3D model · Grasshopper</p>', unsafe_allow_html=True)
     from gh3d.layout import build
     if build({"number": number, **stats}) is None:  # the same test Grasshopper uses: no model to wait for
         st.markdown('<p class="d-note">No 3D model: the crack is drawn in 3D when it was measured with a bank card, '
@@ -588,19 +675,15 @@ def waiting_for_3d(number: int) -> None:
 
 
 def wall_page() -> None:
-    """Title and quote on top, the result buttons and an opened collection below; the model line stands along the
-    bottom. No QR here (1 Nov): it has its own page, /?qr."""
-    st.markdown("<style>.block-container { padding-left: calc(11vw + 4.5vw) !important; padding-right: "
-                "calc(11vw + 4.5vw) !important; padding-bottom: calc(3vw + 1rem) !important; }"
-                # the title and the quote are wider than this column: let them overflow it, centred on the screen
-                ".stApp [data-testid='stElementContainer'], .stApp [data-testid='stMarkdown'], "
-                ".stApp [data-testid='stMarkdownContainer'] { overflow: visible; }</style>",
-                unsafe_allow_html=True)  # equal sides: buttons centred on the screen, photos clear of the QR corner
-    st.markdown(f'<div class="wall-head"><h1 class="wall-title">{logo_title()} <span class="wall-version">{APP_VERSION}'
-                '<span class="reading"><span>Reading cracks...</span></span></span></h1>'
-                f'<p class="quote wall-quote">{WALL_QUOTE}</p></div>', unsafe_allow_html=True)
-    st.markdown(model_line(MODEL_LINE), unsafe_allow_html=True)
+    """GitHub's layout (D76): header with the logo, one tab per risk level with its counter (D78),
+    the opened tab's cards, the model in the footer. No QR here (1 Nov): it has its own page, /?qr."""
+    st.markdown("<style>.block-container { max-width: 1280px; padding-top: 2rem !important; }</style>",
+                unsafe_allow_html=True)
+    st.markdown(f'<div class="gh-header gh-large">{logo_title()}<span class="gh-tag">Human in the loop</span>'
+                '<span class="gh-right"><span class="gh-dot"></span>Live · shared results appear by themselves</span>'
+                '</div>', unsafe_allow_html=True)
     wall_grid()
+    st.markdown(f'<div class="gh-footer">{MODEL_LINE}.</div>', unsafe_allow_html=True)
 
 
 def qr_page() -> None:
@@ -632,6 +715,9 @@ if st.query_params.get("wall") is not None:
             result_page(int(item))
         else:
             wall_page()
+            if st.session_state.get("item"):  # a card was clicked: its result over the wall (D77)
+                st.markdown(DETAIL_STYLE.replace(".block-container {", ".x-unused {"), unsafe_allow_html=True)
+                result_overlay(st.session_state["item"])
     else:
         st.error("This page is only shown on the presenter's screen.")
 elif st.query_params.get("qr") is not None:

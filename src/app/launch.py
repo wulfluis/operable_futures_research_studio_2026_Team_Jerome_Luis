@@ -130,7 +130,7 @@ def main() -> None:
     app = subprocess.Popen([sys.executable, "-m", "streamlit", "run", str(ROOT / "src" / "app" / "second_look.py"),
                             "--server.port", str(PORT), "--server.headless", "true",
                             "--server.maxUploadSize", "10", "--browser.gatherUsageStats", "false",
-                            "--theme.base", "dark"],  # dark widgets on the dark crack background
+                            "--theme.base", "light", "--theme.primaryColor", "#0969da"],  # GitHub's look (D76)
                            cwd=ROOT, env=env)
     procs = [p for p in (app, tunnel) if p]
     if not wait_for_app():

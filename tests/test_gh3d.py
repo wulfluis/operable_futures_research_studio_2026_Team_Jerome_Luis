@@ -179,6 +179,7 @@ def _fake_rhino(monkeypatch, units="mm"):
             return Curve(*self)
 
     geo = types.SimpleNamespace(Point3d=Point3d, Mesh=Mesh, LineCurve=Curve, Polyline=Polyline,
+                                Vector3d=lambda *v: v, Plane=lambda o, a, b: ("plane", o, a, b),
                                 Transform=types.SimpleNamespace(Translation=lambda x, y, z: (x, y, z),
                                                                 Scale=lambda origin, s: ("scale", s)))
     rhino = types.SimpleNamespace(Geometry=geo, UnitSystem=types.SimpleNamespace(Millimeters="mm"),
@@ -211,7 +212,7 @@ def test_the_grasshopper_script_builds_each_crack_and_writes_its_model(measured,
     assert (folder / mesh_name(n1)).exists() and (folder / mesh_name(n2)).exists()
     assert len(g["labels"]) == 2 and g["cracks"] and g["meshes"]
     moves = {m.moved for m in g["meshes"]}
-    assert (0, 0, 0) in moves and (6000, 0, 0) in moves  # side by side
+    assert (0, 0, 0) in moves and (8000, 0, 0) in moves  # side by side, room for each drawing sheet (D81)
     again = _run_script(folder)
     assert "0 new" in again["status"]  # already built: not rebuilt
 
@@ -246,7 +247,7 @@ def test_the_grasshopper_script_draws_at_real_size_in_a_metre_file(measured, tmp
     wall.add(r.statement, r.overlay, r.to_dict())
     g = _run_script(folder)
     assert "units m" in g["status"] and "1 mm = 0.001" in g["status"]
-    assert {m.moved for m in g["meshes"]} >= {(0.0, 0, 0), (6.0, 0, 0)}  # 6000 mm apart = 6 m in a metre file
+    assert {m.moved for m in g["meshes"]} >= {(0.0, 0, 0), (8.0, 0, 0)}  # 8000 mm apart = 8 m in a metre file
 
 
 def test_a_red_frame_marks_where_the_crack_is_and_the_crack_keeps_its_real_size(measured):
@@ -266,3 +267,29 @@ def test_a_red_frame_marks_where_the_crack_is_and_the_crack_keeps_its_real_size(
 def test_the_viewer_opens_on_the_crack_and_switches_to_the_whole_element(measured):
     page = viewer_html(layout.build(_stats(measured[0])))
     assert "frame(crack, 2.2)" in page and "frame(scene, 1.25)" in page and "crack / whole element" in page
+
+
+# ---------- D81: the detailed drawing ----------
+
+def test_the_detailed_drawing_has_sections_tension_and_a_sheet(measured):
+    """Stations every 50 mm with the measured width, tension arrows across the crack (direction only), and a sheet
+    of enlarged sections whose depth is drawn as not measured; the crack's ribbon follows the width point by point."""
+    r, _ = measured
+    g = r.to_dict()["geometry"]
+    assert g["stations"] and all(s["width_mm"] > 0 for s in g["stations"])
+    assert [s["name"] for s in g["stations"]][:2] == ["A", "B"]
+    assert len(g["width_along_mm"]) == len(g["crack_path_mm"])
+    m = layout.build(_stats(r))
+    names = {o["name"] for o in m["objects"]}
+    assert {"stations", "tension", "sheet", "dimensions", "not_measured", "width_chart"} <= names
+    texts = [o["text"] for o in m["objects"] if o["kind"] == "text"]
+    assert any(t.endswith(" mm") and t[0].isdigit() for t in texts)  # a width as a dimension
+    assert "depth ?" in texts and not any("stress" in t.lower() for t in texts)  # no invented depth or stress
+    sheet = [o for o in m["objects"] if o.get("group") == "sheet"]
+    xs = [p[0] for o in sheet if o["kind"] == "segments" for s in o["segments"] for p in s]
+    assert min(xs) > m["bounds"]["max"][0]  # the sheet stands beside the element, not on it
+
+
+def test_the_viewer_draws_text_and_offers_the_sheet(measured):
+    page = viewer_html(layout.build(_stats(measured[0])))
+    assert "textSprite" in page and "drawing sheet" in page

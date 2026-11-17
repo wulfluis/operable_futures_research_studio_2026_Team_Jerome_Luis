@@ -104,7 +104,7 @@ def test_phone_page_keeps_the_original_layout_and_adds_the_card_hint(page):
     assert not at.exception
     assert [c.label for c in at.checkbox] == ["I put a bank card next to the crack", "Share results"]  # D56
     text = " ".join(m.value for m in at.markdown)
-    assert "temporary disguise" in text and "By sending a photo you confirm you took it" in text
+    assert "temporary disguise" not in text and "By sending a photo you confirm you took it" in text  # D78
     assert "bank-card-sized card" in text
 
 

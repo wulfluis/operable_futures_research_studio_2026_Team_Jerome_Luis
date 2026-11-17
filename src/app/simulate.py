@@ -6,6 +6,7 @@ Usage, from the repository root, with the app running (py src/app/launch.py):
     py src/app/simulate.py --synthetic  # 10 cases with a synthetic photo 1 and a bank card (D61)
     py src/app/simulate.py --n 4 --delay 2
     py src/app/simulate.py --mixed      # also real crack photos without a card, a wall without a crack, a building
+    py src/app/simulate.py --by-level   # about 10 real cases per risk tab (after pick_by_level.py, D79)
 
 Crack photos with a card are synthetic (a drawn wall, card and crack of known width; no public photo has a card).
 Element photos are real, from the PHI-Net task 6 test set (CC BY-NC-SA 4.0, research and teaching only).
@@ -27,6 +28,7 @@ from app.inbox import INBOX  # noqa: E402
 from measure.synthetic import make_demo  # noqa: E402
 
 PICKS = ROOT / "data" / "inbox_cases" / "picks.json"
+BY_LEVEL = ROOT / "data" / "inbox_cases" / "by_level.json"
 
 PHINET6 = ROOT / "data" / "raw" / "phinet" / "task6_component_type"
 PHINET1 = ROOT / "data" / "raw" / "phinet" / "task1_scene_level"
@@ -86,12 +88,17 @@ def card_cases(n: int):
                                              f"damaged {element}, PHI-Net test photo {index}"})
 
 
-def real_cases(n: int):
-    """Real two-photo cases picked by src/app/pick_cases.py (D63): photo 2 the whole photo of the damaged element,
-    photo 1 the close-up cut from it around the same crack. Local photos only, never copied into the repository."""
+def real_cases(n: int, picks_file: Path | None = None):
+    """Real two-photo cases picked by src/app/pick_cases.py (D63) or pick_by_level.py (D79): photo 2 the whole photo
+    of the damaged element, photo 1 the close-up cut from it around the same crack. Local photos only, never copied
+    into the repository."""
     from PIL import ImageOps
-    picks = json.loads(PICKS.read_text(encoding="utf-8"))["cases"]
+    picks = json.loads((picks_file or PICKS).read_text(encoding="utf-8"))["cases"]
     for case in picks[:n]:
+        if case.get("synthetic"):  # a filled tab (D79): regenerated from its parameters, said so on the wall
+            from app.pick_by_level import synthetic_case
+            yield synthetic_case(case)
+            continue
         with Image.open(ROOT / case["photo"]) as im:
             full = ImageOps.exif_transpose(im).convert("RGB")
         close_up = full.crop(tuple(case["crop"]))
@@ -121,8 +128,20 @@ def main(argv=None) -> None:
     ap.add_argument("--delay", type=float, default=3.0, help="seconds between residents")
     ap.add_argument("--mixed", action="store_true", help="also real photos without a card, no crack, a building")
     ap.add_argument("--synthetic", action="store_true", help="the synthetic photo 1 cases (D61) instead of the real ones")
+    ap.add_argument("--by-level", action="store_true", help="the real cases per risk tab from pick_by_level.py (D79)")
     args = ap.parse_args(argv)
     INBOX.mkdir(parents=True, exist_ok=True)
+    if args.by_level:
+        if not BY_LEVEL.exists():
+            sys.exit(f"No cases per risk tab yet ({BY_LEVEL}): py src/app/pick_by_level.py data/raw/haiti2010/Photos")
+        cases = list(real_cases(10_000, BY_LEVEL))
+        print(f"{len(cases)} real cases, about 10 per risk tab, into {INBOX}.")
+        stamp = time.strftime("%H%M%S")
+        for i, (crack, element, meta) in enumerate(cases, 1):
+            _write(INBOX / f"{stamp}_{i:02d}", crack, element, meta)
+            time.sleep(args.delay)
+        print("Done. Wall: http://localhost:8501/?wall")
+        return
     real = PICKS.exists() and not args.synthetic
     if not real and not args.synthetic:
         print(f"No real cases picked yet ({PICKS}); using the synthetic ones. To pick real ones: "

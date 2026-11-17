@@ -35,7 +35,7 @@ from triage.matrix import BAND_NAMES, ELEMENTS, PATTERN_NAMES, Result as LevelRe
 from triage.pattern_rules import PatternSuggestion, suggest
 
 MAX_BYTES = 10 * 1024 * 1024
-WALL_SIZE = 40
+WALL_SIZE = 200  # results kept in memory; raised from 40 so new test cases never push out older ones (D79)
 WALL_THUMB = 480
 WALL_LARGE = 1400  # px, long side of the copy shown on a result's own page (added in the copy)
 STATEMENTS = ("Crack found", "No crack found", "Expert needed", "Retake")
@@ -52,6 +52,21 @@ POSITIONS = {"unknown": "unknown", "joint": "end_zone", "end_zone": "end_zone", 
 POSITION_NAMES = {"unknown": "not known (counts as an end zone)", "joint": "at a beam-column joint",
                   "end_zone": "near a support or joint (end zone)", "middle": "in the middle of the element"}
 WAITING = "Category: send the photo of the whole element to get one."
+# The wall sorts by risk, highest first (D78). Expert needed sits by Category 3: both go to an engineer (rule 4).
+RISK_TABS = ("Category 3", "Expert needed", "Category 2", "Category 1")
+WAITING_SHORT = "Waiting for photo 2"
+
+
+def risk_group(stats: dict) -> str | None:
+    """The wall tab a shared result belongs to (D78): its level from the written risk matrix. A crack without a
+    level yet (no photo of the element) or a model unsure is Expert needed: doubt goes to a person (rule 2), never to
+    a lower tab. A retake, or a photo without a crack, has no risk level: not on the risk tabs."""
+    level = (stats.get("triage") or {}).get("level")
+    if level in RISK_TABS:
+        return level
+    if level is None and stats.get("statement") in ("Crack found", "Expert needed"):
+        return "Expert needed"
+    return None
 AUTO_SOURCE = "automatic: element model, written type rules and the written risk matrix (D55)"
 WHITE, BLACK = (255, 255, 255), (11, 11, 11)
 
@@ -98,6 +113,7 @@ class MeasuredResult:
     link_width_px: tuple | None = field(default=None, repr=False)  # photo 1's crack width max, median (link_grey px)
     parts: dict | None = None  # which part the crack lies on, from SAM 3.1 (D70); None: no SAM or no element photo
     parts_preview: Image.Image | None = field(default=None, repr=False)  # element photo with SAM's masks; not shared
+    views: dict = field(default_factory=dict, repr=False)  # name -> picture: heatmaps, enhanced view (D81)
     parts_things: list | None = field(default=None, repr=False)  # SAM's masks, in memory only (D74)
 
     @property
@@ -155,6 +171,7 @@ class MeasuredResult:
 
 
 GEOMETRY_MAX_POINTS = 200  # the crack line sent to the 3D model (D57)
+STATION_MM = 50.0  # a section of the crack every this many mm along it, in the detailed drawing (D81)
 
 
 def wall_geometry(crack: CrackMeasurement, to_mm, card_corners_px) -> dict | None:
@@ -180,7 +197,32 @@ def wall_geometry(crack: CrackMeasurement, to_mm, card_corners_px) -> dict | Non
     if len(path) > GEOMETRY_MAX_POINTS:
         path = path[np.linspace(0, len(path) - 1, GEOMETRY_MAX_POINTS).round().astype(int)]
     rnd = lambda a: np.round(a, 2).tolist()  # noqa: E731
-    return {"frame": "wall plane, mm; x right and y up as the phone saw it (phone upright); origin at the card's centre",
+    extra = {}
+    if crack.profile_px is not None and len(crack.profile_px) >= 3:  # the width all along the crack (D81)
+        from scipy.spatial import cKDTree
+        tree = cKDTree(crack.profile_px)
+        near_px = max(6.0, 3 * (crack.px_across or 2))  # a path point takes the width measured within this distance
+        d, k = tree.query(path)
+        extra["width_along_mm"] = [None if dd > near_px else round(float(crack.profile_mm[kk]), 3)
+                                   for dd, kk in zip(d, k)]
+        pm = frame(path)
+        s = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(pm, axis=0), axis=1))])
+        stations = []
+        for i, at in enumerate(np.arange(STATION_MM, s[-1] - STATION_MM / 4, STATION_MM)):
+            j = int(np.searchsorted(s, at).clip(0, len(path) - 1))
+            dd, kk = tree.query(path[j])
+            if dd > near_px:
+                continue  # no width measured there (an end, a junction or a gap)
+            a, b = max(0, j - 2), min(len(pm) - 1, j + 2)
+            t = pm[b] - pm[a]
+            t = t / max(np.linalg.norm(t), 1e-9)
+            stations.append({"name": chr(65 + len(stations)) if len(stations) < 26 else f"S{len(stations) + 1}",
+                             "s_mm": round(float(at), 1), "point_mm": rnd(pm[j]),
+                             "width_mm": round(float(crack.profile_mm[kk]), 3),
+                             "edges_mm": rnd(frame(crack.profile_edges_px[kk])),
+                             "across": rnd(np.array([-t[1], t[0]]))})  # tension acted about along this (D81)
+        extra["stations"] = stations
+    return {**extra, "frame": "wall plane, mm; x right and y up as the phone saw it (phone upright); origin at the card's centre",
             "crack_path_mm": rnd(frame(path)),
             "widest_point_mm": None if crack.widest_point_px is None else rnd(frame(crack.widest_point_px)[0]),
             "card_corners_mm": rnd(frame(card_px)),
@@ -247,7 +289,8 @@ def _keep_for_link(r: MeasuredResult, full: Image.Image, line_px: np.ndarray | N
         r.link_card_size = float(np.linalg.norm(q[1] - q[0])) / max(full.size)
 
 
-def _draw_card_and_widest(overlay: Image.Image, scale: float, card, crack) -> Image.Image:
+def _draw_card_and_widest(overlay: Image.Image, scale: float, card, crack, full: Image.Image | None = None
+                          ) -> Image.Image:
     """The card outline in white, and a white ring at the widest point, on the photo part of the overlay."""
     out = overlay.copy()
     draw = ImageDraw.Draw(out)
@@ -260,6 +303,13 @@ def _draw_card_and_widest(overlay: Image.Image, scale: float, card, crack) -> Im
         r = max(8, out.width // 60)
         draw.ellipse([x - r - 1, y - r - 1, x + r + 1, y + r + 1], outline=BLACK, width=lw + 2)
         draw.ellipse([x - r, y - r, x + r, y + r], outline=WHITE, width=lw)
+    if crack is not None and crack.found and crack.width_max_mm is not None:  # the numbers on the photo (D80)
+        from app.annotate import draw_measurements
+        info = out.info
+        h = info.get("photo_height") or out.height
+        photo = draw_measurements(out.crop((0, 0, out.width, h)), scale, crack, card.corners_px, full)
+        out.paste(photo, (0, 0))
+        out.info = info
     return out
 
 
@@ -304,6 +354,7 @@ def run_measured(photo: Image.Image, model, device: str = "cpu", scene_model=Non
             r.pixel_shape = pixel_shape(m)
             _keep_for_link(r, full, None if m is None else m.main_path_px, d.mask,
                            None if m is None else (m.width_max_mm, m.width_median_mm))  # pixels: no card
+            r.views = _views(work, prob, k, None, False)
         return r
 
     r = MeasuredResult(d.statement, line, d.confidence, work, d, card)
@@ -358,8 +409,20 @@ def run_measured(photo: Image.Image, model, device: str = "cpu", scene_model=Non
         line += " Width not measured: " + r.measure_note[0].lower() + r.measure_note[1:]
     r.reason = line
     r.overlay = _draw_card_and_widest(draw_overlay(work, d.mask, d.statement, line), k, card,
-                                      r.crack if r.measured else None)
+                                      r.crack if r.measured else None, full)
+    if d.statement in (CRACK, UNSURE):
+        r.views = _views(work, prob, k, r.crack, r.measured)
     return r
+
+
+def _views(work, prob, k, crack, measured) -> dict:
+    """The heatmaps and the enhanced view of photo 1 (D81); never stops an answer if one fails."""
+    try:
+        from app.views import make
+        return make(work, prob, k, crack, measured)
+    except Exception as e:  # noqa: BLE001  (a view is extra: the answer stands without it)
+        print("views:", type(e).__name__, e, flush=True)
+        return {}
 
 
 @dataclass
@@ -370,6 +433,7 @@ class WallEntry:
     large: bytes  # JPEG, long side WALL_LARGE, for the result's own page
     stats: dict  # MeasuredResult.to_dict()
     photo2: bytes | None = None  # JPEG of photo 2 (the whole element) with the crack in red (D62)
+    views: dict = field(default_factory=dict)  # name -> JPEG: heatmaps and enhanced view of photo 1 (D81)
     parts_img: bytes | None = None  # JPEG of photo 2 with SAM 3.1's parts in colour (D74); in memory only
 
 
@@ -418,9 +482,13 @@ class Wall:
         p = self.export_dir / mesh_name(number)
         return p if p.exists() else None
 
-    def add(self, statement: str, image: Image.Image, stats: dict | None = None) -> int:
+    def add(self, statement: str, image: Image.Image, stats: dict | None = None, views: dict | None = None) -> int:
         """Keeps a small JPEG for the wall, a larger one and the stats for the result's own page (added in the
-        copy). Returns the result's number."""
+        copy). Returns the result's number. The wall sorts by risk, so it shows the photo without the statement's
+        band ("CRACK FOUND", D78); the sender's phone keeps it."""
+        if image.info.get("photo_height"):
+            image = image.crop((0, 0, image.width, image.info["photo_height"]))
+
         def jpeg(side: int) -> bytes:
             img = image.convert("RGB")
             img.thumbnail((side, side))
@@ -432,7 +500,14 @@ class Wall:
         with self._lock:
             n = self._next
             self._next += 1
-            self._items.appendleft(WallEntry(n, statement, thumb, large, stats or {}))
+            entry = WallEntry(n, statement, thumb, large, stats or {})
+            for name, v in (views or {}).items():  # in memory only, as the photo
+                buf = io.BytesIO()
+                im = v.convert("RGB")
+                im.thumbnail((WALL_LARGE, WALL_LARGE))
+                im.save(buf, "JPEG", quality=85)
+                entry.views[name] = buf.getvalue()
+            self._items.appendleft(entry)
             while len(self._items) > self.size:
                 self._items.pop()
             self._counts[statement] += 1
@@ -494,7 +569,7 @@ def analyse(data: bytes, consent: bool, share: bool, wall: Wall, model, device: 
         result = run_measured(photo, model, device, scene_model, card_placed)
     result.test = test
     if share:
-        result.wall_number = wall.add(result.statement, result.overlay, result.to_dict())
+        result.wall_number = wall.add(result.statement, result.overlay, result.to_dict(), result.views)
     return result
 
 

@@ -269,6 +269,10 @@ class CrackMeasurement:
     skeleton_px: np.ndarray | None = field(default=None, repr=False)
     main_path_px: np.ndarray | None = field(default=None, repr=False)
     widest_edges_px: np.ndarray | None = field(default=None, repr=False)
+    # the width all along the crack (D81): centre-line point (x, y), smoothed width in mm, and its two edges (x, y)
+    profile_px: np.ndarray | None = field(default=None, repr=False)  # (n, 2)
+    profile_mm: np.ndarray | None = field(default=None, repr=False)  # (n,)
+    profile_edges_px: np.ndarray | None = field(default=None, repr=False)  # (n, 2, 2)
 
     def matrix_input(self) -> dict | None:
         """Inputs for triage.matrix.assess(); None when the width cannot be trusted (then Expert needed, D3)."""
@@ -412,6 +416,9 @@ def measure(grey: np.ndarray, mask: np.ndarray, to_mm, rel_scale_uncertainty: fl
     result.widest_point_px = tuple(pts[i] + off)
     result.widest_edges_px = np.vstack([a, b]) + off
     result.width_source_grey = float(np.mean([s[5] == "grey" for s in samples]))
+    result.profile_px = sp + off
+    result.profile_mm = wmm_s
+    result.profile_edges_px = np.array([[s[3], s[4]] for s in samples]) + off
 
     if result.px_across < MIN_PX_ACROSS:
         flags.append(f"only {result.px_across:.1f} pixels across the crack (at least {MIN_PX_ACROSS:g} needed [46]): "

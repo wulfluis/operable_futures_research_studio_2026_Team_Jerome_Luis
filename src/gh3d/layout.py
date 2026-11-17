@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import math
 
-VERSION = "gh3d-0.1"
+VERSION = "gh3d-0.2"  # 0.2: width along the crack, stations, tension arrows, drawing sheet (D81)
 # Typical element sizes, mm (assumption, illustrative): (along X, along Y = depth, along Z), and the Z of its base
 SIZES = {"column": ((300, 300, 3000), 0), "beam": ((4000, 250, 500), 2500), "wall": ((3000, 200, 3000), 0),
          "slab": ((4000, 4000, 150), 2850)}
@@ -45,11 +45,31 @@ def _box(x0, y0, z0, dx, dy, dz):
     return v, faces, [[v[a], v[b]] for a, b in edges]
 
 
+SHEET_GAP_MM = 300.0  # the drawing sheet stands this far to the right of the element
+
+
+def _lift(objs, f):
+    """2D objects (segments, polyline points, text points) to 3D through f."""
+    out = []
+    for o in objs:
+        o = dict(o)
+        if o["kind"] == "segments":
+            o["segments"] = [[f(a), f(b)] for a, b in o["segments"]]
+        elif o["kind"] == "text":
+            o["point"] = f(o["point"])
+        else:
+            o["points"] = [f(q) for q in o["points"]]
+        out.append(o)
+    return out
+
+
 def _ribbon(points, half):
-    """A flat strip of the given half-width along a 2D polyline: vertices (2D) and triangles."""
+    """A flat strip of the given half-width (a number, or one per point) along a 2D polyline: vertices (2D) and
+    triangles."""
     verts, faces = [], []
     n = len(points)
-    for i, (x, y) in enumerate(points):
+    halves = half if isinstance(half, (list, tuple)) else [half] * n
+    for i, ((x, y), half) in enumerate(zip(points, halves)):
         a, b = points[max(i - 1, 0)], points[min(i + 1, n - 1)]
         tx, ty = b[0] - a[0], b[1] - a[1]
         length = math.hypot(tx, ty) or 1.0
@@ -100,8 +120,12 @@ def build(stats: dict) -> dict | None:
     v, f, edges = _box(x0, y0, z_base, dx, dy, dz)
     width = g.get("width_median_mm") or g.get("width_max_mm") or est.get("width_median_mm") or 1.0
     rv, rf = [], []
+    along = g.get("width_along_mm") if not placed else None  # the true width, point by point (D81)
     for b in paths:  # one mesh for all branches
-        bv, bf = _ribbon(b, float(width) / 2)
+        if along and len(along) == len(b):
+            bv, bf = _ribbon(b, [float(w if w is not None else width) / 2 for w in along])
+        else:
+            bv, bf = _ribbon(b, float(width) / 2)
         rf += [[a + len(rv), c + len(rv), d + len(rv)] for a, c, d in bf]
         rv += bv
     objects = [
@@ -122,6 +146,15 @@ def build(stats: dict) -> dict | None:
             [min(xs) - m, max(ys) + m], [min(xs) - m, min(ys) - m]]
     objects.append({"name": "crack_zone", "kind": "polyline", "color": COLOURS["crack"],
                     "points": [to3(p) for p in zone]})
+    stations = g.get("stations") or []
+    if stations:  # the detailed drawing (D81)
+        from gh3d import details
+        if not placed:
+            objects += _lift(details.on_face(stations, None), to3)
+        u0, z0 = x0 + dx + SHEET_GAP_MM, z_base + (dz if shape != "slab" else 0)
+        objects += [{**o, "group": "sheet"} for o in _lift(
+            details.sheet(stations, g.get("width_along_mm"), g.get("crack_path_mm"), g.get("length_main_mm") or 0),
+            lambda q: [u0 + q[0], -OFFSET_MM, z0 + q[1]])]
     return {"version": VERSION, "number": stats.get("number"), "units": "mm", "up": "z", "element": shape,
             "element_known": known, "placed_from_photo2": placed, "label": label(stats, shape, known, placed),
             "objects": objects,

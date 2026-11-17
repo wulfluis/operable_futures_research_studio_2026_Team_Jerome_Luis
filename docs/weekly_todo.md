@@ -9,8 +9,24 @@ Owner: J = Jerome, L = Luis, C = coding agent (Claude). Fill in the blanks.
 ## Week 3: 9 to 15 Nov (studio Thu 12 Nov: full SDD constitution, first feature with tests, first MCP attempt)
 
 ### Done
+- [x] About 10 test cases per risk tab: real Haiti cases first, synthetic ones only where the real photos never reach a tab; wall keeps 200 results (C, 12 Nov, D79)
+- [x] Wall sorted by risk: Category 3, Expert needed, Category 2, Category 1; no quote, no statement tabs (C, 12 Nov, D78)
+- [x] A result opens over the blurred wall, in a window beside the crack; no new page (C, 12 Nov, D77)
+- [x] App in GitHub's look: white page, tabs with counters, cards, issue-style result page; no crack background, no animation, logo without its crack (C, 12 Nov, D76)
 - [x] Crack model v4 in use: the reference thesis's building-concrete crack masks (Özgenel [49]) added; better on building concrete, slightly worse on pavement close-ups (C, 9 Nov, D48)
 - [x] Old logo ideas removed (D47) (C, 4 Nov)
+
+### Next (from 12 Nov night)
+- [ ] Email to Enrique Corres Sojo on 17 Nov: send the five questions in `docs/literature/corres_sojo_questions.md` (J + L, C drafts)
+- [x] Detailed drawing in 3D (stations, sections, width chart, tension direction), width and confidence heatmaps, enhanced view (C, 16 Nov, D81)
+- [ ] Real 3D scan of the crack surface: short video around the crack with the card, photogrammetry (C, next)
+- [ ] Stress map: Karamba3D model of the element once the engineering partner gives loads and materials; illustrative only (J + L, engineer)
+- [x] Measurements on the photo itself: widest width, length, direction, scale bar, the card as scale (C, 16 Nov, D80; teacher's request)
+- [ ] Commit and push D76 to D79 (C, when Jerome says)
+- [ ] Restart the app (the wall empties), then resend the Haiti cases, the field-test pairs and the cases per risk tab (C)
+- [ ] Finish the synthetic fill for Category 2 and Category 1: `py src/app/pick_by_level.py --fill-synthetic --tabs "Category 2" "Category 1"` (C)
+- [ ] Crack type: a real field photo with a card is measured, but its pattern is not recognised, so it goes to Expert needed; the type rules are what keeps real cases out of Category 1 and 2 (C, J + L)
+- [ ] Ultralytics installed `pi-heif` by itself on 12 Nov: keep or remove, and turn off its auto-install? (J)
 
 ### Before Thursday 12 Nov
 - [x] Constitution refresh: mission unchanged; roadmap, tech stack and the AGENTS.md map brought up to date (C, 10 Nov)

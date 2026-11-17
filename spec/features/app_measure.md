@@ -25,7 +25,7 @@ The card search runs only when the sender ticks "I put a bank card next to the c
 - New in the copy: each photo is a link to its own page, `/?wall=<key>&item=<n>`, and carries its widest width as a small label.
 - The page sits on plain black with no background crack. It shows the statement, the reason and the larger overlay, and the numbers large: widest width ± uncertainty, median, length and all branches, pixels across, camera tilt with left-right and up-down, model confidence, width band (not a level), crack shape, warnings and "not a safety check".
 - Without a card it says "Width not measured" with the reason. "Back to the wall" reopens the same collection.
-- The wall keeps, in memory only, a 480 px and a 1400 px copy and the result's numbers, for the newest 40 shared results.
+- The wall keeps, in memory only, a 480 px and a 1400 px copy and the result's numbers, for the newest 200 shared results (40 until 12 Nov, D79).
 
 ## How it runs
 As the class demo (`spec/features/class_demo.md`): `py src/app/launch.py`, port 8501, the team's fixed ngrok link and the QR in the slides (D40), Cloudflare as the fallback. Live wall: `http://localhost:8501/?wall`; a result's page: `/?wall=<key>&item=<n>`; QR alone: `/?qr`. (Until D46 a separate launcher served the copy on port 8503 with a self-signed certificate on the local Wi-Fi; it was removed so the team has one app on one link.)
@@ -43,3 +43,17 @@ As the class demo (`spec/features/class_demo.md`): `py src/app/launch.py`, port 
 - The page keeps the class demo's layout and adds the card hint.
 - The wall needs its key.
 - There is one app: no `src/app_measure/` copy (D46).
+
+## On the photo (16 Nov, D80)
+When the crack is measured (bank card found, tilt accepted), photo 1 carries instruments, drawn by `src/app/annotate.py`:
+- a ruler beside the crack, following its line: a tick every 10 mm (5 mm under 100 mm, 50 mm over 1.5 m), a number every 50 mm (25, 250), the length at its end;
+- a loupe on the widest point, from the full-resolution photo: the width on top, a calliper on the two measured edges, and reference lines of 0.2, 0.5, 1 and 2 mm at the loupe's own magnification (those wider than an eighth of the loupe left out); placed in the corner furthest from the crack, joined to the widest point by a line;
+- a protractor at the crack's start: the vertical, dashed, and the arc to the crack's direction, with the angle;
+- bottom left, a black-and-white scale bar of 5, 10, 20, 50, 100 or 200 mm (the longest that fits a quarter of the photo), at the crack's own scale.
+No card, a tilted card or no crack: nothing in mm is drawn. Depth cannot be seen in a photo and is never drawn.
+
+## Views (16 Nov, D81)
+With the result (phone: "Heatmaps and enhanced view"; wall: the result's window and page), photo 1 three more ways (`src/app/views.py`): the width heatmap (crack coloured by the width measured nearest to each pixel, drawn thicker than life, the matrix's width bands marked on the colour bar; only with a bank card), the confidence heatmap (the crack model's probability, 0 to 100 %), and the enhanced view (CLAHE, inverted, labelled "not an X-ray"). Shown only; the level does not use them.
+
+## Detailed drawing (16 Nov, D81)
+The 3D model (`spec/features/rhino_3d.md`) adds, for a crack measured with a bank card: the crack at its width point by point; stations every 50 mm with section marks and tension-direction arrows; a drawing sheet beside the element with one section per station (x40, width as a dimension, depth "?"), and the width along the crack as a chart. Depth and stress are never given a value.

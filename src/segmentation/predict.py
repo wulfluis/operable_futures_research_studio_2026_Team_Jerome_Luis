@@ -72,6 +72,7 @@ def draw_overlay(img: Image.Image, mask: np.ndarray, title: str, line: str) -> I
     draw = ImageDraw.Draw(out)
     draw.text((12, h + 8), title.upper(), fill="#111111", font=big)
     draw.multiline_text((12, h + 14 + size), "\n".join(lines), fill="#4d4d4d", font=small, spacing=4)
+    out.info["photo_height"] = h  # where the band starts: the wall shows the photo without it (D78)
     return out
 
 
