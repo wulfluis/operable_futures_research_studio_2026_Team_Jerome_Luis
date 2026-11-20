@@ -6,6 +6,18 @@ Owner: J = Jerome, L = Luis, C = coding agent (Claude). Fill in the blanks.
 
 ---
 
+## Week 4: 16 to 22 Nov (hackathon 16 to 20 Nov)
+
+### Done
+- [x] Luis's work merged into main: dark concrete look (D82), crack viewer with zoom, drag and loupe (D83), a sketch on each tip and no "Human in the loop" tag (D84), shape chips in the viewer (D85) (L, 18 to 20 Nov; merged by C, 20 Nov)
+
+### Next
+- [ ] Main crack dropped as a straight edge on the sample photo (D51), seen in the crack viewer: decide whether to change the rule (J + L, C)
+- [ ] Email to Enrique Corres Sojo: send the five questions (J + L, C drafts; moved from week 3)
+- [ ] Real 3D scan of the crack surface (C; moved from week 3)
+
+---
+
 ## Week 3: 9 to 15 Nov (studio Thu 12 Nov: full SDD constitution, first feature with tests, first MCP attempt)
 
 ### Done
@@ -22,7 +34,7 @@ Owner: J = Jerome, L = Luis, C = coding agent (Claude). Fill in the blanks.
 - [ ] Real 3D scan of the crack surface: short video around the crack with the card, photogrammetry (C, next)
 - [ ] Stress map: Karamba3D model of the element once the engineering partner gives loads and materials; illustrative only (J + L, engineer)
 - [x] Measurements on the photo itself: widest width, length, direction, scale bar, the card as scale (C, 16 Nov, D80; teacher's request)
-- [ ] Commit and push D76 to D79 (C, when Jerome says)
+- [x] Commit and push D76 to D81 (C, 17 Nov, 805c954)
 - [ ] Restart the app (the wall empties), then resend the Haiti cases, the field-test pairs and the cases per risk tab (C)
 - [ ] Finish the synthetic fill for Category 2 and Category 1: `py src/app/pick_by_level.py --fill-synthetic --tabs "Category 2" "Category 1"` (C)
 - [ ] Crack type: a real field photo with a card is measured, but its pattern is not recognised, so it goes to Expert needed; the type rules are what keeps real cases out of Category 1 and 2 (C, J + L)
