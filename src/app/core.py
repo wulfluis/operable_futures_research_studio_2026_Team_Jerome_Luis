@@ -115,6 +115,8 @@ class MeasuredResult:
     parts_preview: Image.Image | None = field(default=None, repr=False)  # element photo with SAM's masks; not shared
     views: dict = field(default_factory=dict, repr=False)  # name -> picture: heatmaps, enhanced view (D81)
     parts_things: list | None = field(default=None, repr=False)  # SAM's masks, in memory only (D74)
+    photo: Image.Image | None = field(default=None, repr=False)  # photo 1 upright, for the crack viewer (D83); memory only
+    pixel_crack: CrackMeasurement | None = field(default=None, repr=False)  # the crack in pixels, no card (D83)
 
     @property
     def measured(self) -> bool:
@@ -352,6 +354,7 @@ def run_measured(photo: Image.Image, model, device: str = "cpu", scene_model=Non
         if d.statement in (CRACK, UNSURE):  # the type needs no scale; the answer above stays the original's
             m = pixel_line(full, prob, d.mask)
             r.pixel_shape = pixel_shape(m)
+            r.photo, r.pixel_crack = full, m
             _keep_for_link(r, full, None if m is None else m.main_path_px, d.mask,
                            None if m is None else (m.width_max_mm, m.width_median_mm))  # pixels: no card
             r.views = _views(work, prob, k, None, False)
@@ -400,6 +403,7 @@ def run_measured(photo: Image.Image, model, device: str = "cpu", scene_model=Non
     if d.statement in (CRACK, UNSURE):
         found = r.crack is not None and r.crack.found
         m = None if found else pixel_line(full, prob, d.mask)  # a tilted card spoils the mm, not the crack's place
+        r.photo, r.pixel_crack = full, m
         _keep_for_link(r, full, r.crack.main_path_px if found else (None if m is None else m.main_path_px), d.mask)
     if r.measured:
         c = r.crack
@@ -435,6 +439,8 @@ class WallEntry:
     photo2: bytes | None = None  # JPEG of photo 2 (the whole element) with the crack in red (D62)
     views: dict = field(default_factory=dict)  # name -> JPEG: heatmaps and enhanced view of photo 1 (D81)
     parts_img: bytes | None = None  # JPEG of photo 2 with SAM 3.1's parts in colour (D74); in memory only
+    zoom: bytes | None = None  # JPEG of photo 1, long side 2000, without marks, for the crack viewer (D83); memory only
+    marks: dict | None = None  # the crack's points and widths for the viewer (crack_view.view_data), never exported
 
 
 EXPORT_DIR = Path(os.environ.get("SECOND_LOOK_EXPORT_DIR", Path(__file__).resolve().parents[2] / "data" / "results"
@@ -482,7 +488,8 @@ class Wall:
         p = self.export_dir / mesh_name(number)
         return p if p.exists() else None
 
-    def add(self, statement: str, image: Image.Image, stats: dict | None = None, views: dict | None = None) -> int:
+    def add(self, statement: str, image: Image.Image, stats: dict | None = None, views: dict | None = None,
+            photo: Image.Image | None = None, marks: dict | None = None) -> int:
         """Keeps a small JPEG for the wall, a larger one and the stats for the result's own page (added in the
         copy). Returns the result's number. The wall sorts by risk, so it shows the photo without the statement's
         band ("CRACK FOUND", D78); the sender's phone keeps it."""
@@ -500,7 +507,10 @@ class Wall:
         with self._lock:
             n = self._next
             self._next += 1
-            entry = WallEntry(n, statement, thumb, large, stats or {})
+            entry = WallEntry(n, statement, thumb, large, stats or {}, marks=marks)
+            if photo is not None:  # the crack viewer's photo (D83), in memory only as the others
+                from app.crack_view import photo_jpeg
+                entry.zoom = photo_jpeg(photo)
             for name, v in (views or {}).items():  # in memory only, as the photo
                 buf = io.BytesIO()
                 im = v.convert("RGB")
@@ -569,7 +579,9 @@ def analyse(data: bytes, consent: bool, share: bool, wall: Wall, model, device: 
         result = run_measured(photo, model, device, scene_model, card_placed)
     result.test = test
     if share:
-        result.wall_number = wall.add(result.statement, result.overlay, result.to_dict(), result.views)
+        from app.crack_view import view_data
+        result.wall_number = wall.add(result.statement, result.overlay, result.to_dict(), result.views,
+                                      result.photo, view_data(result))
     return result
 
 

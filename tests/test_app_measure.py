@@ -171,7 +171,7 @@ def test_result_page_shows_the_stats_large(page, monkeypatch):
     at = page.run()
     assert not at.exception and not at.error
     text = " ".join(m.value for m in at.markdown)
-    assert "Width, widest point" in text and f'{r.crack.width_max_mm:.2f}' in text and "Camera tilt" in text
+    assert "Width, widest point" in text and f'{r.crack.width_max_mm:.2f}' in text and "Camera angle to the wall" in text
     assert "Back to the wall" in text and "#7" in text
     page.query_params["item"] = "8"
     assert "Result gone" in " ".join(m.value for m in page.run().markdown)

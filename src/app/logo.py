@@ -1,11 +1,12 @@
 """The Second Look word mark, as on the cover of the midterm deck: the two O's of "Look" are scan frames, side by side
-(D38). Since 12 Nov (D76): no crack in it and nothing moves, in GitHub's dark ink on the white page.
+(D38). Since 12 Nov (D76): no crack in it and nothing moves. Since 18 Nov (D82): one O in white, one in the scan
+cyan, on the dark concrete page.
 Spec: spec/features/class_demo.md."""
 
 import html
 
 FRAME = "M5 18 L5 5 L18 5 M32 5 L45 5 L45 18 M45 32 L45 45 L32 45 M18 45 L5 45 L5 32"  # four corners of a scan frame
-GREY, INK = "#8c959f", "#1f2328"
+GREY, INK = "#22d3ee", "#eef1f5"  # GREY is the second frame: the scan cyan since D82
 
 # Sizes in em of the title, from the deck cover (176 px type, 264 x 136 px mark): the frames span the capital height.
 LOGO_CSS = f"""
@@ -17,7 +18,7 @@ LOGO_CSS = f"""
 
 
 def logo_oo() -> str:
-    """The two O's: one in ink, one in grey, side by side."""
+    """The two O's: one in white, one in cyan, side by side."""
     return (f'<svg class="logo-oo" viewBox="0 0 264 136" aria-hidden="true">'
             f'<g class="oo-b"><path class="oo-frame" stroke="{INK}" d="{FRAME}"/></g>'
             f'<g class="oo-a"><path class="oo-frame" stroke="{GREY}" d="{FRAME}"/></g></svg>')

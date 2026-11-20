@@ -7,10 +7,10 @@ THREE = "https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"
 ORBIT = "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"
 HEIGHT = 560
 
-PAGE = """<div id="sl3d" style="position:relative;width:100%;height:__H__px;background:#f6f8fa;border:1px solid #d1d9e0;border-radius:6px;overflow:hidden">
+PAGE = """<div id="sl3d" style="position:relative;width:100%;height:__H__px;background:#0b0e12;border:1px solid rgba(255,255,255,.10);border-radius:16px;overflow:hidden">
 <div id="sl3d-label" style="position:absolute;left:14px;top:12px;z-index:2;font:600 13px/1.45 -apple-system,'Segoe UI',Helvetica,Arial,sans-serif;
-color:#1f2328;pointer-events:none;max-width:70%"></div>
-<div style="position:absolute;right:14px;bottom:10px;z-index:2;font:600 12px -apple-system,'Segoe UI',Helvetica,Arial,sans-serif;color:#59636e;
+color:#eef1f5;pointer-events:none;max-width:70%"></div>
+<div style="position:absolute;right:14px;bottom:10px;z-index:2;font:600 12px -apple-system,'Segoe UI',Helvetica,Arial,sans-serif;color:#8b95a3;
 pointer-events:none">Drag to turn · scroll to zoom · double-click: crack / whole element / drawing sheet</div>
 </div>
 <script src="__THREE__"></script>
@@ -18,14 +18,14 @@ pointer-events:none">Drag to turn · scroll to zoom · double-click: crack / who
 <script>
 (function () {
   const M = __DATA__;
-  const INK = {"#ffffff": "#1f2328", "#d9d9d9": "#59636e", "#5a5a5a": "#afb8c1", "#4ea1ff": "#0969da"};
+  const INK = {"#4ea1ff": "#22d3ee"};  // Rhino's colours are made for a dark viewport: kept, blue as the scan cyan (D82)
   const box = document.getElementById("sl3d");
   document.getElementById("sl3d-label").innerHTML = M.label.map(function (s, i) {
-    return i === 0 ? "<b style='color:#1f2328'>" + s + "</b>" : s; }).join("<br>");
+    return i === 0 ? "<b style='color:#ffffff'>" + s + "</b>" : s; }).join("<br>");
   if (!window.THREE) { box.insertAdjacentHTML("beforeend",
-    "<p style='color:#d1242f;padding:60px 14px'>The 3D view needs the internet (three.js).</p>"); return; }
+    "<p style='color:#ff4d6a;padding:60px 14px'>The 3D view needs the internet (three.js).</p>"); return; }
   const W = function () { return box.clientWidth; }, H = __H__;
-  const scene = new THREE.Scene(); scene.background = new THREE.Color(0xf6f8fa);
+  const scene = new THREE.Scene(); scene.background = new THREE.Color(0x0b0e12);
   const cam = new THREE.PerspectiveCamera(35, W() / H, 1, 200000);
   const ren = new THREE.WebGLRenderer({antialias: true});
   ren.setPixelRatio(window.devicePixelRatio || 1); ren.setSize(W(), H); box.appendChild(ren.domElement);
@@ -42,7 +42,7 @@ pointer-events:none">Drag to turn · scroll to zoom · double-click: crack / who
     sp.scale.set(h * c.width / c.height, h, 1); sp.center.set(0, 0); return sp;
   }
   M.objects.forEach(function (o) {
-    const col = new THREE.Color(INK[o.color] || o.color);  // Rhino's colours, readable on white (D76)
+    const col = new THREE.Color(INK[o.color] || o.color);  // Rhino's colours on the dark ground (D82)
     const into = o.group === "sheet" ? sheet : null;
     if (o.kind === "text") {
       const sp = textSprite(o.text, o.height || 8, col); sp.position.copy(P(o.point));

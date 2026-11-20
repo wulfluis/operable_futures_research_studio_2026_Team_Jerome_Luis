@@ -1,0 +1,7 @@
+# The app's look (D82): dark concrete. launch.py passes the same values on the command line.
+[theme]
+base = "dark"
+primaryColor = "#22d3ee"
+backgroundColor = "#0a0c0f"
+secondaryBackgroundColor = "#15191f"
+textColor = "#eef1f5"

@@ -34,7 +34,7 @@ def test_wall_shows_version_model_and_call_to_action(page):
     page.query_params["wall"] = "right-key"
     at = page.run()
     text = " ".join(m.value for m in at.markdown)
-    assert not at.error and "v1.0" not in text and "Human in the loop" in text and "U-Net" in text and "your turn" not in text
+    assert not at.error and "v1.0" not in text and "Human in the loop" not in text and "U-Net" in text and "your turn" not in text
     assert "temporary disguise" not in text and "Reading cracks" not in text  # no quote (D78); nothing moves (D76)
     assert "data:image/png;base64" not in text  # no QR on the wall: it has its own page (1 Nov)
 
@@ -141,3 +141,12 @@ def test_the_wall_keeps_the_photo_without_the_statement_band():
     wall = Wall()
     n = wall.add("Crack found", img, {})
     assert Image.open(io.BytesIO(wall.get(n).large)).size == (200, 100)
+
+
+def test_phone_page_shows_a_sketch_on_each_tip_and_no_loop_tag(page):
+    at = page.run()
+    text = " ".join(m.value for m in at.markdown)
+    tips = text[text.index('<div class="tips">'):]
+    tips = tips[:tips.index("</div>")]
+    assert tips.count("<svg") == 3 and tips.count("</svg>") == 3  # one line sketch per tip (D84)
+    assert "Human in the loop" not in text  # the tag is gone from the header (D84)
