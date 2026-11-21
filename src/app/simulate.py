@@ -9,6 +9,7 @@ Usage, from the repository root, with the app running (py src/app/launch.py):
     py src/app/simulate.py --by-level   # about 10 real cases per risk tab (after pick_by_level.py, D79)
     py src/app/simulate.py --no-field   # without the team's own field photos
     py src/app/simulate.py --showcase   # also the six drawn showcase cases (photo 1 only, D90, D91)
+    py src/app/simulate.py --test-set   # the 74 real survey cases reviewed by eye (D94), after the field photos
 
 Every run first sends the team's own field photo pairs with a bank card (data/field/<folder>/pair_N_crack.jpg and
 pair_N_element.jpg, local only, never committed; D87), so real cards are always in the population.
@@ -37,6 +38,7 @@ from measure.synthetic import make_demo  # noqa: E402
 PICKS = ROOT / "data" / "inbox_cases" / "picks.json"
 FIELD = ROOT / "data" / "field"  # the team's own field photos with a bank card (D87), local only
 BY_LEVEL = ROOT / "data" / "inbox_cases" / "by_level.json"
+TEST_SET = ROOT / "data" / "inbox_cases" / "test_set.json"  # D94: real cases reviewed by eye, local only
 
 PHINET6 = ROOT / "data" / "raw" / "phinet" / "task6_component_type"
 PHINET1 = ROOT / "data" / "raw" / "phinet" / "task1_scene_level"
@@ -164,10 +166,22 @@ def main(argv=None) -> None:
     ap.add_argument("--synthetic", action="store_true", help="the synthetic photo 1 cases (D61) instead of the real ones")
     ap.add_argument("--by-level", action="store_true", help="the real cases per risk tab from pick_by_level.py (D79)")
     ap.add_argument("--no-field", action="store_true", help="leave out the team's own field photos (D87)")
+    ap.add_argument("--test-set", action="store_true", help="the real test set reviewed by eye (D94)")
     ap.add_argument("--showcase", action="store_true", help="also the six drawn showcase cases, photo 1 only (D90, D91)")
     args = ap.parse_args(argv)
     INBOX.mkdir(parents=True, exist_ok=True)
     field = ([] if args.no_field else list(field_cases())) + (list(showcase_cases()) if args.showcase else [])
+    if args.test_set:
+        if not TEST_SET.exists():
+            sys.exit(f"No test set yet ({TEST_SET}): py src/app/pick_test_set.py data/raw/haiti2010/Photos")
+        cases = field + list(real_cases(10_000, TEST_SET))
+        print(f"{len(cases)} real cases (the field photos and the test set) into {INBOX}.")
+        stamp = time.strftime("%H%M%S")
+        for i, (crack, element, meta) in enumerate(cases, 1):
+            _write(INBOX / f"{stamp}_{i:02d}", crack, element, meta)
+            time.sleep(args.delay)
+        print("Done. Wall: http://localhost:8501/?wall")
+        return
     if args.by_level:
         if not BY_LEVEL.exists():
             sys.exit(f"No cases per risk tab yet ({BY_LEVEL}): py src/app/pick_by_level.py data/raw/haiti2010/Photos")
