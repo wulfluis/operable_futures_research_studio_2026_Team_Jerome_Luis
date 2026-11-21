@@ -46,10 +46,17 @@ def working_image(img: Image.Image, long_side: int = WORK_SIZE) -> tuple[Image.I
     return padded, (w, h)
 
 
+TTA = False  # off (D91: on validation it missed more cracks); when on, the model also looks at the photo flipped left-right, up-down and both; the four answers are averaged (D91)
+
+
 @torch.no_grad()
-def probability(model: torch.nn.Module, img: Image.Image, device: str) -> np.ndarray:
-    logits = model(to_tensor(np.array(img))[None].to(device))
-    return torch.sigmoid(logits.float())[0, 0].cpu().numpy()
+def probability(model: torch.nn.Module, img: Image.Image, device: str, tta: bool | None = None) -> np.ndarray:
+    x = to_tensor(np.array(img))[None].to(device)
+    if not (TTA if tta is None else tta):
+        return torch.sigmoid(model(x).float())[0, 0].cpu().numpy()
+    out = [torch.flip(torch.sigmoid(model(torch.flip(x, d)).float()), d) if d else torch.sigmoid(model(x).float())
+           for d in ([], [3], [2], [2, 3])]
+    return torch.stack(out).mean(0)[0, 0].cpu().numpy()
 
 
 def draw_overlay(img: Image.Image, mask: np.ndarray, title: str, line: str) -> Image.Image:

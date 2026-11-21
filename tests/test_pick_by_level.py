@@ -40,8 +40,6 @@ def test_a_synthetic_filler_is_regenerated_and_says_it_is_synthetic(tmp_path):
     picks.write_text(json.dumps({"cases": [{"synthetic": True, "width_mm": 0.2, "shape": "vertical", "element": "wall",
                                             "k": 1, "seed": 3, "tilt": [2, -1], "level_tab": "Category 1"}]}),
                      encoding="utf-8")
-    if not simulate.PHINET6.exists():
-        pytest.skip("PHI-Net task 6 is not on this laptop")
     (crack, element, meta), = simulate.real_cases(10, picks)
-    assert meta["card_placed"] is True and meta["kind"].startswith("SYNTHETIC")
-    assert crack.size == (1200, 900) and element.size == (672, 672)
+    assert meta["card_placed"] is True and meta["kind"].startswith("DRAWN")
+    assert crack.size == (1200, 900) and element is None  # never paired with an unrelated real photo (D91)

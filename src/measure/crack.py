@@ -273,6 +273,11 @@ class CrackMeasurement:
     profile_px: np.ndarray | None = field(default=None, repr=False)  # (n, 2)
     profile_mm: np.ndarray | None = field(default=None, repr=False)  # (n,)
     profile_edges_px: np.ndarray | None = field(default=None, repr=False)  # (n, 2, 2)
+    # every branch as an ordered line (D88), full-image pixels, for drawing every branch, not only the main line
+    branch_paths_px: list | None = field(default=None, repr=False)
+    # every independent crack in the photo (D88): their number, and each one's own measurement (src/measure/cracks.py)
+    n_cracks: int = 1
+    cracks: list | None = field(default=None, repr=False)
 
     def matrix_input(self) -> dict | None:
         """Inputs for triage.matrix.assess(); None when the width cannot be trusted (then Expert needed, D3)."""
@@ -286,7 +291,7 @@ class CrackMeasurement:
                 "width_uncertainty_mm": r(self.width_uncertainty_mm), "width_median_mm": r(self.width_median_mm),
                 "px_across_at_widest": r(self.px_across, 2), "mm_per_px": r(self.mm_per_px, 4),
                 "length_main_mm": r(self.length_main_mm, 1), "length_total_mm": r(self.length_total_mm, 1),
-                "n_branches": self.n_branches, "n_pieces": self.n_pieces,
+                "n_branches": self.n_branches, "n_pieces": self.n_pieces, "n_cracks": self.n_cracks,
                 "widest_point_px": None if self.widest_point_px is None else [r(v, 1) for v in self.widest_point_px],
                 "width_from_grey_profile": r(self.width_source_grey, 2),
                 "shape": {"angle_to_vertical_deg": r(self.angle_to_vertical_deg, 1),
@@ -396,6 +401,7 @@ def measure(grey: np.ndarray, mask: np.ndarray, to_mm, rel_scale_uncertainty: fl
     result = CrackMeasurement(True, length_main_mm=length_main, length_total_mm=total, n_branches=len(branches),
                               n_pieces=int(n_pieces), mask=mask, skeleton_px=pts + off, main_path_px=main + off,
                               **shape_features(pts, main, tm, length_main, total, len(ea), n_pieces))
+    result.branch_paths_px = [pts[br] + off for br in branches if len(br) >= 2]
     if len(samples) < 3:
         result.flags = flags + ["too few centre-line points to measure the width: width could not be measured"]
         return result

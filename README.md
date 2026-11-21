@@ -1,16 +1,28 @@
-# Second Look
+<p align="center"><img src="docs/images/logo_wordmark.png" width="440" alt="Second Look: the word mark, with the two O's of Look drawn as scan frames, one white and one cyan"></p>
 
-Second Look helps people living in ageing reinforced-concrete buildings decide whether a crack needs an engineer. A resident photographs the crack with a bank card beside it. The app checks the photo, finds the crack, measures it in millimetres and reads its pattern. Written, auditable rules then give one of five answers, and an engineer confirms every serious case. It never says a building is safe: it decides who looks next, and how soon.
+<p align="center">
+Crack triage for ageing concrete homes, from two phone photos<br>
+Jerome Eid, Luis Sebastian Wulf<br>
+IAAC MaAI · Research Studio "Operable Futures" · 2026/27 · Stage 4, Operation and End-of-Life
+</p>
 
-**The model measures, rules decide, an engineer confirms.**
+<p align="center">
+<a href="src/segmentation/"><img alt="Crack model in PyTorch" src="https://img.shields.io/badge/crack_model-PyTorch-0a0c0f?style=flat-square&logo=pytorch&logoColor=white"></a>
+<a href="src/segmentation/sam_extend.py"><img alt="SAM 3.1 by Meta" src="https://img.shields.io/badge/tracing-SAM_3.1-0a0c0f?style=flat-square&logo=meta&logoColor=white"></a>
+<a href="src/anomaly/"><img alt="Autoencoder on sound concrete" src="https://img.shields.io/badge/heatmap-autoencoder-0a0c0f?style=flat-square&logo=pytorch&logoColor=white"></a>
+<a href="src/measure/"><img alt="Measurement with OpenCV" src="https://img.shields.io/badge/width_in_mm-OpenCV-0a0c0f?style=flat-square&logo=opencv&logoColor=white"></a>
+<a href="src/app/"><img alt="App in Streamlit" src="https://img.shields.io/badge/app-Streamlit-0a0c0f?style=flat-square&logo=streamlit&logoColor=white"></a>
+<a href="src/gh3d/"><img alt="3D in Rhino 8 and Grasshopper" src="https://img.shields.io/badge/3D-Rhino_8_·_Grasshopper-0a0c0f?style=flat-square&logo=rhinoceros&logoColor=white"></a>
+<a href="src/mcp_osm/"><img alt="Building data over MCP from OpenStreetMap" src="https://img.shields.io/badge/MCP-OpenStreetMap-0a0c0f?style=flat-square&logo=openstreetmap&logoColor=white"></a>
+</p>
 
-IAAC Barcelona · MaAI · Research Studio "Operable Futures" · 2026–27 · Jerome Eid (@jeromgeid-ui), Luis Sebastian Wulf (@wulfluis) · Stage 4, Operation and End-of-Life
+Residents of old concrete buildings see cracks every day but cannot tell a harmless one from a warning sign, and engineers are too few to look at them all. Second Look sorts them. A resident photographs the crack with a bank card beside it and the whole beam, column or wall. The app traces every crack, measures its width in millimetres at every point, reads its pattern, and written rules give one of five answers, each with its reason. An engineer confirms every serious case. It never says a building is safe: it decides who looks next, and how soon.
 
-| The phone page | The crack to explore |
-|---|---|
-| ![The phone page in its dark look: three tips with line sketches, the bank-card and share ticks, the upload, and the answer "Crack found" with the widest width and length in mm](docs/images/app_phone.jpg) | ![The crack viewer: the crack's centre line coloured by its width, the widest and narrowest points marked, chips for max, min, length, angle, straightness, coherence, cells and branches, a width profile and a scale bar](docs/images/app_crack_viewer.jpg) |
+<p align="center"><b>The model measures, rules decide, an engineer confirms.</b></p>
 
-<sub>Screenshots of the app on a synthetic test photo made by `src/measure/synthetic.py`: no real home and no resident's photo.</sub>
+![The crack viewer: three cracks, each in its own colour, with their widths; a click on Max flies to the widest point and opens a loupe with a caliper and the width there, 1.4 mm; then the colours switch to the width along each crack, and the autoencoder's heatmap appears](docs/images/crack_viewer.gif)
+
+<sub>The crack viewer on a drawn test photo (`src/app/showcase.py`): no real home and no resident's photo appear in this repository.</sub>
 
 ## The problem
 
@@ -18,15 +30,32 @@ Residents of old buildings see cracks every day but cannot tell a harmless one f
 Tripoli, February 2026: two blocks collapsed on 8 February (14 to 15 dead, per AFP and Reuters), and 114 buildings were ordered evacuated.
 Rana Plaza, Dhaka, 2013: cracks were visible the day before the collapse.
 
-An engineer cannot visit every crack. Second Look sorts them, so the engineer goes first where it matters, and every doubtful case still reaches a person.
+## The app
 
-## What it does
+A resident opens the phone page, ticks "I put a bank card next to the crack", and sends the photo. The answer comes back with the crack to explore: zoom, drag, click the widest or narrowest point for a loupe with the width there, and the crack's numbers in the picture. Then the app asks for a photo of the whole element, finds the crack on it, and gives the level.
+
+| The phone page | The crack to explore |
+|---|---|
+| ![The phone page in its dark look: three tips with line sketches, the bank-card and share ticks, the upload, and the answer with the widest width and the length in mm](docs/images/app_phone.jpg) | ![The crack viewer: the crack's centre line coloured by its width, the widest and narrowest points marked, chips for max, min, length, angle, straightness, coherence, cells and branches, a width profile and a scale bar](docs/images/app_crack_viewer.jpg) |
+
+What the viewer shows:
+
+- **Every crack, each in its own colour.** Independent cracks get their own colour; a crack the model found in pieces with small gaps stays one crack. The widest point over all of them decides the level.
+- **The width at every point.** In millimetres with the bank card, in pixels without it, never invented.
+- **The crack's shape.** Its angle, how straight it runs, its branches and the closed cells of a network, which the written rules read to suggest its type.
+- **What looks different from sound concrete.** The autoencoder's heatmap, as a separate layer.
+
+Shared results appear on a live wall for the class projector, one tab per answer. A result opens over the wall: the crack on the left, the level and its reason on the right, and the crack in 3D from Rhino and Grasshopper.
+
+![The live wall: tabs Category 3, Expert needed, Category 2 and Category 1 with their counts, and result cards with the crack, its measuring instruments and the widest width](docs/images/app_wall.jpg)
+
+## How it works
 
 ```mermaid
 flowchart LR
     A["Resident<br/>photo of the crack,<br/>bank card beside it"] --> B["Photo check<br/>close-up? sharp?<br/>else Retake"]
-    B --> C["Models<br/>find the crack,<br/>the element,<br/>the scene"]
-    C --> D["Measurement<br/>width in mm at<br/>every point, length,<br/>angle, shape"]
+    B --> C["Vision<br/>crack model finds the crack,<br/>SAM 3.1 extends it,<br/>autoencoder heatmap"]
+    C --> D["Measurement<br/>width in mm at every point,<br/>length, angle, shape"]
     D --> E["Written rules<br/>risk matrix:<br/>pattern × width,<br/>raises only"]
     E --> F["Answer<br/>Retake · Expert needed ·<br/>Category 1 · 2 · 3,<br/>with its reason"]
     F --> G["Engineer<br/>confirms every<br/>Category 3 and<br/>every referral"]
@@ -41,82 +70,34 @@ flowchart LR
 
 <sub>White: people. Grey: written rules and plain measurement. Black: learned models.</sub>
 
-- **Two photos.** Photo 1 is the crack close up with a bank card (85.60 × 53.98 mm) as the scale. Photo 2 is the whole beam, column or wall. The card links the two, so the app knows where the crack sits on the element.
-- **Models only perceive.** A U-Net finds the crack pixels; other models say whether the photo is a close-up and which element it shows. Any model that is unsure sends the case to "Expert needed".
-- **Plain measurement.** The width is measured across the crack at every point, with its uncertainty; the widest point decides the level.
-- **Written rules decide.** The risk matrix crosses the crack pattern with the width. The element, the place on it and warning signs can only raise the level, never lower it.
-- **Five answers only.** Retake, Expert needed, Category 1 (monitor), Category 2 (low-cost advice and a recheck), Category 3 (an engineer must confirm). Every answer carries a one-sentence reason. There is no "safe".
-- **Rechecks.** The same crack is photographed again; growth beyond the measurement's uncertainty raises its level.
-
-![The system architecture: a resident's photo goes through a photo check, a model and a written rule; a field worker looks at the building, the element and the crack; models perceive, a written risk matrix decides Category 1, 2 or 3, a building score ranks buildings and an engineer confirms every Category 3 and every Expert needed](figures/01d_pipeline_story.png)
-
-### The risk matrix
-
-![The risk matrix v3, illustrative: seven crack patterns by four width bands give Category 1, 2 or 3; a column, an end zone, growth, rust, sticking doors, an earthquake, added floors, thin cover, crossing cracks and damp raise it by one; a displaced side or sagging sends it to Category 3](figures/03_risk_matrix.png)
-
-Every value is illustrative until calibrated with our engineering partners. The numbers live in `src/triage/risk_matrix_v3.json`; `src/triage/matrix.py` only applies them.
-
-### The live wall
-
-Shared results appear on a wall for the class projector, one tab per answer. A result opens over the wall: the crack to explore on the left, the level and its reason on the right, and the crack's 3D model from Rhino and Grasshopper below.
-
-![The live wall: tabs Category 3, Expert needed, Category 2 and Category 1 with their counts, and three result cards with the crack, its measuring instruments and the widest width](docs/images/app_wall.jpg)
-
-![A result opened over the wall: the crack viewer with its width chips on the left, and on the right the answer "Expert needed" with its reason, the confidence, the widest width with its uncertainty and the length](docs/images/app_result.jpg)
-
-<sub>"Expert needed" here because photo 2 was not sent: without the element the pattern cannot be read, and doubt goes to a person.</sub>
+- **Two photos.** Photo 1 is the crack close up with a bank card (85.60 × 53.98 mm) as the scale; photo 2 is the whole element. The card links them, so the app knows where the crack sits on the element.
+- **Models only see.** The crack model finds the crack and decides whether there is one; SAM 3.1 extends it along faint branches; other models say whether the photo is a close-up and which element it shows. Any model that is unsure sends the case to "Expert needed".
+- **Rules decide.** The risk matrix crosses the crack pattern with the width; the element, the place on it and warning signs can only raise the level. Every value is illustrative until our engineering partners calibrate it (`src/triage/risk_matrix_v3.json`).
+- **Five answers only.** Retake, Expert needed, Category 1 (monitor), Category 2 (low-cost advice and a recheck), Category 3 (an engineer must confirm). There is no "safe".
 
 ## Where AI is used
 
-Learned models only perceive. Every level comes from written rules in `src/triage/`, so the same photo always gives the same answer and every answer names its rule.
+Learned models only see. Every level comes from written rules in `src/triage/`, so the same photos always give the same answer and every answer names its rule. Each model is measured against the plain way of doing its job, and the table says where it loses.
 
 | Job | Done by | Compared with | Result so far |
 |---|---|---|---|
-| Find the crack's pixels | U-Net, ResNet-34 encoder (crack model v4) | Our previous model, v3 | Building concrete, 588 unseen tiles: 261 of 281 cracks found, 5 false alarms on 307 tiles without a crack (v3: 30 missed, 21 false alarms) |
-| Is the photo a close-up? | ConvNeXt-tiny on PHI-Net's scene classes | No check | No whole building let through; 4 % of close-ups sent to retake; 588 of 588 concrete crack close-ups pass |
+| Find the crack | U-Net, ResNet-34 encoder (crack model v4), two thresholds | Our previous model, v3 | Building concrete, 588 unseen tiles: 19 of 281 cracks missed, 5 false alarms on 307 tiles without a crack (v3, 9 Nov: 30 missed, 21 false alarms) |
+| Trace the whole crack | SAM 3.1 adds the lines connected to the crack found | The crack model alone | Same 588 tiles: 84.4 % of the crack traced instead of 81.6 %, the same 19 missed and 5 false alarms. Alone, SAM would have drawn cracks on 35 of the 307 clean tiles, so it never decides |
+| Is the photo a close-up? | ConvNeXt-tiny on PHI-Net's scene classes | No check | No whole building let through; 4 % of close-ups sent to retake |
 | Which element is it? | ConvNeXt-tiny on PHI-Net | Our first element model | Answers 67 % of 579 test photos with confidence, right on 86 % of those; a column called something else 4.9 % of the time (first model: 20.5 %) |
-| Spalling or an exposed bar | ConvNeXt-tiny on PHI-Net | | 89.7 % of spalling caught, 19.2 % false alarms on test photos |
-| Width in mm | Plain measurement from the bank card, no AI | A printed gauge with known widths | Gauge and script ready (D50); no photos taken yet, so no result |
+| What looks different from sound concrete | Autoencoder trained on 39,885 sound-concrete photos | No check | Lights up the crack on 256 of 281 tiles, a false area on 0 of 307 clean tiles. It does not see soft stains (rust, damp): shown only, never a level |
+| Spalling as an area | SAM 3.1 with four prompts | Photos with and without spalling | Not reliable: the best prompt lit 52 % of spalling photos and 22 % of clean ones. Not shown |
+| Width in mm | Plain measurement from the bank card, no AI | A printed gauge with known widths | Gauge and script ready; no photos taken yet |
 | The level | Written risk matrix, no AI | An engineer's visual check | Not run yet: it needs engineer-labelled photos of our own |
 
-These are scores on public photos, not on our own, and not yet against the non-AI baseline. Success means beating an engineer's visual check on held-out, engineer-labelled photos while missing almost no Category 3 cases. We stop or redesign if the tool misses Category 3 cases that engineers would flag.
-
-**Known failure:** the crack model only knows close-ups. On 30 photos of whole damaged buildings it said "Crack found" 28 times, reading window frames, wires and edges as cracks. The scene check now stops most such photos, and a written rule ignores a long straight line such as a wall's edge (D51). That rule can also drop a real, very straight crack: still open.
-
-<details>
-<summary>Full crack-model results</summary>
-
-**Crack model v4, on photos it never saw in training** (`docs/experiments/2026-10-29_unet_first_training.md`, D48):
-- Real building concrete (588 tiles, Özgenel [49]): 261 of 281 cracks found (17 missed, 3 sent to an expert), 5 false alarms on 307 tiles without a crack, pixel F1 0.85. v3 missed 30 and raised 21 false alarms there.
-- Public close-ups, mostly pavement (906 photos): 530 of 550 cracks found (18 missed, 2 sent to an expert), 6 false alarms on 356 photos without a crack (none on brick), pixel F1 0.64. v3 missed 12 there: this is v4's known weakness.
-</details>
-
-More in `docs/experiments/` and `spec/features/evaluation.md`.
-
-## Data
-
-The concept is cracks in buildings in slum-like, informal neighbourhoods. See `docs/data_map.md`: every source is ranked by how close it is to that case.
-- Closest public data: engineer surveys of damaged buildings after the Haiti 2010 and Nepal 2015 earthquakes, rated light / moderate / severe (one rating per building, no scale).
-- Building and masonry crack images: METU, Darbhanga, Strathclyde (crack / no crack, no scale).
-- Generic crack pixels for pre-training: CrackSeg9k, crack-seg. Bridge and pavement sets are off-concept.
-- Still to collect: our own phone photos with a bank card next to the crack, rated by our engineering partners (Engineers Without Borders and a third-party structural engineer).
-
-**Can we train with it?** Partly. There is enough public data to train the step that finds cracks (segmentation and detection). There is not enough to train or prove the step that rates danger: no public dataset has our seven crack patterns, a scale for width in mm, or an engineer's rating per crack. Those come only from our own photos and the engineering partners (`docs/data_map.md`, section 0b).
-
-Raw data is not committed; `data/` stays empty in the repository.
+These are scores on public photos, not on our own. Success means beating an engineer's visual check on held-out, engineer-labelled photos while missing almost no Category 3 cases; we stop or redesign if the tool misses Category 3 cases that engineers would flag. Details: `docs/experiments/`.
 
 ## Where we are (21 Nov 2026)
 
-- **Working in the app:** photo check, crack model, bank-card measurement, element and scene models, the two linked photos, the risk matrix, the crack viewer, the live wall, and each crack in 3D in Rhino and Grasshopper.
-- **Building data over MCP:** a small server gives a building's floors, year, type and material from OpenStreetMap, as suggestions that never lower a level (`src/mcp_osm/`).
-- **Not trained yet:** the material model (concrete or not), a slab class and a crack-pattern model. Today written rules suggest the pattern from the crack's angle and shape.
-- **Not calibrated yet:** every threshold in the risk matrix, and the width against known widths.
-- **Next:** questions to the author of our reference thesis, width-check photos, a real 3D scan of a crack, and engineer-labelled photos for the baseline comparison.
-- The full history of what was built and when: `docs/status_history.md` and `spec/decisions.md`. This week's tasks: `docs/weekly_todo.md`. The plan to the final presentation on 17 Dec: `spec/constitution/roadmap.md`.
-
-## Limitations
-
-A surface photo cannot show rebar, concrete strength or foundations, and it cannot see how deep a crack goes. Concrete and brick crack differently and need separate data. Public crack data is mostly concrete and pavement.
+- **Working:** photo check, crack model with SAM 3.1 tracing, bank-card measurement, every crack in its own colour, element and scene models, the two linked photos, the risk matrix, the crack viewer, the autoencoder heatmap, the live wall and each crack in 3D in Rhino and Grasshopper.
+- **Not yet:** spalling, rust and damp as areas (they need close-up photos of real defects to test on); a material model; every threshold is still to be calibrated with our engineering partners.
+- **Next:** photos of real spalling, rust and damp with the card, width-check photos, engineer-labelled photos for the baseline comparison, the app online.
+- The full history: `docs/status_history.md` and `spec/decisions.md`. This week: `docs/weekly_todo.md`. The plan to the final presentation on 17 Dec: `spec/constitution/roadmap.md`.
 
 ## Run it
 
@@ -136,36 +117,52 @@ The app:
 
 Photos are analysed in memory and never saved; the wall forgets them when the app stops.
 
-## How the repository is organised
+## Repository
 
 | Folder | What is in it |
 |---|---|
-| `src/quality/` | the photo check and the scene check |
-| `src/segmentation/` | the crack model: prepare, train, predict, decide, evaluate |
-| `src/measure/` | bank-card detection, camera tilt, crack width and length in mm, the width gauge |
-| `src/element/` | the element and spalling models, and what photo 2 adds |
-| `src/triage/` | the risk matrix, the pattern rules, the dispatch rule and the evaluation tables |
-| `src/app/` | the app: phone page, live wall, crack viewer, theme, launcher, logo |
-| `src/gh3d/` | each crack in 3D: the model in plain Python and the Grasshopper script for Rhino 8 |
-| `src/mcp_osm/` | the MCP server for building data from OpenStreetMap |
-| `tests/` | the tests: run `pytest` |
-| `spec/` | the constitution (mission, roadmap, tech stack), one spec per feature, the decisions log |
-| `docs/` | data map, sources, experiments, literature notes, weekly to-do, README images |
-| `figures/` | the diagrams |
+| [`src/quality/`](src/quality/) | the photo check and the scene check |
+| [`src/segmentation/`](src/segmentation/) | the crack model (prepare, train, predict, decide, evaluate) and SAM 3.1's extension |
+| [`src/measure/`](src/measure/) | bank-card detection, camera tilt, every crack's width and length in mm |
+| [`src/anomaly/`](src/anomaly/) | the autoencoder trained on sound concrete, its heatmap and the area rules |
+| [`src/element/`](src/element/) | the element and spalling models, SAM 3.1's parts, what photo 2 adds |
+| [`src/triage/`](src/triage/) | the risk matrix, the pattern rules, the dispatch rule and the evaluation tables |
+| [`src/app/`](src/app/) | the app: phone page, live wall, crack viewer, theme, launcher, simulated residents |
+| [`src/gh3d/`](src/gh3d/) | each crack in 3D: the model in plain Python and the Grasshopper script for Rhino 8 |
+| [`src/mcp_osm/`](src/mcp_osm/) | the MCP server for building data from OpenStreetMap |
+| [`tests/`](tests/) | the tests: run `pytest` |
+| [`spec/`](spec/) | the constitution (mission, roadmap, tech stack), one spec per feature, the decisions log |
+| [`docs/`](docs/) | data map, sources, experiments, literature notes, weekly to-do, the images of this README |
 | `models/`, `data/` | model files and local data, never committed (the models are on GitHub Releases) |
 
 `AGENTS.md` is the system constitution: how anyone, a person or a coding agent, works in this repository.
 
-## A few rules
+## Data
 
-- It never issues a permit, a clearance or a "safe". Any doubt goes to an expert.
-- Photos belong to the household: used only with consent, faces and addresses removed, never committed.
-- Every number has a source in `docs/sources.md`, or it is marked "assumption" or "illustrative until calibrated".
+The concept is cracks in buildings in slum-like, informal neighbourhoods. See `docs/data_map.md`: every source is ranked by how close it is to that case.
+- Closest public data: engineer surveys of damaged buildings after the Haiti 2010 and Nepal 2015 earthquakes, rated light / moderate / severe (one rating per building, no scale).
+- Building and masonry crack images: METU, Darbhanga, Strathclyde (crack / no crack, no scale).
+- Generic crack pixels for pre-training: CrackSeg9k, crack-seg. Bridge and pavement sets are off-concept.
+- Still to collect: our own phone photos with a bank card next to the crack, rated by our engineering partners (Engineers Without Borders and a third-party structural engineer).
 
-## AI usage disclosure
+**Can we train with it?** Partly. There is enough public data to train the step that finds cracks (segmentation and detection). There is not enough to train or prove the step that rates danger: no public dataset has our seven crack patterns, a scale for width in mm, or an engineer's rating per crack. Those come only from our own photos and the engineering partners (`docs/data_map.md`, section 0b).
 
-This repository was set up with help from Claude (Anthropic). Review everything before relying on it.
+Raw data is not committed; `data/` stays empty in the repository.
 
-## License
+## AI usage
 
-Code under the MIT License (see `LICENSE`). Datasets follow their own terms.
+| | |
+|---|---|
+| Tools | Claude Code (agent) |
+| Why | to move fast on models, measurement and an app that were new to us, and for first drafts of the specs and texts |
+| Where | the training and evaluation scripts, the measurement code, the risk matrix code from our written rules, the app and the crack viewer, the autoencoder, SAM 3.1's extension, the Grasshopper script, the figures and the images of this README, and first drafts of the specs and the decisions log |
+| How | every feature starts as a spec in `spec/`, then code, then tests (593 pass); every model is scored on photos it never saw and against the plain way; thresholds are chosen on validation photos and reported on test photos; the levels come only from written rules; the team reads every decision in `spec/decisions.md` |
+
+Lessons learned:
+- **A number that looks good can hide a blind model.** The autoencoder's first threshold flagged almost nothing on real plaster; it was set on rough concrete. Look at the pictures, not only the score.
+- **A strong model is not a judge.** SAM 3.1 traces cracks beautifully but draws them on clean walls too, so it may only extend a crack our own model found.
+- **Never mix pictures that do not belong together.** A drawn close-up next to a real, unrelated element photo looks convincing and proves nothing; every case now shows one crack in both photos, or stays alone.
+
+## Licence
+
+Code under the MIT License (see `LICENSE`). Datasets follow their own terms (`docs/sources.md`).

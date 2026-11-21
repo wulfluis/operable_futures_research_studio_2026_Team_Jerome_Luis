@@ -6,6 +6,8 @@ import numpy as np
 from scipy import ndimage
 
 PIXEL_THRESHOLD = 0.5  # a pixel is crack above this probability (illustrative)
+LOW_THRESHOLD = 0.25  # D91: a fainter pixel is crack too when it touches a group above PIXEL_THRESHOLD (hysteresis, as in
+# edge detection): faint continuations of a crack are kept, faint spots on their own are not (illustrative)
 CRACK_PIXELS = 150  # largest crack group at least this big -> crack found (at 416 px; illustrative until calibrated)
 NO_CRACK_PIXELS = 50  # largest group below this -> no crack found; in between -> Expert needed (illustrative)
 
@@ -157,10 +159,26 @@ def edge_pixels(ys: np.ndarray, xs: np.ndarray, shape: tuple[int, int]) -> np.nd
     return out
 
 
-def decide(prob: np.ndarray, scale: float = 1.0) -> Decision:
-    """scale = long side of the map / 416: a crack line's pixel count grows with its length in pixels."""
+def grown(prob: np.ndarray, low: float | None = None) -> np.ndarray:
+    """Crack pixels: above PIXEL_THRESHOLD, plus fainter pixels (above `low`) joined to them (D91)."""
+    strong = prob > PIXEL_THRESHOLD
+    low = LOW_THRESHOLD if low is None else low
+    if low >= PIXEL_THRESHOLD:
+        return strong
+    labels, n = ndimage.label(prob > low, structure=np.ones((3, 3)))
+    if n == 0:
+        return strong
+    seeded = np.zeros(n + 1, bool)
+    seeded[np.unique(labels[strong])] = True
+    seeded[0] = False
+    return seeded[labels]
+
+
+def decide(prob: np.ndarray, scale: float = 1.0, low: float | None = None) -> Decision:
+    """scale = long side of the map / 416: a crack line's pixel count grows with its length in pixels.
+    low: the hysteresis threshold (D91); PIXEL_THRESHOLD or more turns it off."""
     crack_pixels, no_crack_pixels = CRACK_PIXELS * scale, NO_CRACK_PIXELS * scale
-    crack = prob > PIXEL_THRESHOLD
+    crack = grown(prob, low)
     labels, n = ndimage.label(crack, structure=np.ones((3, 3)))
     if n == 0:
         return Decision(NO_CRACK, 0.0, 0, np.zeros(prob.shape, bool))
@@ -194,7 +212,9 @@ def decide(prob: np.ndarray, scale: float = 1.0) -> Decision:
             return Decision(NO_CRACK, 0.0, 0, np.zeros(prob.shape, bool), edges, len(patches))
     largest = int(sizes.max())
     keep = np.isin(labels, 1 + np.flatnonzero(sizes >= min(largest, no_crack_pixels)))
-    confidence = float(prob[labels == 1 + int(sizes.argmax())].mean())
+    main = labels == 1 + int(sizes.argmax())
+    sure = main & (prob > PIXEL_THRESHOLD)  # the confidence of the confident part, so faint growth does not lower it
+    confidence = float(prob[sure if sure.any() else main].mean())
     if largest >= crack_pixels:
         statement = CRACK
     elif largest < no_crack_pixels:

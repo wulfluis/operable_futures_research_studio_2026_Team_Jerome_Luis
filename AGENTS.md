@@ -45,6 +45,7 @@ Every output carries a one-sentence reason. Never output "safe", a clearance or 
 - `src/element/photo2.py` and `src/element/spalling.py`: what the second photo adds (D61). `src/app/inbox.py`, `src/app/simulate.py`: simulated residents (D59).
 - `src/gh3d/`: each crack in 3D (D57): `layout.py` (the model, plain Python) and `second_look_gh.py` (the Grasshopper Python 3 script, Rhino 8); `src/app/viewer3d.py`: the 3D view on the wall.
 - `src/app/crack_view.py`: the crack to explore, zoom, drag and loupe (D83); `src/app/theme.py`: the dark look (D82).
+- `src/measure/cracks.py`: every crack in the photo, not only the longest (D88). `src/segmentation/sam_extend.py`: SAM 3.1 extends the crack the model found, never decides (D91). `src/anomaly/`: the autoencoder trained on sound concrete, its heatmap and the other defects (rust, dark patches), shown only (D89).
 - `src/app/logo.py`: the logo (word mark, D38). `data/`: local datasets, never committed.
 
 ## Data rules

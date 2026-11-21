@@ -57,10 +57,9 @@ def synthetic_case(c: dict):
     grey, _ = make_demo(c["width_mm"], seed=c["seed"], tilt_lr_deg=c["tilt"][0], tilt_ud_deg=c["tilt"][1],
                         crack_mm=simulate.SHAPES[c["shape"]])
     crack = Image.fromarray(np.repeat(grey.astype(np.uint8)[..., None], 3, axis=2))
-    element = simulate._phinet(simulate.PHINET6, simulate.ELEMENT_CODE[c["element"]], c["k"])
-    return crack, element, {"card_placed": True,
-                            "kind": f"SYNTHETIC photo 1: drawn wall, bank card, {c['shape']} crack {c['width_mm']} mm; "
-                                    f"photo 2: real PHI-Net {c['element']} photo (D79)"}
+    # never paired with an unrelated real element photo (D91): photo 1 only, so it cannot reach a category tab
+    return crack, None, {"card_placed": True,
+                         "kind": f"DRAWN: bank card, {c['shape']} crack {c['width_mm']} mm (photo 1 only, D79, D91)"}
 
 
 def fill_synthetic(per_tab: int, tabs=None, out: Path | None = None) -> None:

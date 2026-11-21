@@ -23,12 +23,13 @@ from PIL import Image, ImageDraw, ImageOps
 from scipy import ndimage
 
 from measure import card as card_mod
-from measure.analyse import longest_piece, reference_mask
+from measure import cracks as cracks_mod
+from measure.analyse import reference_mask
 from measure.crack import BACKGROUND_PX, CrackMeasurement, measure, segment
 from measure.reference import from_rectangle
 from quality.gate import check
 from quality import scene as scene_mod
-from segmentation.decide import CRACK, NO_CRACK, PIXEL_THRESHOLD, UNSURE, Decision, decide
+from segmentation.decide import CRACK, LOW_THRESHOLD, NO_CRACK, PIXEL_THRESHOLD, UNSURE, Decision, decide
 from segmentation.predict import draw_overlay, probability, working_image
 from triage.element_rule import ElementAnswer
 from triage.matrix import BAND_NAMES, ELEMENTS, PATTERN_NAMES, Result as LevelResult, assess, width_band
@@ -45,7 +46,8 @@ Image.MAX_IMAGE_PIXELS = 60_000_000
 CARD_PAD = 0.015  # share of the photo's long side around the card that is not crack (its edges look like one)
 UNET_GROW = 3  # px the U-Net's crack area is widened by before the classical edges are taken inside it
 LINE_FIELDS = ("length_main_mm", "length_total_mm", "n_branches", "n_pieces", "angle_to_vertical_deg", "straightness",
-               "coherence", "n_loops", "branch_ratio", "skeleton_px", "main_path_px")  # taken from the U-Net line
+               "coherence", "n_loops", "branch_ratio", "skeleton_px", "main_path_px",
+               "branch_paths_px")  # taken from the U-Net line
 MEASURE_VERSION = "app-measure-0.3 (illustrative thresholds)"
 # Position on the element -> the risk matrix's location (D53); not known from the photos yet, so 'unknown'
 POSITIONS = {"unknown": "unknown", "joint": "end_zone", "end_zone": "end_zone", "middle": "middle"}
@@ -108,6 +110,7 @@ class MeasuredResult:
     link_card: tuple | None = field(default=None, repr=False)  # the card: corners in link_grey pixels, its look (D67)
     link_card_size: float | None = None  # the card's long side / the crack photo's long side
     link_crack_element: np.ndarray | None = field(default=None, repr=False)  # crack line in the element photo (D66)
+    anomaly: dict | None = field(default=None, repr=False)  # the autoencoder's heatmap and other defects (D89), shown only
     link_map: tuple | None = field(default=None, repr=False)  # the link itself (locate.Location.link_map, D75)
     link_network_px: list | None = field(default=None, repr=False)  # every branch of photo 1's crack, link_grey px (D75)
     link_width_px: tuple | None = field(default=None, repr=False)  # photo 1's crack width max, median (link_grey px)
@@ -234,18 +237,26 @@ def wall_geometry(crack: CrackMeasurement, to_mm, card_corners_px) -> dict | Non
 
 
 def _full_mask(prob: np.ndarray, keep: np.ndarray, size: tuple[int, int]) -> np.ndarray:
-    """The U-Net map and the kept groups, scaled from the working size to the full photo."""
+    """The U-Net map and the kept groups, scaled from the working size to the full photo. Since D91 the kept groups
+    include fainter pixels joined to a confident crack (hysteresis), so the low threshold applies here too."""
     p = np.asarray(Image.fromarray(prob.astype(np.float32), "F").resize(size, Image.BILINEAR))
     k = np.asarray(Image.fromarray(keep.astype(np.uint8) * 255).resize(size, Image.BILINEAR)) > 0
-    return (p > PIXEL_THRESHOLD) & k
+    return (p > LOW_THRESHOLD) & k
+
+
+def crack_line_mask(full: Image.Image, prob: np.ndarray, keep: np.ndarray) -> np.ndarray:
+    """Where the crack runs, full size: the crack model's crack, extended by SAM 3.1's connected lines (D91)."""
+    from segmentation.sam_extend import extended
+    return extended(full, _full_mask(prob, keep, full.size))
 
 
 def pixel_line(full: Image.Image, prob: np.ndarray, keep: np.ndarray) -> CrackMeasurement | None:
     """The U-Net's crack line measured in the photo's pixels (no millimetres), with the same code as with a card."""
-    line = longest_piece(_full_mask(prob, keep, full.size))
+    line = crack_line_mask(full, prob, keep)
     if not line.any():
         return None
-    m = measure(np.asarray(full.convert("L"), dtype=float), line, lambda p: np.asarray(p, dtype=float))
+    grey = np.asarray(full.convert("L"), dtype=float)
+    m = cracks_mod.measure_all(line, lambda g: measure(grey, g, lambda p: np.asarray(p, dtype=float)))  # D88
     return m if m.found else None
 
 
@@ -315,6 +326,19 @@ def _draw_card_and_widest(overlay: Image.Image, scale: float, card, crack, full:
     return out
 
 
+def _add_anomaly(r: MeasuredResult, full: Image.Image, prob: np.ndarray, d: Decision, card) -> None:
+    """What looks different from sound concrete (D89): heatmap, score and other defects, separate from the traced
+    cracks and the card. Shown only, never a level; skipped quietly when the autoencoder is not installed."""
+    try:
+        from anomaly.predict import analyse_photo
+        crack = _full_mask(prob, d.mask, full.size) if d.mask is not None and d.mask.any() else None
+        exclude = (reference_mask((full.height, full.width), card.corners_px, CARD_PAD * max(full.size))
+                   if card is not None else None)
+        r.anomaly = analyse_photo(full, crack, exclude)
+    except Exception as e:  # never stops the crack answer
+        r.warnings.append(f"Unusual-surface check not run ({type(e).__name__}).")
+
+
 def run_measured(photo: Image.Image, model, device: str = "cpu", scene_model=None,
                  card_placed: bool = False) -> MeasuredResult:
     """The original pipeline (quality gate, U-Net, written rule), plus the bank card when one is in the photo.
@@ -358,6 +382,7 @@ def run_measured(photo: Image.Image, model, device: str = "cpu", scene_model=Non
             _keep_for_link(r, full, None if m is None else m.main_path_px, d.mask,
                            None if m is None else (m.width_max_mm, m.width_median_mm))  # pixels: no card
             r.views = _views(work, prob, k, None, False)
+        _add_anomaly(r, full, prob, d, None)
         return r
 
     r = MeasuredResult(d.statement, line, d.confidence, work, d, card)
@@ -369,7 +394,7 @@ def run_measured(photo: Image.Image, model, device: str = "cpu", scene_model=Non
     if d.statement in (CRACK, UNSURE) and r.measure_note is None:
         grey = np.asarray(full.convert("L"), dtype=float)
         exclude = reference_mask(grey.shape, card.corners_px, CARD_PAD * max(full.size))
-        unet = _full_mask(prob, d.mask, full.size) & ~exclude
+        unet = crack_line_mask(full, prob, d.mask) & ~exclude
         scale = from_rectangle(card.corners_px, card_mod.CARD_MM, "bank card, ISO/IEC 7810 ID-1, 85.60 x 53.98 mm",
                                long_first=card.long_first)
         centre = scale.to_mm(np.mean(card.corners_px, axis=0))[0]
@@ -377,18 +402,24 @@ def run_measured(photo: Image.Image, model, device: str = "cpu", scene_model=Non
         # Width: the U-Net's area is wider than the crack, so inside it the classical finder (dark line against its
         # background, src/measure/crack.py) gives the crack's edges; it may find a faint crack only in pieces, so
         # every piece along the line counts for the width, none of them for the length.
-        line_mask = longest_piece(unet)
-        along = measure(grey, line_mask, scale.to_mm, scale.rel_uncertainty, centre)
-        edges = segment(grey, None, exclude, BACKGROUND_PX, None) & ndimage.binary_dilation(line_mask,
-                                                                                            iterations=UNET_GROW)
-        wide = measure(grey, edges, scale.to_mm, scale.rel_uncertainty, centre)
-        if along.found and wide.found and wide.width_max_mm is not None:
-            r.crack = replace(wide, **{k: getattr(along, k) for k in LINE_FIELDS})
-        else:
-            r.crack = along
-            if along.found:
-                r.warnings.append("Width from the U-Net's crack area, which is wider than the crack: the width may "
-                                  "be too large.")
+        # Every crack in the photo, not only the longest (D88): each is measured this way, and the level takes the
+        # widest point over all of them (src/measure/cracks.py).
+        found_edges = segment(grey, None, exclude, BACKGROUND_PX, None)
+        from_area = []
+
+        def one(line_mask):
+            along = measure(grey, line_mask, scale.to_mm, scale.rel_uncertainty, centre)
+            edges = found_edges & ndimage.binary_dilation(line_mask, iterations=UNET_GROW)
+            wide = measure(grey, edges, scale.to_mm, scale.rel_uncertainty, centre)
+            if along.found and wide.found and wide.width_max_mm is not None:
+                return replace(wide, **{k: getattr(along, k) for k in LINE_FIELDS})
+            from_area.append(along.found)
+            return along
+
+        r.crack = cracks_mod.measure_all(unet, one)
+        if any(from_area):
+            r.warnings.append("Width from the U-Net's crack area, which is wider than the crack: the width may "
+                              "be too large.")
         for f in r.crack.flags:
             if "retake closer" in f and r.measure_note is None:
                 r.measure_note = f
@@ -416,6 +447,7 @@ def run_measured(photo: Image.Image, model, device: str = "cpu", scene_model=Non
                                       r.crack if r.measured else None, full)
     if d.statement in (CRACK, UNSURE):
         r.views = _views(work, prob, k, r.crack, r.measured)
+    _add_anomaly(r, full, prob, d, card)
     return r
 
 

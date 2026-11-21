@@ -31,3 +31,6 @@ On `data/samples/sample_crack_card.jpg` the long, very straight main crack is dr
 
 ## Shape row (D85, 20 Nov)
 A second row of chips under the width chips, from the same measurement: Angle from vertical (photo 1, phone assumed upright; "in photo" without a card), Straight (end-to-end distance / main length, 1 = straight), Coherence (1 = one direction, 0 = none), Cells (closed cells enclosed by crack lines; from 2 the draft rules read map cracking), Branches (all branches / main length). Each chip explains itself on hover. No angle measured: no row. Shown only, never used for the level here. The camera angle to the wall is no longer a chip in the viewer; it stays under "Measurement details" (D85).
+
+## Every crack and the other defects (D88, D89, 21 Nov)
+Every branch of every crack is drawn, each independent crack in its own colour (◈ switches to the width colours; `spec/features/all_cracks.md`). Two more layers, each with its own button: the other defects (◇: possible rust stains, dark patches and other unusual areas, separate from the cracks, outlined and dashed with their label) and the autoencoder's heatmap (▦: what looks different from sound concrete). Chips count each kind of defect and give the surface score. Shown only, never a level (`spec/features/anomaly_ae.md`).

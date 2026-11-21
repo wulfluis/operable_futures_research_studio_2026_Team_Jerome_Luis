@@ -7,9 +7,16 @@ Usage, from the repository root, with the app running (py src/app/launch.py):
     py src/app/simulate.py --n 4 --delay 2
     py src/app/simulate.py --mixed      # also real crack photos without a card, a wall without a crack, a building
     py src/app/simulate.py --by-level   # about 10 real cases per risk tab (after pick_by_level.py, D79)
+    py src/app/simulate.py --no-field   # without the team's own field photos
+    py src/app/simulate.py --showcase   # also the six drawn showcase cases (photo 1 only, D90, D91)
 
-Crack photos with a card are synthetic (a drawn wall, card and crack of known width; no public photo has a card).
-Element photos are real, from the PHI-Net task 6 test set (CC BY-NC-SA 4.0, research and teaching only).
+Every run first sends the team's own field photo pairs with a bank card (data/field/<folder>/pair_N_crack.jpg and
+pair_N_element.jpg, local only, never committed; D87), so real cards are always in the population.
+Two photos are sent together only when both show the same real crack (D91): the team's field pairs, and the real survey
+cases whose close-up is cut from the element photo. A drawn photo 1 is never paired with an unrelated photo 2.
+
+Drawn crack photos (--synthetic, --showcase) come alone, without an element photo: they test the measurement on a
+known width, they are not evidence about a real building (D91).
 """
 
 import argparse
@@ -28,6 +35,7 @@ from app.inbox import INBOX  # noqa: E402
 from measure.synthetic import make_demo  # noqa: E402
 
 PICKS = ROOT / "data" / "inbox_cases" / "picks.json"
+FIELD = ROOT / "data" / "field"  # the team's own field photos with a bank card (D87), local only
 BY_LEVEL = ROOT / "data" / "inbox_cases" / "by_level.json"
 
 PHINET6 = ROOT / "data" / "raw" / "phinet" / "task6_component_type"
@@ -83,9 +91,8 @@ def card_cases(n: int):
         shape, width, element, index, lr, ud = CASES[k % len(CASES)]
         grey, _ = make_demo(width, seed=k, tilt_lr_deg=lr, tilt_ud_deg=ud, crack_mm=SHAPES[shape])
         crack = Image.fromarray(np.repeat(grey.astype(np.uint8)[..., None], 3, axis=2))
-        yield (crack, _element_photo(index),
-               {"card_placed": True, "kind": f"photo 1: synthetic {shape} crack {width} mm with a card; photo 2: real "
-                                             f"damaged {element}, PHI-Net test photo {index}"})
+        yield (crack, None,  # a drawn photo is never paired with an unrelated real element photo (D91)
+               {"card_placed": True, "kind": f"DRAWN: {shape} crack {width} mm with a card (photo 1 only)"})
 
 
 def real_cases(n: int, picks_file: Path | None = None):
@@ -109,14 +116,41 @@ def real_cases(n: int, picks_file: Path | None = None):
                                         "(local only, D63)"}
 
 
+def field_cases(folder: Path = FIELD):
+    """The team's own field photos (D87): every pair_N_crack.jpg with its pair_N_element.jpg, in any subfolder of
+    data/field/. A crack photo without its element photo is sent alone. Local only, never copied into the repository
+    (rule 9); the wall shows them as field tests, without the photographer's name."""
+    from PIL import ImageOps
+    if not folder.is_dir():
+        return
+    for crack_path in sorted(folder.glob("*/pair_*_crack.jpg")):
+        element_path = crack_path.with_name(crack_path.name.replace("_crack.jpg", "_element.jpg"))
+        with Image.open(crack_path) as im:
+            crack = ImageOps.exif_transpose(im).convert("RGB")
+        element = None
+        if element_path.exists():
+            with Image.open(element_path) as im:
+                element = ImageOps.exif_transpose(im).convert("RGB")
+        pair = crack_path.name.split("_")[1]
+        yield crack, element, {"card_placed": True,
+                               "kind": f"FIELD: team photo pair {pair} with a bank card (local only, D87)"}
+
+
+def showcase_cases():
+    """The drawn showcase cases (D90), each with a real PHI-Net element photo as photo 2 when the data is here."""
+    from app import showcase
+    for crack, _element, _index, name in showcase.cases():
+        yield (Image.fromarray(crack), None,  # never paired with an unrelated real element photo (D91)
+               {"card_placed": True, "kind": f"DRAWN: {name} (photo 1 only, with a card)"})
+
+
 def mixed_cases():
     ozg = sorted(OZGENEL.glob("images/ozg_*"))
     masks = OZGENEL / "masks"
     with_crack = [p for p in ozg if (masks / p.name).exists() and np.asarray(Image.open(masks / p.name)).any()][:3]
     without = [p for p in ozg if (masks / p.name).exists() and not np.asarray(Image.open(masks / p.name)).any()][:1]
     for p in with_crack:
-        yield Image.open(p), _element_photo(400), {"card_placed": False,
-                                                                          "kind": "real crack close-up, no card"}
+        yield Image.open(p), None, {"card_placed": False, "kind": "real crack close-up, no card (photo 1 only)"}
     for p in without:
         yield Image.open(p), None, {"card_placed": False, "kind": "real wall without a crack"}
     yield _phinet(PHINET1, 2, 3), None, {"card_placed": False, "kind": "a whole building"}
@@ -129,12 +163,15 @@ def main(argv=None) -> None:
     ap.add_argument("--mixed", action="store_true", help="also real photos without a card, no crack, a building")
     ap.add_argument("--synthetic", action="store_true", help="the synthetic photo 1 cases (D61) instead of the real ones")
     ap.add_argument("--by-level", action="store_true", help="the real cases per risk tab from pick_by_level.py (D79)")
+    ap.add_argument("--no-field", action="store_true", help="leave out the team's own field photos (D87)")
+    ap.add_argument("--showcase", action="store_true", help="also the six drawn showcase cases, photo 1 only (D90, D91)")
     args = ap.parse_args(argv)
     INBOX.mkdir(parents=True, exist_ok=True)
+    field = ([] if args.no_field else list(field_cases())) + (list(showcase_cases()) if args.showcase else [])
     if args.by_level:
         if not BY_LEVEL.exists():
             sys.exit(f"No cases per risk tab yet ({BY_LEVEL}): py src/app/pick_by_level.py data/raw/haiti2010/Photos")
-        cases = list(real_cases(10_000, BY_LEVEL))
+        cases = field + list(real_cases(10_000, BY_LEVEL))
         print(f"{len(cases)} real cases, about 10 per risk tab, into {INBOX}.")
         stamp = time.strftime("%H%M%S")
         for i, (crack, element, meta) in enumerate(cases, 1):
@@ -146,8 +183,8 @@ def main(argv=None) -> None:
     if not real and not args.synthetic:
         print(f"No real cases picked yet ({PICKS}); using the synthetic ones. To pick real ones: "
               "py src/app/pick_cases.py data/raw/haiti2010/Photos")
-    cases = (list(real_cases(args.n)) if real else list(card_cases(args.n))) + (list(mixed_cases()) if args.mixed
-                                                                                else [])
+    cases = field + (list(real_cases(args.n)) if real else list(card_cases(args.n))) + (
+        list(mixed_cases()) if args.mixed else [])
     print(f"{len(cases)} simulated residents into {INBOX}; the running app picks them up within a second.")
     stamp = time.strftime("%H%M%S")
     for i, (crack, element, meta) in enumerate(cases, 1):

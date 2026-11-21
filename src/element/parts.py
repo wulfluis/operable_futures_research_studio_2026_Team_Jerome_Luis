@@ -10,6 +10,7 @@ Without the weights (`models/sam3.1/sam3.1_multiplex.pt`, gated, SAM License, ne
 
 from __future__ import annotations
 
+import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -206,14 +207,38 @@ def make_predictor(device: str, conf: float = FIND_CONF):
                                                 half=False, imgsz=IMGSZ, device=device, save=False, verbose=False))
 
 
+_SAM_LOCK = threading.Lock()  # one SAM 3.1 copy serves the element photo and the close-up (D91): one call at a time
+_SHARED: dict = {}
+
+
+def shared_predictor(device: str | None = None):
+    """The one SAM 3.1 predictor of this run, loaded on first use; None when the weights or packages are missing."""
+    if not WEIGHTS.exists():
+        return None
+    with _SAM_LOCK:
+        if "p" not in _SHARED:
+            _SHARED["p"] = None
+            if WEIGHTS.exists():
+                try:
+                    import torch
+                    if device is None:
+                        device = ("cuda" if torch.cuda.is_available() else
+                                  "mps" if torch.backends.mps.is_available() else "cpu")
+                    _SHARED["p"] = make_predictor(device)
+                except ImportError:
+                    pass
+        return _SHARED["p"]
+
+
 def sam_segmenter(predictor, words: list[str] | None = None) -> Segmenter:
     """A segmenter from the predictor: every word of PARTS (or the given words) in one call."""
     words = words or [w for ws in PARTS.values() for w in ws]
 
     def segment(rgb: np.ndarray) -> list:
         h, w = rgb.shape[:2]
-        predictor.set_image(np.ascontiguousarray(rgb[..., :3][..., ::-1]))  # Ultralytics expects BGR
-        r = predictor(text=words)[0]
+        with _SAM_LOCK:
+            predictor.set_image(np.ascontiguousarray(rgb[..., :3][..., ::-1]))  # Ultralytics expects BGR
+            r = predictor(text=words)[0]
         if r.masks is None or not len(r.masks):
             return []
         out = []
@@ -229,12 +254,5 @@ def sam_segmenter(predictor, words: list[str] | None = None) -> Segmenter:
 def load_parts_model(device: str | None = None) -> Segmenter | None:
     """The SAM 3.1 segmenter, or None when the weights or the packages are missing (the app then runs as before).
     The laptop's graphics chip (mps) when there is one: on the processor alone it is several times slower."""
-    if not WEIGHTS.exists():
-        return None
-    try:
-        import torch
-        if device is None:
-            device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
-        return sam_segmenter(make_predictor(device))
-    except ImportError:
-        return None
+    p = shared_predictor(device)
+    return None if p is None else sam_segmenter(p)

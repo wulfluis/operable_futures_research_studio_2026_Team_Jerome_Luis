@@ -16,6 +16,7 @@ from PIL import Image
 PHOTO_SIDE = 2000  # px, long side of the photo sent to the viewer (zoom needs more than the wall's 1400)
 MAX_LINE = 400  # points of the main crack line (ordered), for the width profile
 MAX_NET = 700  # points of the whole crack (all branches), for the width under the loupe
+MAX_PATHS = 1500  # points of every branch of every crack together, for drawing them all (D88)
 END_SHARE = 0.08  # the narrowest point is looked for away from the ends: this share of the length at each end
 
 
@@ -73,11 +74,19 @@ def view_data(result, size: tuple[int, int] | None = None) -> dict | None:
         p = point(j)
         net.append([p["x"], p["y"], p["w"]] + (sum(p["e"], []) if "e" in p else []))
 
+    parts = [p for p in (getattr(c, "cracks", None) or [c]) if p is not None]
+    cracks = crack_paths(parts, tree, wid, near_px, n, k)
+
     j_max = int(np.argmax(wid))
     keep = np.ones(len(prof), bool)
-    if len(path) >= 2:  # away from both ends of the main line
-        away = max(END_SHARE * length_px, 3 * float(c.px_across or 2))
-        for end in (path[0], path[-1]):
+    for part in parts:  # away from both ends of every crack's main line (D88)
+        pp = getattr(part, "main_path_px", None)
+        if pp is None or len(pp) < 2:
+            continue
+        pp = np.asarray(pp, float).reshape(-1, 2)
+        lp = float(np.linalg.norm(np.diff(pp, axis=0), axis=1).sum())
+        away = max(END_SHARE * lp, 3 * float(c.px_across or 2))
+        for end in (pp[0], pp[-1]):
             keep &= np.linalg.norm(prof - end, axis=1) > away
     keep &= wid > 0
     cand = np.flatnonzero(keep) if keep.any() else np.flatnonzero(wid > 0)
@@ -88,13 +97,41 @@ def view_data(result, size: tuple[int, int] | None = None) -> dict | None:
 
     card = getattr(result, "card", None)
     mm_per_px = float(c.mm_per_px) if unit == "mm" and c.mm_per_px else None
-    return {"unit": unit, "line": line, "net": net, "widest": widest, "narrowest": point(j_min),
+    an = getattr(result, "anomaly", None) or None  # the autoencoder's layers (D89), shown only
+    return {"unit": unit, "line": line, "net": net, "cracks": cracks, "widest": widest, "narrowest": point(j_min),
             "median": round(float(np.median(wid)), 4),
             "length": round(float(c.length_main_mm) * k, 1) if c.length_main_mm is not None else round(length_px, 1),
             "mm_per_x": None if mm_per_px is None else round(mm_per_px * W, 4),  # mm across the photo's width
             "camera": None if card is None else camera_angle(card),
             "shape": shape_data(c, path, unit),
+            "defects": [{"kind": f["kind"], "label": f["label"], "c": f["centre"], "o": f["outline"]}
+                        for f in an["defects"]] if an else [],
+            "surface_score": None,  # not shown: not calibrated for photos at the app's scale (D89)
+            "heat": ("data:image/png;base64," + base64.b64encode(an["heat_png"]).decode()) if an else None,
             "aspect": round(H / W, 5)}
+
+
+def crack_paths(parts, tree, wid, near_px: float, n, k: float) -> list[dict]:
+    """Every independent crack (D88) with every branch as a line of [x, y, width or None], its length and its widest
+    point, in the viewer's unit. Points are thinned evenly so all cracks together stay under MAX_PATHS."""
+    lines = []
+    for ci, part in enumerate(parts):
+        for b in (getattr(part, "branch_paths_px", None) or [getattr(part, "main_path_px", None)]):
+            if b is not None and len(b) >= 2:
+                lines.append((ci, np.asarray(b, float).reshape(-1, 2)))
+    total = sum(len(b) for _, b in lines) or 1
+    out = [{"paths": [], "length": None, "max": None} for _ in parts]
+    for ci, b in lines:
+        idx = _pick(len(b), max(2, int(round(MAX_PATHS * len(b) / total))))
+        d, j = tree.query(b[idx])
+        out[ci]["paths"].append([n(b[i]) + [None if dd > near_px else round(float(wid[jj]), 4)]
+                                 for i, dd, jj in zip(idx, d, j)])
+    for ci, part in enumerate(parts):
+        if getattr(part, "length_main_mm", None) is not None:
+            out[ci]["length"] = round(float(part.length_main_mm) * k, 1)
+        if getattr(part, "width_max_mm", None) is not None:
+            out[ci]["max"] = round(float(part.width_max_mm) * k, 4)
+    return [c for c in out if c["paths"]]
 
 
 def shape_data(c, path: np.ndarray, unit: str) -> dict | None:
@@ -144,7 +181,10 @@ html,body { margin:0; height:100%; background:#050607; font:13px/1.35 -apple-sys
 #stage.drag { cursor:grabbing; }
 #layer { position:absolute; left:0; top:0; transform-origin:0 0; will-change:transform; }
 #layer img { position:absolute; left:0; top:0; width:100%; height:100%; display:block; pointer-events:none; }
-#mask { opacity:0; transition:opacity .2s; }
+#mask, #heat { opacity:0; transition:opacity .2s; }
+.df { position:absolute; transform:translate(-50%,-50%); pointer-events:none; white-space:nowrap; padding:3px 8px; border-radius:999px;
+      background:var(--glass); border:1px dashed currentColor; font-size:11.5px; font-weight:600; }
+#dtags.off { display:none; }
 #lines { position:absolute; left:0; top:0; width:100%; height:100%; overflow:visible; pointer-events:none; transition:opacity .2s; }
 .mk { position:absolute; transform:translate(-50%,-50%); pointer-events:auto; cursor:pointer; }
 .mk .ring { width:30px; height:30px; border-radius:50%; border:2px solid currentColor; box-shadow:0 0 0 3px rgba(0,0,0,.35), 0 0 18px currentColor;
@@ -198,8 +238,8 @@ button.chip.on { border-color:var(--acc); color:var(--acc); }
 </style></head><body>
 <div id="v" tabindex="0" aria-label="The crack photo: drag to move, scroll or pinch to zoom, click to open the loupe">
   <div id="stage">
-    <div id="layer"><img id="photo" alt="Crack photo"><img id="mask" alt=""><svg id="lines"></svg></div>
-    <div id="marks"></div><div id="hov"></div>
+    <div id="layer"><img id="photo" alt="Crack photo"><img id="mask" alt=""><img id="heat" alt=""><svg id="lines"></svg></div>
+    <div id="dtags"></div><div id="marks"></div><div id="hov"></div>
     <div id="lens"><div class="glass"></div><svg></svg><div class="read"></div><div class="x" title="Close (Esc)">✕</div></div>
   </div>
   <div class="hud" id="tl"></div>
@@ -208,6 +248,9 @@ button.chip.on { border-color:var(--acc); color:var(--acc); }
     <button class="chip btn" id="zout" title="Zoom out (−)">−</button>
     <button class="chip btn" id="fit" title="Whole photo (0)">⤢</button>
     <button class="chip btn" id="tline" title="Width line on or off">≋</button>
+    <button class="chip btn" id="tcol" title="Colours: each crack its own, or by width">◈</button>
+    <button class="chip btn" id="tdef" title="Other defects (possible rust, dark patches, other unusual areas) on or off">◇</button>
+    <button class="chip btn" id="theat" title="Heatmap: what looks different from sound concrete (autoencoder)">▦</button>
     <button class="chip btn" id="tmask" title="The model's red mask on or off">◐</button>
   </div>
   <div class="hud" id="bot"><div id="spark"></div><div id="scale"><div class="chip mono" id="zoomv">1.0×</div><div class="chip" id="scalev"><span><div id="bar"></div></span><span class="val mono" id="scalet"></span></div></div></div>
@@ -229,22 +272,35 @@ const STOPS = [[124,58,237],[236,72,153],[251,146,60],[253,224,71]];
 function col(t) { t = Math.max(0, Math.min(1, t)) * (STOPS.length - 1); const i = Math.min(STOPS.length - 2, Math.floor(t)), f = t - i, a = STOPS[i], b = STOPS[i + 1];
   return "rgb(" + [0,1,2].map(function (k) { return Math.round(a[k] + (b[k] - a[k]) * f); }).join(",") + ")"; }
 const WMAX = HAS ? Math.max(C.widest.w, 1e-6) : 1;
+// every independent crack its own colour (D88); never green, which reads as "safe"
+const PAL = ["#f472b6", "#38bdf8", "#fbbf24", "#a78bfa", "#fb923c", "#e879f9", "#60a5fa", "#f87171"];
+const CR = C.cracks || [], MULTI = CR.length > 1;
+let byCrack = MULTI;
+// other defects, separate from the cracks (D89): outlined, dashed, each with its label; shown only
+const DF = C.defects || [], DCOL = {rust: "#f97316", dark: "#94a3b8", other: "#e2e8f0"}, DSHORT = {rust: "Rust?", dark: "Dark patch", other: "Unusual"};
+let showDef = DF.length > 0, showHeat = false;
 
 photo.onload = function () { W = photo.naturalWidth; H = photo.naturalHeight; layer.style.width = W + "px"; layer.style.height = H + "px";
   lines.setAttribute("viewBox", "0 0 " + W + " " + H); drawLines(); fit(false); hud(); spark(); };
 photo.src = PHOTO; if (MASK) mask.src = MASK; else $("tmask").style.display = "none";
 if (!HAS) { $("tline").style.display = "none"; $("spark").style.visibility = "hidden"; }
+if (!MULTI) $("tcol").style.display = "none";
+if (!DF.length) $("tdef").style.display = "none";
+if (C.heat) $("heat").src = C.heat; else $("theat").style.display = "none";
 
 function apply() { layer.style.transform = "translate(" + tx + "px," + ty + "px) scale(" + s + ")";
-  $("zoomv").textContent = (s / s0).toFixed(s / s0 < 10 ? 1 : 0) + "×"; place(); scalebar(); if (lensAt) drawLens(); }
+  $("zoomv").textContent = (s / s0).toFixed(s / s0 < 10 ? 1 : 0) + "×"; place(); placeDefects(); scalebar(); if (lensAt) drawLens(); }
 function fit(anim) { const sw = stage.clientWidth, sh = stage.clientHeight; s0 = Math.min(sw / W, sh / H);
   go(s0, (sw - W * s0) / 2, (sh - H * s0) / 2, anim); }
 let raf = null;
 function go(ns, ntx, nty, anim) { cancelAnimationFrame(raf);
   if (!anim || matchMedia("(prefers-reduced-motion: reduce)").matches) { s = ns; tx = ntx; ty = nty; apply(); return; }
-  const a = [s, tx, ty], b = [ns, ntx, nty], t0 = performance.now();
+  // the flight follows the photo point at the centre of the view, so the view never leaves the photo on the way
+  const sw = stage.clientWidth / 2, sh = stage.clientHeight / 2, s1 = s, t0 = performance.now();
+  const ca = [(sw - tx) / (W * s), (sh - ty) / (H * s)], cb = [(sw - ntx) / (W * ns), (sh - nty) / (H * ns)];
   (function step(t) { const k = Math.min(1, (t - t0) / 420), e = 1 - Math.pow(1 - k, 3);
-    s = a[0] * Math.pow(b[0] / a[0], e); tx = a[1] + (b[1] - a[1]) * e; ty = a[2] + (b[2] - a[2]) * e; apply(); if (k < 1) raf = requestAnimationFrame(step); })(t0); }
+    s = s1 * Math.pow(ns / s1, e); const cx = ca[0] + (cb[0] - ca[0]) * e, cy = ca[1] + (cb[1] - ca[1]) * e;
+    tx = sw - cx * W * s; ty = sh - cy * H * s; apply(); if (k < 1) raf = requestAnimationFrame(step); })(t0); }
 function clampS(x) { return Math.max(s0 * 0.6, Math.min(s0 * 60, x)); }
 function zoomAt(f, cx, cy, anim) { const ns = clampS(s * f), k = ns / s; go(ns, cx - (cx - tx) * k, cy - (cy - ty) * k, anim); }
 function scr(x, y) { return [tx + x * W * s, ty + y * H * s]; }
@@ -253,10 +309,16 @@ function flyTo(p, z) { const ns = clampS(Math.max(s, s0 * (z || 6))), sw = stage
   go(ns, sw / 2 - p.x * W * ns, sh / 2.2 - p.y * H * ns, true); }
 
 function drawLines() { if (!HAS) return; let out = "";
-  const L = C.line, sw = Math.max(W, H) / 260;
-  for (let i = 1; i < L.length; i++) { const a = L[i - 1], b = L[i], w = (a[2] != null ? a[2] : b[2]);
-    out += '<line x1="' + a[0] * W + '" y1="' + a[1] * H + '" x2="' + b[0] * W + '" y2="' + b[1] * H + '" stroke="' + (w == null ? "#ffffff" : col(w / WMAX)) +
-      '" stroke-width="3" vector-effect="non-scaling-stroke" stroke-linecap="round" opacity="' + (w == null ? .35 : .95) + '"/>'; }
+  const seg = function (L, crackColour) {  // one line: by crack (its colour) or by width (gaps where no width was read)
+    for (let i = 1; i < L.length; i++) { const a = L[i - 1], b = L[i], w = (a[2] != null ? a[2] : b[2]);
+      const c = crackColour || (w == null ? "#ffffff" : col(w / WMAX)), o = crackColour ? .95 : (w == null ? .35 : .95);
+      out += '<line x1="' + a[0] * W + '" y1="' + a[1] * H + '" x2="' + b[0] * W + '" y2="' + b[1] * H + '" stroke="' + c +
+        '" stroke-width="3" vector-effect="non-scaling-stroke" stroke-linecap="round" opacity="' + o + '"/>'; } };
+  if (CR.length) CR.forEach(function (cr, ci) { cr.paths.forEach(function (P) { seg(P, byCrack ? PAL[ci % PAL.length] : null); }); });
+  else seg(C.line, null);
+  if (showDef) DF.forEach(function (d) { const pts = d.o.map(function (q) { return (q[0] * W).toFixed(1) + "," + (q[1] * H).toFixed(1); }).join(" ");
+    out += '<polygon points="' + pts + '" fill="' + DCOL[d.kind] + '" fill-opacity=".12" stroke="' + DCOL[d.kind] +
+      '" stroke-width="2" stroke-dasharray="6 4" vector-effect="non-scaling-stroke"/>'; });
   lines.innerHTML = '<g style="filter:drop-shadow(0 0 2px rgba(0,0,0,.9))">' + out + "</g>"; }
 
 function place() { const m = $("marks"); if (!HAS) { m.innerHTML = ""; return; }
@@ -268,6 +330,11 @@ function place() { const m = $("marks"); if (!HAS) { m.innerHTML = ""; return; }
       el.addEventListener("click", function (e) { e.stopPropagation(); flyTo(p, 8); openLens(p.x, p.y, d[0]); });
       m.appendChild(el); }); }
   Array.prototype.forEach.call(m.children, function (el) { const p = C[el.dataset.k], q = scr(p.x, p.y); el.style.left = q[0] + "px"; el.style.top = q[1] + "px"; el.classList.toggle("left", q[0] > stage.clientWidth - 170); }); }
+
+function placeDefects() { const box = $("dtags"); box.classList.toggle("off", !showDef);
+  if (!box.childElementCount) DF.forEach(function (d) { const el = document.createElement("div"); el.className = "df";
+    el.style.color = DCOL[d.kind]; el.textContent = DSHORT[d.kind]; el.title = d.label + " (autoencoder and colour rule: an engineer decides)"; box.appendChild(el); });
+  Array.prototype.forEach.call(box.children, function (el, i) { const q = scr(DF[i].c[0], DF[i].c[1]); el.style.left = q[0] + "px"; el.style.top = q[1] + "px"; }); }
 
 function nearest(x, y, px) { if (!HAS) return null; let best = null, bd = 1e18;
   C.net.forEach(function (n) { const dx = (n[0] - x) * W * s, dy = (n[1] - y) * H * s, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = n; } });
@@ -325,13 +392,24 @@ function shapeRow(sh) {  // the crack's shape, as the type rules read it; each c
     sm("Coherence", f(sh.coherence, 2), "How much the whole crack runs one way: 1 = all in one direction, 0 = no main direction (a network).") +
     sm("Cells", String(sh.loops), "Closed cells: areas fully enclosed by crack lines, like the cells of a net. A single crack has 0; from 2 the rules read a network of surface cracks (map cracking).") +
     sm("Branches", f(sh.branches, 1) + "×", "Length of all branches divided by the main crack's length. 1.0× = no side branches."); }
+function defectChips() {  // counts of the other defects and the photo's surface score (D89)
+  const n = {rust: 0, dark: 0, other: 0}; DF.forEach(function (d) { n[d.kind]++; });
+  let h = ""; [["rust", "Rust?"], ["dark", "Dark"], ["other", "Unusual"]].forEach(function (k) { if (n[k[0]])
+    h += '<span class="chip" style="border-style:dashed;border-color:' + DCOL[k[0]] + '" title="Possible ' + (k[0] === "rust" ? "rust stains" : k[0] === "dark" ? "dark patches (damp or dirt?)" : "other unusual areas") +
+      ', separate from the cracks: what the autoencoder found unusual, labelled by its colour. Shown only; an engineer decides."><span class="k" style="color:' + DCOL[k[0]] + '">' + k[1] + '</span><span class="val">' + n[k[0]] + "</span></span>"; });
+  if (C.surface_score != null) h += '<span class="chip opt" title="How unusual the whole surface is compared with the sound concrete the autoencoder learned: above 1, more unusual than 95 % of it. Shown only."><span class="k">Surface</span><span class="val' +
+    (C.surface_score > 1 ? " max" : "") + '">' + C.surface_score.toFixed(2) + "</span></span>";
+  return h; }
 function hud() { const tl = $("tl"); if (!HAS) { tl.innerHTML = '<span class="chip"><span class="k">Crack</span><span class="val">no line to measure</span></span>'; return; }
   const chip = function (id, k, val, cls) { return '<button class="chip ' + (cls || "") + '" id="' + id + '"><span class="k">' + k + '</span><span class="val">' + val + "</span></button>"; };
   tl.innerHTML = chip("cmax", "Max", fmt(C.widest.w), "max") + chip("cmin", "Min", fmt(C.narrowest.w), "min") +
     '<span class="chip opt"><span class="k">Median</span><span class="val">' + fmt(C.median) + "</span></span>" +
     '<span class="chip"><span class="k">Length</span><span class="val">' + lenFmt(C.length) + "</span></span>" +
     (U === "px" ? '<span class="chip opt"><span class="k">Scale</span><span class="val">no card · pixels</span></span>' : "") +
-    (C.shape ? shapeRow(C.shape) : "");
+    (MULTI ? '<span class="chip" title="' + CR.map(function (cr, i) { return "Crack " + (i + 1) + ": " + (cr.length != null ? lenFmt(cr.length) : "–") +
+      ", widest " + fmt(cr.max); }).join("&#10;") + '"><span class="k">Cracks</span><span class="val">' + CR.length + '</span>' +
+      CR.map(function (cr, i) { return '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + PAL[i % PAL.length] + '"></span>'; }).join("") + "</span>" : "") +
+    defectChips() + (C.shape ? shapeRow(C.shape) : "");
   $("cmax").onclick = function () { flyTo(C.widest, 8); openLens(C.widest.x, C.widest.y, "widest"); };
   $("cmin").onclick = function () { flyTo(C.narrowest, 8); openLens(C.narrowest.x, C.narrowest.y, "narrowest"); }; }
 
@@ -395,7 +473,12 @@ $("zout").onclick = function () { zoomAt(1 / 1.6, stage.clientWidth / 2, stage.c
 $("fit").onclick = function () { closeLens(); fit(true); };
 $("tline").classList.add("on"); $("tline").onclick = function () { showLine = !showLine; lines.style.opacity = showLine ? 1 : 0; $("marks").style.display = showLine ? "" : "none"; this.classList.toggle("on", showLine); };
 $("tmask").onclick = function () { showMask = !showMask; mask.style.opacity = showMask ? 1 : 0; this.classList.toggle("on", showMask); if (lensAt) drawLens(); };
-["zin", "zout", "fit", "tline", "tmask"].forEach(function (id) { $(id).addEventListener("pointerdown", function (e) { e.stopPropagation(); }); });
+$("tcol").classList.toggle("on", byCrack);
+$("tdef").classList.toggle("on", showDef);
+$("tdef").onclick = function () { showDef = !showDef; this.classList.toggle("on", showDef); drawLines(); placeDefects(); };
+$("theat").onclick = function () { showHeat = !showHeat; $("heat").style.opacity = showHeat ? .85 : 0; this.classList.toggle("on", showHeat); };
+$("tcol").onclick = function () { byCrack = !byCrack; this.classList.toggle("on", byCrack); drawLines(); };
+["zin", "zout", "fit", "tline", "tcol", "tdef", "theat", "tmask"].forEach(function (id) { $(id).addEventListener("pointerdown", function (e) { e.stopPropagation(); }); });
 $("tl").addEventListener("pointerdown", function (e) { e.stopPropagation(); }); $("spark").addEventListener("pointerdown", function (e) { e.stopPropagation(); });
 window.addEventListener("resize", function () { fit(false); });
 setTimeout(function () { $("hint").style.opacity = 0; }, 4500);

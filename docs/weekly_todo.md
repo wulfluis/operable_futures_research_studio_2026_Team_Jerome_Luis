@@ -12,8 +12,18 @@ Owner: J = Jerome, L = Luis, C = coding agent (Claude). Fill in the blanks.
 - [x] Luis's work merged into main: dark concrete look (D82), crack viewer with zoom, drag and loupe (D83), a sketch on each tip and no "Human in the loop" tag (D84), shape chips in the viewer (D85) (L, 18 to 20 Nov; merged by C, 20 Nov)
 
 - [x] README rewritten in the order of a product page, with app screenshots on synthetic photos and a table of each AI part against the plain way (C, 21 Nov, D86)
+- [x] The simulator always sends the team's two field photo pairs with a bank card first (C, 21 Nov, D87)
+- [x] Every crack in a photo is traced and measured, not only the longest; each independent crack in its own colour in the viewer (C, 21 Nov, D88)
+- [x] Autoencoder on sound concrete: heatmap and other defects (possible rust, dark patches) as separate layers in the crack viewer, shown only (C, 21 Nov, D89)
+- [x] Six drawn showcase cases in every simulator run: several cracks, a gap, a network, branches, a hairline beside a wide crack (C, 21 Nov, D90)
+- [x] Stronger crack tracing: two thresholds and SAM 3.1 extending the crack; no drawn photo paired with an unrelated one; illogical real cases removed (C, 21 Nov, D91)
 
 ### Next
+- [ ] Close-up photos of real spalling, rust and damp, with the card, to test spalling and stain detection (J + L)
+- [ ] Photos with real rust, damp and spalling to test the autoencoder's colour rules (J + L)
+- [ ] Upload models/anomaly_ae.pt to GitHub Releases (C, when pushing)
+- [ ] Joints between a door frame and plaster read as cracks (D88): decide whether to leave them out (J + L, C)
+- [ ] Crack model on tiles of the full photo, so faint hairlines are not lost at 832 px (C, after a speed test)
 - [ ] Main crack dropped as a straight edge on the sample photo (D51), seen in the crack viewer: decide whether to change the rule (J + L, C)
 - [ ] Email to Enrique Corres Sojo: send the five questions (J + L, C drafts; moved from week 3)
 - [ ] Real 3D scan of the crack surface (C; moved from week 3)
