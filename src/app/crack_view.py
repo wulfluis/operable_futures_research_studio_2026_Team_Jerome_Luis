@@ -107,7 +107,7 @@ def view_data(result, size: tuple[int, int] | None = None) -> dict | None:
             "defects": [{"kind": f["kind"], "label": f["label"], "c": f["centre"], "o": f["outline"]}
                         for f in an["defects"]] if an else [],
             "surface_score": None,  # not shown: not calibrated for photos at the app's scale (D89)
-            "heat": ("data:image/png;base64," + base64.b64encode(an["heat_png"]).decode()) if an else None,
+            "heat": ("data:image/png;base64," + base64.b64encode(an["heat_png"]).decode()) if an and an.get("heat_png") else None,
             "aspect": round(H / W, 5)}
 
 
@@ -277,7 +277,8 @@ const PAL = ["#f472b6", "#38bdf8", "#fbbf24", "#a78bfa", "#fb923c", "#e879f9", "
 const CR = C.cracks || [], MULTI = CR.length > 1;
 let byCrack = MULTI;
 // other defects, separate from the cracks (D89): outlined, dashed, each with its label; shown only
-const DF = C.defects || [], DCOL = {rust: "#f97316", dark: "#94a3b8", other: "#e2e8f0"}, DSHORT = {rust: "Rust?", dark: "Dark patch", other: "Unusual"};
+const DF = C.defects || [], DCOL = {spalling: "#ff5c7a", rust: "#f97316", dark: "#94a3b8", other: "#e2e8f0"},
+  DSHORT = {spalling: "Spalling?", rust: "Rust?", dark: "Dark patch", other: "Unusual"};
 let showDef = DF.length > 0, showHeat = false;
 
 photo.onload = function () { W = photo.naturalWidth; H = photo.naturalHeight; layer.style.width = W + "px"; layer.style.height = H + "px";
@@ -393,10 +394,13 @@ function shapeRow(sh) {  // the crack's shape, as the type rules read it; each c
     sm("Cells", String(sh.loops), "Closed cells: areas fully enclosed by crack lines, like the cells of a net. A single crack has 0; from 2 the rules read a network of surface cracks (map cracking).") +
     sm("Branches", f(sh.branches, 1) + "×", "Length of all branches divided by the main crack's length. 1.0× = no side branches."); }
 function defectChips() {  // counts of the other defects and the photo's surface score (D89)
-  const n = {rust: 0, dark: 0, other: 0}; DF.forEach(function (d) { n[d.kind]++; });
-  let h = ""; [["rust", "Rust?"], ["dark", "Dark"], ["other", "Unusual"]].forEach(function (k) { if (n[k[0]])
-    h += '<span class="chip" style="border-style:dashed;border-color:' + DCOL[k[0]] + '" title="Possible ' + (k[0] === "rust" ? "rust stains" : k[0] === "dark" ? "dark patches (damp or dirt?)" : "other unusual areas") +
-      ', separate from the cracks: what the autoencoder found unusual, labelled by its colour. Shown only; an engineer decides."><span class="k" style="color:' + DCOL[k[0]] + '">' + k[1] + '</span><span class="val">' + n[k[0]] + "</span></span>"; });
+  const n = {spalling: 0, rust: 0, dark: 0, other: 0}; DF.forEach(function (d) { n[d.kind]++; });
+  const TIP = {spalling: "Possible spalling or missing plaster: SAM 3.1 and written rules (an area, not a crack line, clearly different in colour from the wall around it). Unverified, tested on a few photos only.",
+    rust: "Possible rust stains: what the autoencoder found unusual, labelled by its colour.", dark: "Possible dark patches (damp or dirt?): what the autoencoder found unusual, labelled by its colour.",
+    other: "Other unusual areas the autoencoder found."};
+  let h = ""; [["spalling", "Spalling?"], ["rust", "Rust?"], ["dark", "Dark"], ["other", "Unusual"]].forEach(function (k) { if (n[k[0]])
+    h += '<span class="chip" style="border-style:dashed;border-color:' + DCOL[k[0]] + '" title="' + TIP[k[0]] +
+      ' Separate from the cracks; shown only, an engineer decides."><span class="k" style="color:' + DCOL[k[0]] + '">' + k[1] + '</span><span class="val">' + n[k[0]] + "</span></span>"; });
   if (C.surface_score != null) h += '<span class="chip opt" title="How unusual the whole surface is compared with the sound concrete the autoencoder learned: above 1, more unusual than 95 % of it. Shown only."><span class="k">Surface</span><span class="val' +
     (C.surface_score > 1 ? " max" : "") + '">' + C.surface_score.toFixed(2) + "</span></span>";
   return h; }

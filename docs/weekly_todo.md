@@ -18,6 +18,7 @@ Owner: J = Jerome, L = Luis, C = coding agent (Claude). Fill in the blanks.
 - [x] Six drawn showcase cases in every simulator run: several cracks, a gap, a network, branches, a hairline beside a wide crack (C, 21 Nov, D90)
 - [x] Stronger crack tracing: two thresholds and SAM 3.1 extending the crack; no drawn photo paired with an unrelated one; illogical real cases removed (C, 21 Nov, D91)
 - [x] Every SAM crack line counts once the model found a crack, minus straight edges: the branches of a network are traced (C, 21 Nov, D92)
+- [x] Possible spalling from SAM 3.1 and written rules, unverified; every traced crack carried onto the element photo (C, 21 Nov, D93)
 
 ### Next
 - [ ] Close-up photos of real spalling, rust and damp, with the card, to test spalling and stain detection (J + L)

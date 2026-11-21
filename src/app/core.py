@@ -284,14 +284,17 @@ def axis_angle(location: dict | None, element: str | None) -> tuple[float | None
 
 
 def _keep_for_link(r: MeasuredResult, full: Image.Image, line_px: np.ndarray | None, mask: np.ndarray | None = None,
-                   width_px: tuple | None = None) -> None:
+                   width_px: tuple | None = None, paths: list | None = None) -> None:
     """A small grey copy of the crack photo and its crack line, kept in memory to link the element photo (D66); also
     every branch of the crack (mask: the crack model's, working size) and its width in the photo's pixels (D75)."""
     from element.locate import card_patch, card_view, to_link_size
     from element.photo2 import MIN_BRANCH_SHARE, trace_network
     r.link_grey, k = to_link_size(np.asarray(full.convert("L")))
     r.link_line_px = None if line_px is None else np.asarray(line_px, dtype=float) * k
-    if mask is not None and mask.any():
+    paths = [np.asarray(p, float) for p in (paths or []) if p is not None and len(p) >= 2]
+    if paths:  # every branch of every traced crack, as measured (D88, D92): the element photo shows them all
+        r.link_network_px = [p * k for p in paths]
+    elif mask is not None and mask.any():
         to_full = full.width / mask.shape[1]  # working size -> full photo (padding is at the right and bottom only)
         r.link_network_px = [b * to_full * k for b in trace_network(mask, MIN_BRANCH_SHARE * max(mask.shape))]
     if width_px is not None and width_px[0] is not None:
@@ -337,6 +340,20 @@ def _add_anomaly(r: MeasuredResult, full: Image.Image, prob: np.ndarray, d: Deci
         r.anomaly = analyse_photo(full, crack, exclude)
     except Exception as e:  # never stops the crack answer
         r.warnings.append(f"Unusual-surface check not run ({type(e).__name__}).")
+    try:  # possible spalling or missing plaster, from SAM 3.1 and written rules (D93): unverified, shown only
+        from anomaly import spalling_sam
+        traced = getattr(r, "crack", None) or getattr(r, "pixel_crack", None)
+        parts = [p.mask for p in (getattr(traced, "cracks", None) or [traced]) if p is not None and p.mask is not None]
+        lines = np.logical_or.reduce(parts) if parts and all(p.shape == parts[0].shape for p in parts) else crack
+        exclude = (reference_mask((full.height, full.width), card.corners_px, CARD_PAD * max(full.size))
+                   if card is not None else None)
+        spall = spalling_sam.find(full, lines, exclude)
+        if spall:
+            if r.anomaly is None:
+                r.anomaly = {"score": None, "defects": [], "heat_png": None, "version": None}
+            r.anomaly["defects"] = spall + r.anomaly["defects"]
+    except Exception as e:
+        r.warnings.append(f"Spalling check not run ({type(e).__name__}).")
 
 
 def run_measured(photo: Image.Image, model, device: str = "cpu", scene_model=None,
@@ -380,6 +397,7 @@ def run_measured(photo: Image.Image, model, device: str = "cpu", scene_model=Non
             r.pixel_shape = pixel_shape(m)
             r.photo, r.pixel_crack = full, m
             _keep_for_link(r, full, None if m is None else m.main_path_px, d.mask,
+                           paths=None if m is None else m.branch_paths_px, width_px=
                            None if m is None else (m.width_max_mm, m.width_median_mm))  # pixels: no card
             r.views = _views(work, prob, k, None, False)
         _add_anomaly(r, full, prob, d, None)
@@ -435,7 +453,9 @@ def run_measured(photo: Image.Image, model, device: str = "cpu", scene_model=Non
         found = r.crack is not None and r.crack.found
         m = None if found else pixel_line(full, prob, d.mask)  # a tilted card spoils the mm, not the crack's place
         r.photo, r.pixel_crack = full, m
-        _keep_for_link(r, full, r.crack.main_path_px if found else (None if m is None else m.main_path_px), d.mask)
+        traced = r.crack if found else m
+        _keep_for_link(r, full, r.crack.main_path_px if found else (None if m is None else m.main_path_px), d.mask,
+                       paths=None if traced is None else traced.branch_paths_px)
     if r.measured:
         c = r.crack
         line = (f"{d.reason} Confidence {d.confidence:.0%}. Widest {c.width_max_mm:.2f} ± "

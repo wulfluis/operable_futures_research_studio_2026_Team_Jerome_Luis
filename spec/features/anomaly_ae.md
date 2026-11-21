@@ -41,6 +41,9 @@ Separate layers, each switched on and off: the cracks (crack 1, 2, 3 in their co
 - **Small photos.** On 837 PHI-Net photos (224 px, enlarged) it showed no area, with or without spalling: enlarging blurs every detail under its floor.
 - So the "possible rust" and "dark patch" labels only apply to sharp unusual areas; finding stains needs real close-up photos of rust, damp and spalling, to calibrate and test on.
 
+## Possible spalling (D93, 21 Nov)
+On close-ups of plastered walls, SAM 3.1 is asked for "missing plaster" and "broken plaster" (`src/anomaly/spalling_sam.py`); written rules keep an area only when its score is at least 0.5, it is an area and not a crack line (the traced cracks are removed first, and it survives an erosion of 1.2 % of the long side), it covers 0.5 % to 40 % of the photo, and its colour differs clearly from the wall around it (CIELAB difference at least 15). Shown as "Possible spalling or missing plaster (SAM 3.1, unverified)", a dashed outline and a "Spalling?" chip. Tried on 12 photos only (4 real with spalling, 2 field photos without, 6 drawn): it outlined the spalled patch of a survey photo and two plaster flakes of another, missed a large spall and a small one, and marked nothing on the 8 photos without spalling once the colour difference was raised from 12 to 15 (a door frame had 13.3). Not a measured result: real close-ups of spalling are needed. "Exposed concrete" is not asked: on painted walls it covered whole walls, and on PHI-Net it lit half the photos without spalling (D91).
+
 ## Not changed (until evaluated)
 Shown only: the areas and the score do not raise the level or send a case to "Expert needed" yet. After the evaluation (rule 6) the team decides whether a high score sends the case to an expert and whether a confirmed rust stain feeds the risk matrix's "rust staining" raise. Never lowers anything.
 
