@@ -11,6 +11,8 @@ Owner: J = Jerome, L = Luis, C = coding agent (Claude). Fill in the blanks.
 ### Done
 - [x] Luis's work merged into main: dark concrete look (D82), crack viewer with zoom, drag and loupe (D83), a sketch on each tip and no "Human in the loop" tag (D84), shape chips in the viewer (D85) (L, 18 to 20 Nov; merged by C, 20 Nov)
 
+- [x] README rewritten in the order of a product page, with app screenshots on synthetic photos and a table of each AI part against the plain way (C, 21 Nov, D86)
+
 ### Next
 - [ ] Main crack dropped as a straight edge on the sample photo (D51), seen in the crack viewer: decide whether to change the rule (J + L, C)
 - [ ] Email to Enrique Corres Sojo: send the five questions (J + L, C drafts; moved from week 3)
