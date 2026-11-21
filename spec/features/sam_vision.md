@@ -21,6 +21,9 @@ On the Özgenel test tiles (281 with a crack, 307 without), against the crack mo
 
 "Off the crack": more than 6 px from the true crack (SAM's lines are thick).
 
+## Since D92 (21 Nov, the same day): every SAM line, once the model found a crack
+On a real survey photo the branches of the network met at a spalled patch, not at the line the model found, so the connected-only rule dropped them and nothing visible changed. Now, once the crack model has found a crack, every SAM crack line (score 0.4 or more) counts, minus the long straight edges the model's own rule ignores (D51: a door frame, a wall-ceiling line). The model still decides whether there is a crack, so missed cracks and false alarms do not change. Test tiles (photos where the model found a crack): 85.2 % of the crack traced (connected-only 84.9 %, model 82.0 %); pixels more than 6 px off the true crack 5.2 % (2.6 %, 1.4 %): more extra lines, each shown in its own colour so a wrong one is seen.
+
 ## Not done
 - **Spalling as an area.** SAM asked for "exposed concrete" lit 64 % of PHI-Net photos with spalling and 50 % without: no better than a guess, not shown. Other prompts: see the experiment note.
 - The 3D model still draws the main crack only.

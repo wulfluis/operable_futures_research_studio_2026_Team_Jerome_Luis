@@ -42,3 +42,23 @@ def test_faint_pixels_count_only_when_joined_to_a_confident_crack():
     g = grown(prob, 0.25)
     assert g[75, 21] and not g[20, 71]
     assert decide(prob, low=0.25).mask[75, 21]
+
+
+def test_a_long_straight_edge_is_dropped_from_sams_lines_and_a_wandering_crack_kept():
+    m = np.zeros((400, 400), bool)
+    m[:, 10:14] = True  # a door frame: straight, the whole height, at the side
+    ys = np.arange(40, 360)
+    xs = (200 + 12 * np.sin(ys / 15.0)).astype(int)  # a crack that wanders
+    for dx in range(3):
+        m[ys, xs + dx] = True
+    out = sam_extend.without_edges(m)
+    assert not out[200, 11] and out[200, xs[160] + 1]
+
+
+def test_every_sam_line_counts_once_the_model_found_a_crack(monkeypatch):
+    model = _box(20, 100, 50, 53)
+    far = _box(20, 100, 150, 154)
+    monkeypatch.setattr(sam_extend, "sam_cracks", lambda photo: far)
+    out = sam_extend.extended(Image.new("RGB", (200, 200)), model)
+    assert out[50, 151] == (not sam_extend.CONNECTED_ONLY)
+    assert not sam_extend.extended(Image.new("RGB", (200, 200)), np.zeros((200, 200), bool)).any()

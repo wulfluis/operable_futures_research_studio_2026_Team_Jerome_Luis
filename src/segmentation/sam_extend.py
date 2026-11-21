@@ -16,6 +16,10 @@ ENABLED = True  # switch off to go back to the crack model alone
 SAM_SIDE = 1024  # px, the photo's long side for SAM (it reads 644 px inside)
 CRACK_CONF = 0.4  # SAM's score from which a crack line counts (illustrative, chosen on the validation tiles)
 JOIN_SHARE = 0.02  # a SAM line this close to the model's crack (share of the long side) is connected
+CONNECTED_ONLY = False  # D92: once the model found a crack, every SAM crack line counts, not only the connected ones
+# (branches of a network often meet at a spalled patch, not at the line the model found). Test tiles: 85.2 % of the
+# crack traced against 84.9 % connected-only and 82.0 % for the model; lines off the crack 5.2 % against 2.6 % and
+# 1.4 %; missed cracks and false alarms unchanged, since the model still decides.
 MIN_SHARE = 0.002  # smaller SAM masks are specks
 
 
@@ -44,9 +48,32 @@ def sam_cracks(photo: Image.Image) -> np.ndarray | None:
     for _, mask, score in out:
         if score >= CRACK_CONF and mask.sum() >= MIN_SHARE * mask.size:
             m |= mask
+    m = without_edges(m)
     if small.size != im.size:
         m = np.asarray(Image.fromarray(m.astype(np.uint8) * 255).resize(im.size, Image.NEAREST)) > 0
     return m
+
+
+def without_edges(m: np.ndarray, side: int = 512) -> np.ndarray:
+    """SAM's lines without the long straight edges the crack model's rule already ignores (D51): a door frame or the
+    line between a wall and a ceiling. Checked on a copy reduced to `side` px, as the rule was tuned."""
+    if not m.any():
+        return m
+    from segmentation.decide import edge_pixels
+    k = side / max(m.shape)
+    small = np.asarray(Image.fromarray(m.astype(np.uint8) * 255).resize(
+        (max(1, round(m.shape[1] * k)), max(1, round(m.shape[0] * k))), Image.NEAREST)) > 0
+    labels, n = ndimage.label(small, structure=np.ones((3, 3)))
+    drop = np.zeros_like(small)
+    for i in range(1, n + 1):
+        ys, xs = np.nonzero(labels == i)
+        e = edge_pixels(ys, xs, small.shape)
+        if e is not None:
+            drop[ys[e], xs[e]] = True
+    if not drop.any():
+        return m
+    drop = np.asarray(Image.fromarray(drop.astype(np.uint8) * 255).resize((m.shape[1], m.shape[0]), Image.NEAREST)) > 0
+    return m & ~ndimage.binary_dilation(drop, iterations=2)
 
 
 def extended(photo: Image.Image, model_mask: np.ndarray) -> np.ndarray:
@@ -57,4 +84,6 @@ def extended(photo: Image.Image, model_mask: np.ndarray) -> np.ndarray:
         sam = sam_cracks(photo)
     except Exception:  # SAM never stops the crack model's answer
         return model_mask
-    return model_mask if sam is None else extend(model_mask, sam)
+    if sam is None:
+        return model_mask
+    return extend(model_mask, sam) if CONNECTED_ONLY else model_mask | sam
