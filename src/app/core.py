@@ -725,9 +725,15 @@ def crack_from_link(result: MeasuredResult, photo: Image.Image) -> None:
     s = on.size_px[0] / full_w  # element photo's own pixels -> photo 2 as analysed
     main = result.link_crack_element * s
     branches = [c * s for c in (lm.carry(b) for b in (result.link_network_px or [])) if c is not None and len(c) >= 2]
+    # D95: the carried crack seeds the tracing of photo 2 itself, so the crack is followed across the whole element
+    grown = photo2.grow_from_seed(photo, on.size_px, branches or [main], getattr(on, "mask", None))
+    if grown:
+        branches = grown
+        main = max(grown, key=lambda b: float(np.linalg.norm(np.diff(b, axis=0), axis=1).sum()))
     new = photo2.place(main, on.size_px, None, branches or None)
     via = loc.get("via") or "link"
-    new.frame_source, new.source = photo2.WHOLE_PHOTO, LINKED.format(via=via)
+    new.frame_source, new.source = photo2.WHOLE_PHOTO, LINKED.format(via=via) + (
+        ", then traced on this photo from there" if grown else "")
     new.reason = f"{new.reason[:-1]}, {new.source}."
     if result.link_width_px is not None and len(main) >= 2:  # photo 1's width, carried at the link's local scale
         c = np.asarray(result.link_line_px, float)
@@ -843,12 +849,15 @@ def find_parts_for(result: MeasuredResult, photo: Image.Image, segment, gpu: thr
         rgb = np.asarray(Image.fromarray(rgb).resize((round(rgb.shape[1] * k), round(rgb.shape[0] * k))))
     crack = None if result.link_crack_element is None else result.link_crack_element * k
     on = result.on_element
-    if crack is None and on is not None and on.found and on.path_px is not None and on.size_px:
-        # not linked (no card, too few key points): photo 2's own crack line, the same crack (D62, D74)
-        crack = on.path_px * (rgb.shape[1] / on.size_px[0])
+    network = None
+    if on is not None and on.found and on.path_px is not None and on.size_px:
+        # the crack exactly as the element photo shows it (D95): its line and every branch, the same crack in both
+        s = rgb.shape[1] / on.size_px[0]
+        crack = on.path_px * s
+        network = [b * s for b in (on.network_px or []) if len(b) >= 2] or None
     try:
         with gpu or threading.Lock():
-            p = find_parts(rgb, crack, segment)
+            p = find_parts(rgb, crack, segment, network)
     except Exception as e:  # noqa: BLE001  any failure of the optional model must not stop the triage
         result.parts = {"on": None, "name": None, "reason": f"SAM 3.1 could not run on this photo ({type(e).__name__}).",
                         "source": "SAM 3.1 (D70)"}
@@ -856,6 +865,64 @@ def find_parts_for(result: MeasuredResult, photo: Image.Image, segment, gpu: thr
         return
     result.parts, result.parts_preview = p.to_dict(), p.preview
     result.parts_things = [(part, m, s) for part, m, s in (p.things or [])]  # in memory only, for the frame (D74)
+    try:
+        whole_element(result, photo, rgb, p)
+    except Exception as e:  # noqa: BLE001  the whole-element tracing is shown only; it never stops the triage
+        result.warnings.append(f"Whole-element tracing not run ({type(e).__name__}).")
+
+
+def whole_element(result: MeasuredResult, photo: Image.Image, rgb: np.ndarray, p) -> None:
+    """Every crack and spalled area on the whole element (D96), inside the outline of the part the crack lies on;
+    the element photo and the parts view are both drawn from it, so they always show the same crack."""
+    from element import photo2
+    from element.parts import preview
+    on = result.on_element
+    if on is None or not on.found or not on.size_px or not p.on or not p.things:
+        return
+    w, h = on.size_px
+    region = np.zeros((rgb.shape[0], rgb.shape[1]), bool)
+    for part, m, _ in p.things:
+        if part == p.on:
+            region |= m
+    if not region.any():
+        return
+    small = np.asarray(Image.fromarray(region.astype(np.uint8) * 255).resize((w, h))) > 0
+    sam = getattr(photo2.grow_from_seed, "last_sam", None)
+    nets = photo2.trace_whole_element(photo, (w, h), small, on.network_px or [on.path_px], getattr(on, "mask", None),
+                                      sam if sam is not None and sam.shape == (h, w) else None)
+    main = max(nets, key=lambda b: float(np.linalg.norm(np.diff(b, axis=0), axis=1).sum()))
+    new = photo2.place(main, (w, h), on.frame if on.frame is not None else None, nets)
+    for k in ("path_uv", "extent", "centre_uv", "reason", "network_uv", "path_px", "network_px"):
+        setattr(on, k, getattr(new, k))
+    on.source = f"{on.source}; every crack inside the {p.on}'s outline traced on this photo (D96)"
+    work = ImageOps.exif_transpose(photo).convert("RGB").resize((w, h))
+    spall = []
+    try:  # spalled areas on the element, the same rules as on the close-up (D93), inside the outline
+        from anomaly import spalling_sam
+        lines = np.zeros((h, w), bool)
+        for b in nets:
+            for q in b.astype(int):
+                lines[min(h - 1, max(0, q[1])), min(w - 1, max(0, q[0]))] = True
+        spall = [f for f in (spalling_sam.find(work, lines, ~small) or []) if f["share"] > 0]
+    except Exception:
+        spall = []
+    on.spalling_px = [np.asarray(f["outline"], float) * (w, h) for f in spall]
+    img = work.copy()
+    d = ImageDraw.Draw(img)
+    lw = max(3, img.width // 160)
+    for poly in on.spalling_px:
+        d.polygon([tuple(q) for q in poly], outline=(255, 92, 122), width=lw)
+    for b in nets:
+        d.line([tuple(q) for q in b], fill=(214, 39, 40), width=lw)
+    on.overlay = img
+    s = rgb.shape[1] / w  # the parts view: the same cracks and spalled areas
+    pv = preview(rgb, p.things, [b * s for b in nets], p.on)
+    if on.spalling_px:
+        k = pv.width / rgb.shape[1]
+        dd = ImageDraw.Draw(pv)
+        for poly in on.spalling_px:
+            dd.polygon([tuple(q) for q in poly * s * k], outline=(255, 92, 122), width=max(2, pv.width // 250))
+    result.parts_preview = pv
 
 
 def level_for(result: MeasuredResult, element: str | None, position: str, pattern: str | None,

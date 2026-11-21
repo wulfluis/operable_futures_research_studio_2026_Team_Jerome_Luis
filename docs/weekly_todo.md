@@ -19,8 +19,11 @@ Owner: J = Jerome, L = Luis, C = coding agent (Claude). Fill in the blanks.
 - [x] Stronger crack tracing: two thresholds and SAM 3.1 extending the crack; no drawn photo paired with an unrelated one; illogical real cases removed (C, 21 Nov, D91)
 - [x] Every SAM crack line counts once the model found a crack, minus straight edges: the branches of a network are traced (C, 21 Nov, D92)
 - [x] Possible spalling from SAM 3.1 and written rules, unverified; every traced crack carried onto the element photo (C, 21 Nov, D93)
+- [x] Real test set of 74 survey cases, reviewed by eye; the element photo traces every crack and spalled area inside the element's outline (C, 21 Nov, D94 to D96)
 
 ### Next
+- [ ] The close-up check sent 20 of 76 real close-ups to Retake: review it on real phone close-ups (J + L, C)
+- [ ] Trace the element photo at higher resolution (tiles), so thin cracks are not broken into pieces (C)
 - [ ] Close-up photos of real spalling, rust and damp, with the card, to test spalling and stain detection (J + L)
 - [ ] Photos with real rust, damp and spalling to test the autoencoder's colour rules (J + L)
 - [ ] Upload models/anomaly_ae.pt to GitHub Releases (C, when pushing)

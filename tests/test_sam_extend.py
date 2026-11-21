@@ -62,3 +62,14 @@ def test_every_sam_line_counts_once_the_model_found_a_crack(monkeypatch):
     out = sam_extend.extended(Image.new("RGB", (200, 200)), model)
     assert out[50, 151] == (not sam_extend.CONNECTED_ONLY)
     assert not sam_extend.extended(Image.new("RGB", (200, 200)), np.zeros((200, 200), bool)).any()
+
+
+def test_the_whole_element_keeps_cracks_inside_its_outline_and_drops_the_rest():
+    from element import photo2
+    region = _box(0, 200, 0, 120)  # the element: the left part of the photo
+    inside = _box(30, 170, 60, 63)
+    outside = _box(30, 170, 170, 173)  # a crack-like line on something else
+    nets = photo2.trace_whole_element(Image.new("RGB", (200, 200)), (200, 200), region,
+                                      [np.array([[61.0, 100.0], [61.0, 120.0]])], inside | outside, np.zeros((200, 200), bool))
+    xs = np.concatenate([b[:, 0] for b in nets])
+    assert xs.min() >= 55 and xs.max() <= 70  # the crack inside is traced, the line outside is not

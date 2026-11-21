@@ -105,11 +105,14 @@ def lies_on(things: list[tuple[str, np.ndarray, float]], crack: np.ndarray | Non
     for p, _, _ in things:
         found[p] = found.get(p, 0) + 1
     listed = ", ".join(f"{PART_NAMES[p].lower()} ({n})" for p, n in found.items()) or "no part of the list"
-    if crack is None or len(crack) < 2:
+    if isinstance(crack, list):  # every branch (D95): one line made of all of them
+        crack = [np.asarray(b, float) for b in crack if b is not None and len(b) >= 2] or None
+    if crack is None or len(crack) < 2 and not isinstance(crack, list):
         return Parts(None, f"The crack could not be placed in the element photo (the two photos were not linked), so "
                            f"it is not known which part it lies on. Found in the photo: {listed}.", found=found,
                      seconds=seconds)
-    line = crack_mask(crack, shape)
+    line = (np.logical_or.reduce([crack_mask(b, shape) for b in crack]) if isinstance(crack, list)
+            else crack_mask(crack, shape))
     n = max(1, int(line.sum()))
     union: dict[str, np.ndarray] = {}
     score: dict[str, float] = {}
@@ -134,12 +137,13 @@ def lies_on(things: list[tuple[str, np.ndarray, float]], crack: np.ndarray | Non
                         f"(SAM 3.1, score {score[first]:.2f}).", score[first], share[first], None, found, seconds)
 
 
-def find_parts(rgb: np.ndarray, crack: np.ndarray | None, segment: Segmenter) -> Parts:
-    """SAM 3.1 on the element photo (rgb, the size the crack's line is in) and the part the crack lies on."""
+def find_parts(rgb: np.ndarray, crack: np.ndarray | None, segment: Segmenter, network: list | None = None) -> Parts:
+    """SAM 3.1 on the element photo (rgb, the size the crack's line is in) and the part the crack lies on.
+    network: every branch of the crack (D95); then the part and the picture use all of them, as the element photo."""
     t = time.perf_counter()
     things = [f for f in as_parts(segment(rgb)) if f[2] >= MIN_CONF]
-    out = lies_on(things, crack, rgb.shape[:2], time.perf_counter() - t)
-    out.preview = preview(rgb, things, crack, out.on)
+    out = lies_on(things, network or crack, rgb.shape[:2], time.perf_counter() - t)
+    out.preview = preview(rgb, things, network or crack, out.on)
     out.things = things
     return out
 
@@ -157,10 +161,13 @@ def preview(rgb: np.ndarray, things: list, crack: np.ndarray | None, on: str | N
     img = img.resize((round(img.width * k), round(img.height * k)))
     d = ImageDraw.Draw(img)
     lw = max(2, img.width // 250)
-    if crack is not None and len(crack) >= 2:
-        c = crack * k
-        d.line([tuple(p) for p in c], fill=(230, 30, 30), width=lw + 1)
-        mid = c.mean(axis=0)
+    lines = ([np.asarray(b, float) for b in crack if len(b) >= 2] if isinstance(crack, list)
+             else [crack] if crack is not None and len(crack) >= 2 else [])
+    if lines:  # every branch, the same crack as on the element photo (D95)
+        for b in lines:
+            d.line([tuple(p) for p in b * k], fill=(230, 30, 30), width=lw + 1)
+        c = np.vstack(lines) * k
+        mid = (c.max(axis=0) + c.min(axis=0)) / 2
         r = max(12.0, 0.6 * float(np.linalg.norm(c.max(axis=0) - c.min(axis=0))))
         d.ellipse([mid[0] - r, mid[1] - r, mid[0] + r, mid[1] + r], outline=(230, 30, 30), width=lw)
     return img

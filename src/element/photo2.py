@@ -42,6 +42,7 @@ class CrackOnElement:
     source: str = "photo 2's own crack model"  # or photo 1's crack carried across by the link (D75)
     path_px: np.ndarray | None = field(default=None, repr=False)  # the longest line, photo pixels
     network_px: list | None = field(default=None, repr=False)  # every branch, photo pixels
+    mask: np.ndarray | None = field(default=None, repr=False)  # the crack model's crack on photo 2, as analysed (D95)
 
     def position(self, element: str | None) -> str:
         """The risk matrix's location: end_zone or middle from where the crack's centre lies; unknown without one."""
@@ -184,6 +185,81 @@ def trace_network(mask: np.ndarray, min_len_px: float) -> list[np.ndarray]:
     return lines
 
 
+SEED_SHARE = 0.008  # D95: the carried crack is drawn this thick (share of the long side) to seed the growth
+BRIDGE_PX = 2  # small gaps between traced pieces on photo 2 are bridged by this many pixels
+
+
+def grow_from_seed(photo: Image.Image, size: tuple[int, int], seeds: list, model_mask: np.ndarray | None = None,
+                   sam_mask: np.ndarray | None = None) -> list[np.ndarray] | None:
+    """The whole crack on photo 2 (D95): photo 1's crack carried across by the link is the seed; every crack line traced
+    on photo 2 itself (the crack model's mask, SAM 3.1's crack lines) that connects to it belongs to the same crack,
+    so the crack is followed beyond the close-up's frame. Lines that do not connect (a plant, a frame elsewhere) stay
+    out: that is why photo 2's own reading was not used alone (D75). Returns every branch in photo-2 pixels (size),
+    or None when there is nothing to grow from."""
+    from PIL import ImageDraw
+    from scipy import ndimage
+    w, h = size
+    seeds = [np.asarray(b, float) for b in seeds if b is not None and len(b) >= 2]
+    if not seeds:
+        return None
+    if sam_mask is None:
+        try:
+            from segmentation.sam_extend import sam_cracks
+            work = ImageOps.exif_transpose(photo).convert("RGB").resize((w, h))
+            sam_mask = sam_cracks(work)
+        except Exception:
+            sam_mask = None
+    grow_from_seed.last_sam = sam_mask  # reused by the whole-element tracing (D96)
+    cand = np.zeros((h, w), bool)
+    for m in (model_mask, sam_mask):
+        if m is not None and m.shape == (h, w):
+            cand |= m
+    canvas = Image.new("L", (w, h), 0)
+    dr = ImageDraw.Draw(canvas)
+    lw = max(3, round(SEED_SHARE * max(w, h)))
+    for b in seeds:
+        dr.line([tuple(p) for p in b], fill=255, width=lw)
+    seed = np.asarray(canvas) > 0
+    joined = ndimage.binary_dilation(cand, iterations=BRIDGE_PX) | seed
+    labels, _ = ndimage.label(joined, structure=np.ones((3, 3)))
+    keep = np.unique(labels[seed])
+    keep = keep[keep > 0]
+    grown = np.isin(labels, keep) & (cand | seed)
+    paths = trace_network(grown, MIN_BRANCH_SHARE * max(w, h))
+    return paths or None
+
+
+def trace_whole_element(photo: Image.Image, size: tuple[int, int], region: np.ndarray, seeds: list,
+                        model_mask: np.ndarray | None = None, sam_mask: np.ndarray | None = None) -> list[np.ndarray]:
+    """Every crack on the element (D96): all crack lines traced on photo 2 (the crack model's mask and SAM 3.1's
+    lines) inside the element's outline (region, SAM 3.1's mask of the part the crack lies on), plus photo 1's crack
+    carried across. Lines outside the outline (a plant, a window, another element) stay out. Photo-2 pixels (size)."""
+    from PIL import ImageDraw
+    from scipy import ndimage
+    w, h = size
+    if sam_mask is None:
+        try:
+            from segmentation.sam_extend import sam_cracks
+            sam_mask = sam_cracks(ImageOps.exif_transpose(photo).convert("RGB").resize((w, h)))
+        except Exception:
+            sam_mask = None
+    inside = ndimage.binary_dilation(region, iterations=max(2, round(0.01 * max(w, h))))  # cracks reach the edge
+    cand = np.zeros((h, w), bool)
+    for m in (model_mask, sam_mask):
+        if m is not None and m.shape == (h, w):
+            cand |= m & inside
+    from segmentation.sam_extend import without_edges
+    cand = without_edges(cand)  # wall edges, corners and the ceiling line are not cracks (D51), on photo 2 too
+    canvas = Image.new("L", (w, h), 0)
+    dr = ImageDraw.Draw(canvas)
+    lw = max(3, round(SEED_SHARE * max(w, h)))
+    for b in seeds:
+        if b is not None and len(b) >= 2:
+            dr.line([tuple(p) for p in np.asarray(b, float)], fill=255, width=lw)
+    cand |= np.asarray(canvas) > 0
+    return trace_network(cand, MIN_BRANCH_SHARE * max(w, h)) or [np.asarray(b, float) for b in seeds if len(b) >= 2]
+
+
 def red_overlay(img: Image.Image, mask: np.ndarray) -> Image.Image:
     a = np.asarray(img.convert("RGB"), dtype=float).copy()
     grown = mask
@@ -212,6 +288,7 @@ def read(model, photo: Image.Image, device: str = "cpu") -> CrackOnElement:
     network = trace_network(d.mask, MIN_BRANCH_SHARE * max(w, h)) if m is not None else None
     out = place(None if m is None else np.asarray(m.main_path_px, dtype=float), (w, h), None, network)
     out.overlay = red_overlay(work, ndimage.binary_dilation(d.mask, iterations=1))
+    out.mask = d.mask
     if m is not None:
         out.width_px_max, out.width_px_median, out.length_px = m.width_max_mm, m.width_median_mm, m.length_main_mm
         ys, xs = np.nonzero(d.mask)
