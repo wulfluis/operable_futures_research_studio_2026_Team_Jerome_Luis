@@ -20,9 +20,9 @@ Residents of old concrete buildings see cracks every day but cannot tell a harml
 
 <p align="center"><b>The model measures, rules decide, an engineer confirms.</b></p>
 
-![The crack viewer: three cracks, each in its own colour, with their widths; a click on Max flies to the widest point and opens a loupe with a caliper and the width there, 1.4 mm; then the colours switch to the width along each crack, and the autoencoder's heatmap appears](docs/images/crack_viewer.gif)
+![The crack viewer on the team's own field photo: a thin crack in a plastered wall with a bank card beside it (the card blurred), traced in two colours with the widest and narrowest points; a click on Max flies to the widest point and opens a loupe with a calliper and the width there in millimetres; up close, cyan arrows across the crack show its opening and small amber marks its sliding; then the colours switch to the width along the crack](docs/images/crack_viewer.gif)
 
-<sub>The crack viewer on a drawn test photo (`src/app/showcase.py`): no real home and no resident's photo appear in this repository.</sub>
+<sub>The crack viewer on the team's own field photo, with a bank card beside the crack (the card blurred). Every number in it is the app's own reading. No resident's photo appears in this repository.</sub>
 
 ## The problem
 
@@ -36,7 +36,7 @@ A resident opens the phone page, ticks "I put a bank card next to the crack", an
 
 | The phone page | The crack to explore |
 |---|---|
-| ![The phone page in its dark look: three tips with line sketches, the bank-card and share ticks, the upload, and the answer with the widest width and the length in mm](docs/images/app_phone.jpg) | ![The crack viewer: the crack's centre line coloured by its width, the widest and narrowest points marked, chips for max, min, length, angle, straightness, coherence, cells and branches, a width profile and a scale bar](docs/images/app_crack_viewer.jpg) |
+| ![The phone page in its dark look: three tips with line sketches, the bank-card and share ticks, the upload, and the answer with the widest width and the length in mm](docs/images/app_phone.jpg) | ![The crack viewer on the team's field photo: the loupe at the widest point with the calliper and the width in millimetres; chips for max, min, median, length, angle, opening, sliding and movement; the width chart with its grey error band; cyan opening arrows along the crack](docs/images/app_crack_viewer.jpg) |
 
 What the viewer shows:
 
@@ -47,7 +47,27 @@ What the viewer shows:
 - **How the crack moved, as a crack engineer reads it.** Cyan arrows across the crack show its opening, amber arrows along it its sliding, read from the crack's two faces: they were one surface, so the bumps of one match the hollows of the other. This is the method of Pantoja-Rosero et al. (EPFL, 2022) used in E. Corres Sojo's PhD thesis on cracks in reinforced concrete (EPFL, 2024), written as our own code and checked on the authors' published test cracks.
 - **How sure each width is.** A grey band of ± 1 pixel on the width chart: on a 50-year-old crack, photo widths matched a crack microscope within one pixel (Corres Sojo, ch. 5.2).
 
-Each result also has a panel, **Read like an engineer**: how the crack moved, how sure the width is, what a crack along a steel bar means for the bar's grip, whether it has grown since an earlier photo (only when the change is larger than the measurement's error), and the sources it rests on. It is shown only: the level still comes from the written rules.
+### How the crack moved
+
+| Up close: opening and sliding | Read like an engineer |
+|---|---|
+| ![Up close on the field crack: cyan double arrows across the crack show how far its two faces moved apart, small amber marks along it how far they slid; chips at the top give the opening, the sliding and the reading](docs/images/crack_movement.jpg) | ![The Read like an engineer panel: how the crack moved, how sure the width is, what this rests on, and the two sources: Corres Sojo's PhD thesis (EPFL 2024) and Pantoja-Rosero et al. 2022](docs/images/engineer_panel.png) |
+
+Each result has a panel, **Read like an engineer**: how the crack moved, how sure the width is, what a crack along a steel bar means for the bar's grip, whether it has grown since an earlier photo, and the sources it rests on. A crack measured twice with a bank card that has grown by more than the two photos' errors raises the level by one step (E. Corres Sojo's rule: only growth beyond the error counts); nothing in the panel ever lowers a level.
+
+### On real elements
+
+The second photo shows the whole element. The app carries the crack across, traces every crack inside the element's outline, and SAM 3.1 names the parts. Here on a building cracked by an earthquake, from the EPFL test photos [Pantoja-Rosero et al. 2022](https://doi.org/10.1016/j.conbuildmat.2022.128264) (CC BY 4.0):
+
+![Three pictures of the same cracked wall after an earthquake: the close-up with every crack traced in its own colour; the whole facade with the cracks in red inside the white outline of the wall; the facade read by SAM 3.1, the wall in green, the windows and balconies in their own colours, the same cracks in red](docs/images/example_wall_epfl.jpg)
+
+<sub>Of five such photos, only this one passed the close-up check: the other four close-ups, cut from far photos, were sent back as "Retake". That check is still too strict on cut close-ups (`docs/weekly_todo.md`).</sub>
+
+With a bank card, the crack is measured in millimetres and drawn in 3D on its element in Rhino and Grasshopper, with how it moved:
+
+![The field crack in 3D, drawn by the app's 3D model on a column, a beam and a wall, a red frame marking where the crack is; and up close, the crack in red with its cyan opening arrows and the card's outline](docs/images/crack_3d.jpg)
+
+<sub>The same measured crack placed on the three element shapes the 3D model draws (sizes assumed: a 3 m column, a 4 m beam, a 3 × 3 m wall). In the app, the element comes from the second photo.</sub>
 
 Shared results appear on a live wall for the class projector, one tab per answer. A result opens over the wall: the crack on the left, the level and its reason on the right, and the crack in 3D from Rhino and Grasshopper.
 
@@ -116,7 +136,7 @@ The app:
 
 1. Python 3.10 or newer. With an NVIDIA GPU, install torch first with the CUDA build named in `requirements.txt`; without one the app runs on the CPU, slower (a few seconds per photo).
 2. `pip install -r requirements.txt`
-3. Download the model file [unet_crack.pt](https://github.com/iaac-maai/operable_futures_research_studio_2026_Team_Jerome_Luis/releases/download/model-v4/unet_crack.pt) (v4, about 98 MB, release `model-v4`) and put it in `models/`. Also download [element_convnext_tiny_phinet6_v2.pt](https://github.com/iaac-maai/operable_futures_research_studio_2026_Team_Jerome_Luis/releases/download/models-element-scene-v1/element_convnext_tiny_phinet6_v2.pt) and [scene_convnext_tiny_phinet1.pt](https://github.com/iaac-maai/operable_futures_research_studio_2026_Team_Jerome_Luis/releases/download/models-element-scene-v1/scene_convnext_tiny_phinet1.pt) (release `models-element-scene-v1`, about 106 MB each, PHI-Net licence: non-commercial) into `models/`; without them the app runs without the element and scene checks (`models/README.md`).
+3. Download the model file [unet_crack.pt](https://github.com/iaac-maai/operable_futures_research_studio_2026_Team_Jerome_Luis/releases/download/model-v5/unet_crack.pt) (v5, about 98 MB, release `model-v5`; v4 stays in release `model-v4`) and put it in `models/`. Also download [element_convnext_tiny_phinet6_v2.pt](https://github.com/iaac-maai/operable_futures_research_studio_2026_Team_Jerome_Luis/releases/download/models-element-scene-v1/element_convnext_tiny_phinet6_v2.pt) and [scene_convnext_tiny_phinet1.pt](https://github.com/iaac-maai/operable_futures_research_studio_2026_Team_Jerome_Luis/releases/download/models-element-scene-v1/scene_convnext_tiny_phinet1.pt) (release `models-element-scene-v1`, about 106 MB each, PHI-Net licence: non-commercial) into `models/`; without them the app runs without the element and scene checks (`models/README.md`).
 4. On this laptop only: `py -m streamlit run src/app/second_look.py`, then open `http://localhost:8501` (phone page) and `http://localhost:8501/?wall` (live wall).
 5. With a public link for phones (class demo): `py src/app/launch.py`. It opens the team's fixed link https://cranium-bladder-tapioca.ngrok-free.dev through ngrok (install it, then `ngrok config add-authtoken <your token>` once; never commit the token), so the QR is always the same (`docs/presentation/midterm/assets/qr_fixed.png`). Only one laptop can serve that link at a time. Without ngrok it falls back to a random Cloudflare link (`winget install --id Cloudflare.cloudflared`). It prints the phone link, the wall link for a teammate and the QR page (`http://localhost:8501/?qr`). The link only answers while the app runs; the free ngrok plan shows a one-time "You are about to visit" page first.
 6. To measure a crack: lay a bank card (or any card that size) flat on the wall next to the crack, all four corners visible, number covered; hold the phone parallel to the wall. The phone page then shows the width, length and camera tilt; each photo on the live wall opens its own page with the numbers. After a code update, stop the launcher (Ctrl+C) and start it again: a running app keeps the old code in memory.
@@ -149,6 +169,8 @@ The concept is cracks in buildings in slum-like, informal neighbourhoods. See `d
 - Closest public data: engineer surveys of damaged buildings after the Haiti 2010 and Nepal 2015 earthquakes, rated light / moderate / severe (one rating per building, no scale).
 - Building and masonry crack images: METU, Darbhanga, Strathclyde (crack / no crack, no scale).
 - Generic crack pixels for pre-training: CrackSeg9k, crack-seg. Bridge and pavement sets are off-concept.
+- From the EPFL group of E. Corres Sojo, our reference crack engineer: photos of plastered and masonry buildings cracked by earthquakes, with crack masks (TOPO-Loss, CC BY 4.0), lab walls with crack masks (DIC, CC BY 4.0), and test cracks with known movements (crack kinematics, CC BY 4.0). Crack model v5 learned from the first two.
+- Our own: the team's field photos with a bank card (in the README, one with the card blurred, with the team member's consent).
 - Still to collect: our own phone photos with a bank card next to the crack, rated by our engineering partners (Engineers Without Borders and a third-party structural engineer).
 
 **Can we train with it?** Partly. There is enough public data to train the step that finds cracks (segmentation and detection). There is not enough to train or prove the step that rates danger: no public dataset has our seven crack patterns, a scale for width in mm, or an engineer's rating per crack. Those come only from our own photos and the engineering partners (`docs/data_map.md`, section 0b).
@@ -162,7 +184,7 @@ Raw data is not committed; `data/` stays empty in the repository.
 | Tools | Claude Code (agent) |
 | Why | to move fast on models, measurement and an app that were new to us, and for first drafts of the specs and texts |
 | Where | the training and evaluation scripts, the measurement code, the risk matrix code from our written rules, the app and the crack viewer, the autoencoder, SAM 3.1's extension, the Grasshopper script, the figures and the images of this README, and first drafts of the specs and the decisions log |
-| How | every feature starts as a spec in `spec/`, then code, then tests (593 pass); every model is scored on photos it never saw and against the plain way; thresholds are chosen on validation photos and reported on test photos; the levels come only from written rules; the team reads every decision in `spec/decisions.md` |
+| How | every feature starts as a spec in `spec/`, then code, then tests (629 pass); every model is scored on photos it never saw and against the plain way; thresholds are chosen on validation photos and reported on test photos; the levels come only from written rules; the team reads every decision in `spec/decisions.md` |
 
 Lessons learned:
 - **A number that looks good can hide a blind model.** The autoencoder's first threshold flagged almost nothing on real plaster; it was set on rough concrete. Look at the pictures, not only the score.

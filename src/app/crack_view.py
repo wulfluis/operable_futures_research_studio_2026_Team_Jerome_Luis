@@ -139,7 +139,7 @@ def crack_paths(parts, tree, wid, near_px: float, n, k: float) -> list[dict]:
     return [c for c in out if c["paths"]]
 
 
-MAX_STATIONS = 160  # arrows of all cracks together
+MAX_STATIONS = 60  # arrows of all cracks together (more hide the crack)
 
 
 def kin_data(kins, W: int, H: int) -> list | None:
@@ -358,18 +358,19 @@ function drawLines() { if (!HAS) return; let out = "";
     out += '<polygon points="' + pts + '" fill="' + DCOL[d.kind] + '" fill-opacity=".12" stroke="' + DCOL[d.kind] +
       '" stroke-width="2" stroke-dasharray="6 4" vector-effect="non-scaling-stroke"/>'; });
   if (showKin) out += kinArrows();
-  const mk = function (id, c) { return '<marker id="' + id + '" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">' +
-    '<path d="M0,0 L10,5 L0,10 z" fill="' + c + '"/></marker>'; };
-  lines.innerHTML = "<defs>" + mk("ahc", "#22d3ee") + mk("aha", "#fbbf24") + "</defs>" +
+  lines.innerHTML =
     '<g style="filter:drop-shadow(0 0 2px rgba(0,0,0,.9))">' + out + "</g>"; }
-function kinArrows() {  // at each point: two short arrows across the crack (opening, cyan), one along it (sliding, amber)
-  let g = ""; const ln = function (x1, y1, x2, y2, c, both) { return '<line x1="' + x1.toFixed(1) + '" y1="' + y1.toFixed(1) + '" x2="' + x2.toFixed(1) + '" y2="' + y2.toFixed(1) +
-    '" stroke="' + c + '" stroke-width="2" vector-effect="non-scaling-stroke" marker-end="url(#' + (both ? "ahc" : "aha") + ')"' + (both ? ' marker-start="url(#ahc)"' : "") + "/>"; };
+function kinArrows() {  // at each point: a double arrow across the crack (opening, cyan), one along it (sliding, amber)
+  // the heads are drawn as lines in the photo's own units, so an arrow keeps its shape at every zoom, and a small
+  // sliding gives a small arrow
+  let g = ""; const ln = function (x1, y1, x2, y2, c) { return '<line x1="' + x1.toFixed(1) + '" y1="' + y1.toFixed(1) + '" x2="' + x2.toFixed(1) + '" y2="' + y2.toFixed(1) +
+    '" stroke="' + c + '" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linecap="round"/>'; };
+  const head = function (x, y, ux, uy, h, c) { return ln(x, y, x - ux * h + uy * h * 0.6, y - uy * h - ux * h * 0.6, c) + ln(x, y, x - ux * h - uy * h * 0.6, y - uy * h + ux * h * 0.6, c); };
   KIN.forEach(function (k) { if (!k || !k.st) return; k.st.forEach(function (q) {
-    const x = q[0] * W, y = q[1] * H, ox = q[2], oy = q[3], m = Math.hypot(ox, oy) || 1, L = Math.max(10, 1.6 * m);
-    g += ln(x - ox / m * L, y - oy / m * L, x + ox / m * L, y + oy / m * L, "#22d3ee", true);
-    if (q[4] != null && Math.hypot(q[4], q[5]) > 0.35) { const sx = q[4] / m * L, sy = q[5] / m * L;
-      g += ln(x - sx, y - sy, x + sx, y + sy, "#fbbf24", false); } }); });
+    const x = q[0] * W, y = q[1] * H, ox = q[2], oy = q[3], m = Math.hypot(ox, oy) || 1, ux = ox / m, uy = oy / m, L = Math.max(8, 1.4 * m), h = L * 0.35;
+    g += ln(x - ux * L, y - uy * L, x + ux * L, y + uy * L, "#22d3ee") + head(x + ux * L, y + uy * L, ux, uy, h, "#22d3ee") + head(x - ux * L, y - uy * L, -ux, -uy, h, "#22d3ee");
+    if (q[4] != null) { const sm = Math.hypot(q[4], q[5]), S = L * Math.min(2, sm / m); if (S > 1.5) { const vx = q[4] / sm, vy = q[5] / sm;
+      g += ln(x - vx * S, y - vy * S, x + vx * S, y + vy * S, "#fbbf24") + head(x + vx * S, y + vy * S, vx, vy, Math.min(h, S * 0.6), "#fbbf24"); } } }); });
   return g; }
 
 function place() { const m = $("marks"); if (!HAS) { m.innerHTML = ""; return; }
