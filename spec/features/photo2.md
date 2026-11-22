@@ -56,3 +56,6 @@ With photo 2's crack: the crack is drawn **where photo 2 shows it and at its len
 - **On the wall:** photo 2 with the crack in red and the outline in white; below it, SAM's coloured parts and its reason.
 - **TEST width estimate:** never when photo 1 has a card; when linked, photo 1's pixel width carried at the link's local scale.
 
+
+## The cracks traced whole (D97, 22 Nov)
+On the element photo every crack is drawn as whole lines: the centre line of the traced cracks is cleaned of stair steps and short side spurs, never cut into dashes; specks shorter than 3 % of the photo are left out. Only the piece of SAM 3.1's outline that holds the crack counts, and a straight line along that outline is the element's edge, not a crack (illustrative). Hairline cracks are not visible on a far photo: there only photo 1's crack, carried across, is shown. Tests: `tests/test_trace_network.py`.

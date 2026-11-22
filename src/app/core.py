@@ -881,12 +881,29 @@ def whole_element(result: MeasuredResult, photo: Image.Image, rgb: np.ndarray, p
         return
     w, h = on.size_px
     region = np.zeros((rgb.shape[0], rgb.shape[1]), bool)
-    for part, m, _ in p.things:
-        if part == p.on:
-            region |= m
+    s0 = rgb.shape[1] / w
+    pts = np.vstack([np.asarray(b, float) for b in (on.network_px or [on.path_px]) if b is not None and len(b)]) * s0
+    pts = np.clip(np.round(pts).astype(int), 0, [rgb.shape[1] - 1, rgb.shape[0] - 1])
+    best = 0
+    for part, m, _ in p.things:  # D97: the one outline holding the crack, not every wall SAM found
+        if part == p.on and m.shape == region.shape:
+            hit = int(m[pts[:, 1], pts[:, 0]].sum())
+            if hit > best:
+                best, region = hit, m.copy()
+    if not region.any():
+        for part, m, _ in p.things:
+            if part == p.on:
+                region |= m
     if not region.any():
         return
     small = np.asarray(Image.fromarray(region.astype(np.uint8) * 255).resize((w, h))) > 0
+    lab, n = ndimage.label(small)  # D97: the piece of the outline holding the crack (SAM gives all walls as one)
+    if n > 1:
+        q = np.clip(np.round(pts / s0).astype(int), 0, [w - 1, h - 1])
+        hits = np.bincount(lab[q[:, 1], q[:, 0]], minlength=n + 1)
+        hits[0] = 0
+        if hits.max() > 0:
+            small = lab == hits.argmax()
     sam = getattr(photo2.grow_from_seed, "last_sam", None)
     nets = photo2.trace_whole_element(photo, (w, h), small, on.network_px or [on.path_px], getattr(on, "mask", None),
                                       sam if sam is not None and sam.shape == (h, w) else None)

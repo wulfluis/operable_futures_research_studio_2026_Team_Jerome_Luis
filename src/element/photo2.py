@@ -125,20 +125,79 @@ def place(path_px: np.ndarray | None, size: tuple[int, int], frame: tuple | None
 
 
 OFFS = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+STEP_PX = 3.0  # D97: shorter traced pieces are steps of the centre line, not crack
 
 
-def trace_network(mask: np.ndarray, min_len_px: float) -> list[np.ndarray]:
-    """Every branch of the crack: the mask's centre line cut at its ends and junctions into polylines (x, y pixels),
-    each at least min_len_px long. A closed loop is kept as one polyline."""
+def trace_network(mask: np.ndarray, min_len_px: float, spur_px: float | None = None) -> list[np.ndarray]:
+    """Every branch of the crack: the mask's centre line cut at its ends and junctions into polylines (x, y pixels).
+    A closed loop is kept as one polyline. D97: a crack line is never cut into pieces. Only two things are dropped:
+    whole lines shorter than min_len_px (specks), and short side spurs, which the centre line of a thick mask grows
+    at its rough edges (shorter than spur_px, default min_len_px). Before D97 every piece between two junctions
+    shorter than min_len_px was dropped, which broke a long crack into dashes wherever a spur met it."""
     from scipy import ndimage
 
     from measure.crack import skeletonize
     sk = skeletonize(mask).astype(bool)
     if not sk.any():
         return []
+    spur_px = min_len_px if spur_px is None else spur_px
+    sk = _without_stairs(sk)
+    lab, n = ndimage.label(sk, structure=np.ones((3, 3)))
+    if n:
+        sizes = ndimage.sum(sk, lab, range(1, n + 1))
+        sk = np.isin(lab, 1 + np.nonzero(sizes >= min_len_px)[0])
+    for _ in range(4):  # prune spurs, a few rounds (a pruned spur can leave a shorter one behind)
+        paths = _skeleton_paths(sk)
+        deg = _degree(sk)
+        cut = False
+        for path in paths:
+            a, b = path[0], path[-1]
+            da, db = deg[a], deg[b]
+            if len(path) >= 2 and _length(path) < spur_px and ((da == 1 and db >= 3) or (db == 1 and da >= 3)):
+                keep = b if db >= 3 else a
+                for p in path:
+                    if p != keep:
+                        sk[p] = False
+                cut = True
+        if not cut:
+            break
+    # pieces of a pixel or two are the centre line's steps at a junction or a stair: not drawn, nothing is lost
+    return [a for a in (np.array([[x, y] for y, x in p], float) for p in _skeleton_paths(sk))
+            if len(a) >= 2 and _length(a) >= STEP_PX]
+
+
+def _without_stairs(sk: np.ndarray) -> np.ndarray:
+    """The centre line one pixel thin everywhere: at a stair step a pixel touches three others, so it looked like a
+    junction and cut the line. Such a pixel is removed when its neighbours stay joined without it."""
+    from scipy import ndimage
+    sk = sk.copy()
     h, w = sk.shape
-    deg = np.where(sk, ndimage.convolve(sk.astype(np.uint8), np.ones((3, 3), np.uint8), mode="constant") - 1, 0)
-    node = sk & (deg != 2)
+    for y, x in zip(*np.nonzero(sk & (_degree(sk) >= 3))):
+        if not sk[y, x] or y == 0 or x == 0 or y == h - 1 or x == w - 1:
+            continue
+        ring = sk[y - 1:y + 2, x - 1:x + 2].copy()
+        ring[1, 1] = False
+        if ring.sum() >= 2 and ndimage.label(ring, structure=np.ones((3, 3)))[1] == 1:
+            sk[y, x] = False
+    return sk
+
+
+def _degree(sk: np.ndarray) -> np.ndarray:
+    from scipy import ndimage
+    return np.where(sk, ndimage.convolve(sk.astype(np.uint8), np.ones((3, 3), np.uint8), mode="constant") - 1, 0)
+
+
+def _length(path) -> float:
+    a = np.asarray(path, float)
+    return float(np.linalg.norm(np.diff(a, axis=0), axis=1).sum())
+
+
+def _skeleton_paths(sk: np.ndarray) -> list[list[tuple[int, int]]]:
+    """The centre line cut at its ends and junctions: lists of (y, x) pixels."""
+    if not sk.any():
+        return []
+    h, w = sk.shape
+    node = sk & (_degree(sk) != 2)
     used = set()
 
     def nbrs(p):
@@ -177,12 +236,7 @@ def trace_network(mask: np.ndarray, min_len_px: float) -> list[np.ndarray]:
                 for r in path:
                     rest[r] = False
                 paths.append(path)
-    lines = []
-    for path in paths:
-        a = np.array([[x, y] for y, x in path], float)
-        if len(a) >= 2 and np.linalg.norm(np.diff(a, axis=0), axis=1).sum() >= min_len_px:
-            lines.append(a)
-    return lines
+    return paths
 
 
 SEED_SHARE = 0.008  # D95: the carried crack is drawn this thick (share of the long side) to seed the growth
@@ -256,8 +310,35 @@ def trace_whole_element(photo: Image.Image, size: tuple[int, int], region: np.nd
     for b in seeds:
         if b is not None and len(b) >= 2:
             dr.line([tuple(p) for p in np.asarray(b, float)], fill=255, width=lw)
-    cand |= np.asarray(canvas) > 0
-    return trace_network(cand, MIN_BRANCH_SHARE * max(w, h)) or [np.asarray(b, float) for b in seeds if len(b) >= 2]
+    seed = (np.asarray(canvas) > 0) & inside  # D97: the grown crack too stays on the element
+    cand |= seed
+    nets = [b for b in trace_network(cand, MIN_BRANCH_SHARE * max(w, h)) if not outline_edge(b, region, seed)]
+    return nets or [np.asarray(b, float) for b in seeds if len(b) >= 2]
+
+
+EDGE_BAND_SHARE = 0.025  # D97: a line this close to the element's outline (share of the long side) runs along it
+EDGE_STRAIGHT = 0.95  # its length between its ends over its length along it: from this, a straight line
+EDGE_ON_SHARE = 0.7  # this share of its points along the outline: the element's own edge, not a crack
+
+
+def outline_edge(line: np.ndarray, region: np.ndarray, seed: np.ndarray | None = None) -> bool:
+    """True for a straight line along the element's outline (D97): the edge of the column, the line where the wall
+    meets the ceiling. A crack wanders; the element's own edge is straight and runs along its outline. A line on
+    photo 1's carried crack (seed) is always kept. Illustrative until checked on more photos."""
+    from scipy import ndimage
+    if len(line) < 2 or not region.any():
+        return False
+    h, w = region.shape
+    q = np.clip(np.round(line).astype(int), 0, [w - 1, h - 1])
+    if seed is not None and seed[q[:, 1], q[:, 0]].mean() > 0.3:
+        return False
+    length = _length(line)
+    if length < 2 or np.linalg.norm(line[-1] - line[0]) / length < EDGE_STRAIGHT:
+        return False
+    band = max(2, round(EDGE_BAND_SHARE * max(h, w)))
+    whole = ndimage.binary_fill_holes(region)
+    rim = ndimage.binary_dilation(whole, iterations=band) & ~ndimage.binary_erosion(whole, iterations=band)
+    return bool(rim[q[:, 1], q[:, 0]].mean() >= EDGE_ON_SHARE)
 
 
 def red_overlay(img: Image.Image, mask: np.ndarray) -> Image.Image:
