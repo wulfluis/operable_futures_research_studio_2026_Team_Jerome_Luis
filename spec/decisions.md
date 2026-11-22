@@ -345,3 +345,6 @@ Jerome: the app must rely on an engineer's method, because that is how engineers
 
 ## D101 (2026-11-22): the simulator can send every real case at once
 Jerome asked for many more real cases in the interface, in different categories, close-up and element photo. `py src/app/simulate.py --everything` sends 107: the two field pairs, 93 real two-photo survey cases (test set, risk tabs, earlier picks, each once), five EPFL test photos of cracked buildings after earthquakes [108] with a close-up cut around the crack, and five single photos (close-ups without a card, a wall without a crack, a whole building). The EPFL cases were reviewed by eye first: four of nine cut around a roof edge, the sky or a shutter and are left out (`simulate.TOPO_KEEP`), so no case shows a close-up without a crack. Local photos only, never committed. Test: `tests/test_simulate_everything.py`.
+
+## D102 (2026-11-22): every real case is the simulator's default population
+Jerome: always send all of these as residents, the team's field pairs included. `py src/app/simulate.py` with no option now sends the whole set of D101 (field pairs first); the older, smaller sets (`--test-set`, `--by-level`, `--synthetic`, `--mixed`) only when asked for by name. The photos stay local and are never saved by the app (rule 9): they are sent again after each restart.

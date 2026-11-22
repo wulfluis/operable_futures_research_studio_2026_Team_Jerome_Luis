@@ -225,7 +225,8 @@ def main(argv=None) -> None:
     args = ap.parse_args(argv)
     INBOX.mkdir(parents=True, exist_ok=True)
     field = ([] if args.no_field else list(field_cases())) + (list(showcase_cases()) if args.showcase else [])
-    if args.everything:
+    # D102: every real case is the default population; the older, smaller sets only when asked for by name
+    if args.everything or not (args.test_set or args.by_level or args.synthetic or args.mixed):
         tmp = ROOT / "data" / "inbox_cases" / "_everything.json"  # local, rebuilt each run
         tmp.write_text(json.dumps({"cases": all_real_cases()}), encoding="utf-8")
         cases = field + list(real_cases(10_000, tmp)) + list(topo_cases()) + list(mixed_cases())
