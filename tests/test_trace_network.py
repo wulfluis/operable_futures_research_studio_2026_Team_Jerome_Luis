@@ -56,3 +56,13 @@ def test_photo1s_crack_is_kept_even_along_the_edge():
     seed = np.zeros_like(region)
     seed[:, 295:306] = True
     assert not photo2.outline_edge(edge, region, seed)
+
+
+def test_the_parts_view_draws_no_ring_around_the_crack():
+    """D98: only the crack is red; a ring could be read as a crack line."""
+    from element.parts import preview
+    rgb = np.full((300, 400, 3), 200, np.uint8)
+    img = np.asarray(preview(rgb, [], [np.array([[190.0, 140.0], [210.0, 160.0]])], None)).astype(int)
+    red = (img[..., 0] > 180) & (img[..., 1] < 100) & (img[..., 2] < 100)
+    ys, xs = np.nonzero(red)
+    assert red.any() and xs.min() >= 180 and xs.max() <= 220 and ys.min() >= 130 and ys.max() <= 170

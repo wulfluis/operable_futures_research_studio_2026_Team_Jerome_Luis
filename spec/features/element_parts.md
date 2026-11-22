@@ -33,7 +33,7 @@ A thing found by two words of one part counts once (masks overlapping by more th
 Shown only. The level, the element the level uses (element model and "doubt means column"), the position (end zone, middle) and the crack's angle (element edges, true vertical, D66, D69) stay as they were (rule 5). Whether SAM's part should feed the level is a later decision, with Jerome and the engineer, after field tests.
 
 ## In the app
-- Phone page: a fourth cell "Lies on" (the part, with "SAM 3.1, score" or "border with ..."), a line with SAM's reason ("... Shown only: the level does not use it."), and a small copy of the element photo with each part's mask in its colour and the crack in red with a ring. The element photo stays off the wall (rule 9).
+- Phone page: a fourth cell "Lies on" (the part, with "SAM 3.1, score" or "border with ..."), a line with SAM's reason ("... Shown only: the level does not use it."), and a small copy of the element photo with each part's mask in its colour and the crack in red, with no ring around it (D98: a red circle could be read as a crack line). The element photo stays off the wall (rule 9).
 - Result page of the website: the same "Lies on" cell.
 - Without the weights on the machine (`models/sam3.1/`, gated, SAM License, never in git) the app runs as before and shows no cell. If SAM fails on a photo (memory), the app says so and goes on.
 - About 4 s per element photo on the laptop after the first (the first loads the model, about 15 s).

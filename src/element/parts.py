@@ -149,7 +149,7 @@ def find_parts(rgb: np.ndarray, crack: np.ndarray | None, segment: Segmenter, ne
 
 
 def preview(rgb: np.ndarray, things: list, crack: np.ndarray | None, on: str | None) -> Image.Image:
-    """The element photo, small, with each part's mask in its colour, the crack in red with a ring."""
+    """The element photo, small, with each part's mask in its colour, the crack in red (no ring, D98)."""
     base = np.asarray(rgb[..., :3], np.float32)
     out = base.copy()
     for p, m, _ in sorted(things, key=lambda f: -f[1].sum()):  # big first, so small parts stay visible on top
@@ -164,12 +164,8 @@ def preview(rgb: np.ndarray, things: list, crack: np.ndarray | None, on: str | N
     lines = ([np.asarray(b, float) for b in crack if len(b) >= 2] if isinstance(crack, list)
              else [crack] if crack is not None and len(crack) >= 2 else [])
     if lines:  # every branch, the same crack as on the element photo (D95)
-        for b in lines:
+        for b in lines:  # no ring around it (D98): a red circle could be read as a crack line
             d.line([tuple(p) for p in b * k], fill=(230, 30, 30), width=lw + 1)
-        c = np.vstack(lines) * k
-        mid = (c.max(axis=0) + c.min(axis=0)) / 2
-        r = max(12.0, 0.6 * float(np.linalg.norm(c.max(axis=0) - c.min(axis=0))))
-        d.ellipse([mid[0] - r, mid[1] - r, mid[0] + r, mid[1] + r], outline=(230, 30, 30), width=lw)
     return img
 
 
