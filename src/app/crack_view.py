@@ -13,6 +13,8 @@ import json
 import numpy as np
 from PIL import Image
 
+from measure.crack import WIDTH_UNCERTAINTY_PX
+
 PHOTO_SIDE = 2000  # px, long side of the photo sent to the viewer (zoom needs more than the wall's 1400)
 MAX_LINE = 400  # points of the main crack line (ordered), for the width profile
 MAX_NET = 700  # points of the whole crack (all branches), for the width under the loupe
@@ -106,6 +108,9 @@ def view_data(result, size: tuple[int, int] | None = None) -> dict | None:
             "shape": shape_data(c, path, unit),
             "defects": [{"kind": f["kind"], "label": f["label"], "c": f["centre"], "o": f["outline"]}
                         for f in an["defects"]] if an else [],
+            "kin": kin_data(getattr(result, "kinematics", None), W, H),
+            # the error of every width: one pixel, as found against a crack microscope on an old crack ([46] ch. 5.2)
+            "unc": round(WIDTH_UNCERTAINTY_PX * (float(c.mm_per_px) if unit == "mm" and c.mm_per_px else 1.0), 4),
             "surface_score": None,  # not shown: not calibrated for photos at the app's scale (D89)
             "heat": ("data:image/png;base64," + base64.b64encode(an["heat_png"]).decode()) if an and an.get("heat_png") else None,
             "aspect": round(H / W, 5)}
@@ -132,6 +137,33 @@ def crack_paths(parts, tree, wid, near_px: float, n, k: float) -> list[dict]:
         if getattr(part, "width_max_mm", None) is not None:
             out[ci]["max"] = round(float(part.width_max_mm) * k, 4)
     return [c for c in out if c["paths"]]
+
+
+MAX_STATIONS = 160  # arrows of all cracks together
+
+
+def kin_data(kins, W: int, H: int) -> list | None:
+    """Opening and sliding per crack (D99) for the viewer: its summary, and its stations as
+    [x, y, opening dx, opening dy, sliding dx, sliding dy] (photo shares; the arrows in photo pixels), in crack order."""
+    if not kins:
+        return None
+    total = sum(len(k.stations) for k in kins if k is not None) or 1
+    out = []
+    for k in kins:
+        if k is None:
+            out.append(None)
+            continue
+        st = k.stations
+        keep = _pick(len(st), max(1, int(round(MAX_STATIONS * len(st) / total)))) if st else []
+        rows = []
+        for i in keep:
+            x = st[i]
+            n, t, d = np.asarray(x.normal), np.asarray(x.tangent), np.asarray(x.vector_px, float)
+            op, sl = float(d @ n), (None if x.sliding is None else float(d @ t))
+            rows.append([round(x.point_px[0] / W, 5), round(x.point_px[1] / H, 5), round(op * n[0], 2), round(op * n[1], 2),
+                         None if sl is None else round(sl * t[0], 2), None if sl is None else round(sl * t[1], 2)])
+        out.append({**k.to_dict(), "st": rows})
+    return out if any(o is not None for o in out) else None
 
 
 def shape_data(c, path: np.ndarray, unit: str) -> dict | None:
@@ -249,6 +281,7 @@ button.chip.on { border-color:var(--acc); color:var(--acc); }
     <button class="chip btn" id="fit" title="Whole photo (0)">⤢</button>
     <button class="chip btn" id="tline" title="Width line on or off">≋</button>
     <button class="chip btn" id="tcol" title="Colours: each crack its own, or by width">◈</button>
+    <button class="chip btn" id="tkin" title="How the crack moved: opening (across, cyan) and sliding (along, amber), read from its two faces (Pantoja-Rosero et al. 2022, as in Corres Sojo 2024)">⇄</button>
     <button class="chip btn" id="tdef" title="Other defects (possible rust, dark patches, other unusual areas) on or off">◇</button>
     <button class="chip btn" id="theat" title="Heatmap: what looks different from sound concrete (autoencoder)">▦</button>
     <button class="chip btn" id="tmask" title="The model's red mask on or off">◐</button>
@@ -280,6 +313,9 @@ let byCrack = MULTI;
 const DF = C.defects || [], DCOL = {spalling: "#ff5c7a", rust: "#f97316", dark: "#94a3b8", other: "#e2e8f0"},
   DSHORT = {spalling: "Spalling?", rust: "Rust?", dark: "Dark patch", other: "Unusual"};
 let showDef = DF.length > 0, showHeat = false;
+// how the crack moved (D99): opening across it, sliding along it, from its two faces; shown only
+const KIN = C.kin || [], HASKIN = KIN.some(function (k) { return k && k.st && k.st.length; });
+let showKin = HASKIN;
 
 photo.onload = function () { W = photo.naturalWidth; H = photo.naturalHeight; layer.style.width = W + "px"; layer.style.height = H + "px";
   lines.setAttribute("viewBox", "0 0 " + W + " " + H); drawLines(); fit(false); hud(); spark(); };
@@ -287,6 +323,7 @@ photo.src = PHOTO; if (MASK) mask.src = MASK; else $("tmask").style.display = "n
 if (!HAS) { $("tline").style.display = "none"; $("spark").style.visibility = "hidden"; }
 if (!MULTI) $("tcol").style.display = "none";
 if (!DF.length) $("tdef").style.display = "none";
+if (!HASKIN) $("tkin").style.display = "none";
 if (C.heat) $("heat").src = C.heat; else $("theat").style.display = "none";
 
 function apply() { layer.style.transform = "translate(" + tx + "px," + ty + "px) scale(" + s + ")";
@@ -320,7 +357,20 @@ function drawLines() { if (!HAS) return; let out = "";
   if (showDef) DF.forEach(function (d) { const pts = d.o.map(function (q) { return (q[0] * W).toFixed(1) + "," + (q[1] * H).toFixed(1); }).join(" ");
     out += '<polygon points="' + pts + '" fill="' + DCOL[d.kind] + '" fill-opacity=".12" stroke="' + DCOL[d.kind] +
       '" stroke-width="2" stroke-dasharray="6 4" vector-effect="non-scaling-stroke"/>'; });
-  lines.innerHTML = '<g style="filter:drop-shadow(0 0 2px rgba(0,0,0,.9))">' + out + "</g>"; }
+  if (showKin) out += kinArrows();
+  const mk = function (id, c) { return '<marker id="' + id + '" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">' +
+    '<path d="M0,0 L10,5 L0,10 z" fill="' + c + '"/></marker>'; };
+  lines.innerHTML = "<defs>" + mk("ahc", "#22d3ee") + mk("aha", "#fbbf24") + "</defs>" +
+    '<g style="filter:drop-shadow(0 0 2px rgba(0,0,0,.9))">' + out + "</g>"; }
+function kinArrows() {  // at each point: two short arrows across the crack (opening, cyan), one along it (sliding, amber)
+  let g = ""; const ln = function (x1, y1, x2, y2, c, both) { return '<line x1="' + x1.toFixed(1) + '" y1="' + y1.toFixed(1) + '" x2="' + x2.toFixed(1) + '" y2="' + y2.toFixed(1) +
+    '" stroke="' + c + '" stroke-width="2" vector-effect="non-scaling-stroke" marker-end="url(#' + (both ? "ahc" : "aha") + ')"' + (both ? ' marker-start="url(#ahc)"' : "") + "/>"; };
+  KIN.forEach(function (k) { if (!k || !k.st) return; k.st.forEach(function (q) {
+    const x = q[0] * W, y = q[1] * H, ox = q[2], oy = q[3], m = Math.hypot(ox, oy) || 1, L = Math.max(10, 1.6 * m);
+    g += ln(x - ox / m * L, y - oy / m * L, x + ox / m * L, y + oy / m * L, "#22d3ee", true);
+    if (q[4] != null && Math.hypot(q[4], q[5]) > 0.35) { const sx = q[4] / m * L, sy = q[5] / m * L;
+      g += ln(x - sx, y - sy, x + sx, y + sy, "#fbbf24", false); } }); });
+  return g; }
 
 function place() { const m = $("marks"); if (!HAS) { m.innerHTML = ""; return; }
   if (!m.childElementCount) {
@@ -393,6 +443,15 @@ function shapeRow(sh) {  // the crack's shape, as the type rules read it; each c
     sm("Coherence", f(sh.coherence, 2), "How much the whole crack runs one way: 1 = all in one direction, 0 = no main direction (a network).") +
     sm("Cells", String(sh.loops), "Closed cells: areas fully enclosed by crack lines, like the cells of a net. A single crack has 0; from 2 the rules read a network of surface cracks (map cracking).") +
     sm("Branches", f(sh.branches, 1) + "×", "Length of all branches divided by the main crack's length. 1.0× = no side branches."); }
+function kinRow() {  // how the crack moved (D99): the main crack's opening, sliding and the reading
+  const k = KIN.filter(function (x) { return x && x.opening_median != null; })[0]; if (!k) return "";
+  const f = function (v) { if (v == null) return "–"; return k.unit === "mm" ? (v < 1 ? v.toFixed(2) : v.toFixed(1)) + " mm" : v.toFixed(1) + " px"; };
+  const tip = "Read from the crack's two faces: they were one surface, so the bumps of one face match the hollows of the other. " +
+    "Moving one face back onto the other gives how the crack moved: across it (opening) and along it (sliding). Method of Pantoja-Rosero et al. 2022, " +
+    "used in E. Corres Sojo's thesis (EPFL 2024). One photo: the movement since the crack formed. Shown only; an engineer reads it, the level does not use it.";
+  const sm = function (k2, val, c) { return '<span class="chip sm" title="' + tip + '"><span class="k"' + (c ? ' style="color:' + c + '"' : "") + ">" + k2 + '</span><span class="val">' + val + "</span></span>"; };
+  return '<span class="row"></span>' + sm("Opening", f(k.opening_median), "#22d3ee") + sm("Sliding", k.sliding_median == null ? "not readable" : f(k.sliding_median), "#fbbf24") +
+    sm("Movement", k.reading, null); }
 function defectChips() {  // counts of the other defects and the photo's surface score (D89)
   const n = {spalling: 0, rust: 0, dark: 0, other: 0}; DF.forEach(function (d) { n[d.kind]++; });
   const TIP = {spalling: "Possible spalling or missing plaster: SAM 3.1 and written rules (an area, not a crack line, clearly different in colour from the wall around it). Unverified, tested on a few photos only.",
@@ -413,7 +472,7 @@ function hud() { const tl = $("tl"); if (!HAS) { tl.innerHTML = '<span class="ch
     (MULTI ? '<span class="chip" title="' + CR.map(function (cr, i) { return "Crack " + (i + 1) + ": " + (cr.length != null ? lenFmt(cr.length) : "–") +
       ", widest " + fmt(cr.max); }).join("&#10;") + '"><span class="k">Cracks</span><span class="val">' + CR.length + '</span>' +
       CR.map(function (cr, i) { return '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + PAL[i % PAL.length] + '"></span>'; }).join("") + "</span>" : "") +
-    defectChips() + (C.shape ? shapeRow(C.shape) : "");
+    defectChips() + (C.shape ? shapeRow(C.shape) : "") + kinRow();
   $("cmax").onclick = function () { flyTo(C.widest, 8); openLens(C.widest.x, C.widest.y, "widest"); };
   $("cmin").onclick = function () { flyTo(C.narrowest, 8); openLens(C.narrowest.x, C.narrowest.y, "narrowest"); }; }
 
@@ -423,9 +482,17 @@ function spark() { if (!HAS) return; const L = C.line, n = L.length, el = $("spa
   const X = function (i) { return 1000 * cum[i] / (st || 1); }, Y = function (w) { return 38 - 34 * (w / WMAX); };
   let path = "", area = "", open = false;
   ws.forEach(function (w, i) { if (w == null) { open = false; return; } path += (open ? "L" : "M") + X(i).toFixed(1) + " " + Y(w).toFixed(1); open = true; });
+  // the error band: every width ± one pixel ([46] ch. 5.2: photo widths matched a crack microscope within one pixel)
+  const UN = C.unc || 0, Yc = function (w) { return Math.max(0, Math.min(40, Y(w))); }; let runs = [], cur = [];
+  ws.forEach(function (w, i) { if (w == null) { if (cur.length) runs.push(cur); cur = []; return; } cur.push(i); }); if (cur.length) runs.push(cur);
+  runs.forEach(function (r) { if (r.length < 2 || !UN) return; area += "M" + r.map(function (i) { return X(i).toFixed(1) + " " + Yc(ws[i] + UN).toFixed(1); }).join("L") +
+    "L" + r.slice().reverse().map(function (i) { return X(i).toFixed(1) + " " + Yc(Math.max(0, ws[i] - UN)).toFixed(1); }).join("L") + "Z"; });
   let grad = ""; for (let i = 0; i <= 4; i++) grad += '<stop offset="' + (i * 25) + '%" stop-color="' + col(1 - i / 4) + '"/>';
-  el.innerHTML = '<div class="cap"><span>Width along the crack</span><span id="spv"></span></div><svg viewBox="0 0 1000 40" preserveAspectRatio="none">' +
+  el.innerHTML = '<div class="cap"><span>Width along the crack' + (UN ? ' <span title="Grey band: the error of every width, one pixel either way (' + fmt(UN) +
+    '). On an old bridge crack, photo widths matched a crack microscope within one pixel at most points (E. Corres Sojo, EPFL 2024, ch. 5.2); dust and worn crack edges make it larger. Wipe the crack before the photo." style="text-transform:none;letter-spacing:0">· ± ' + fmt(UN) + '</span>' : "") +
+    '</span><span id="spv"></span></div><svg viewBox="0 0 1000 40" preserveAspectRatio="none">' +
     '<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">' + grad + '</linearGradient></defs>' +
+    (area ? '<path d="' + area + '" fill="#8b95a3" fill-opacity=".28" stroke="none"/>' : "") +
     '<path d="' + path + '" fill="none" stroke="url(#g)" stroke-width="2.2" vector-effect="non-scaling-stroke"/>' +
     '<line id="spl" x1="0" x2="0" y1="0" y2="40" stroke="#fff" stroke-width="1" vector-effect="non-scaling-stroke" opacity="0"/></svg>';
   const pick = function (e) { const b = el.querySelector("svg").getBoundingClientRect(), f = Math.max(0, Math.min(1, (e.clientX - b.left) / b.width));
@@ -433,7 +500,7 @@ function spark() { if (!HAS) return; const L = C.line, n = L.length, el = $("spa
   el.onpointermove = function (e) { const i = pick(e), q = L[i], p = scr(q[0], q[1]), h = $("hov");
     h.style.display = "block"; h.style.left = p[0] + "px"; h.style.top = p[1] + "px";
     const l = $("spl"); l.setAttribute("x1", X(i)); l.setAttribute("x2", X(i)); l.setAttribute("opacity", 1);
-    $("spv").textContent = fmt(q[2]) + " · at " + lenFmt(cum[i] * (C.length / (st || 1))); };
+    $("spv").textContent = fmt(q[2]) + (UN && q[2] != null ? " ± " + fmt(UN) : "") + " · at " + lenFmt(cum[i] * (C.length / (st || 1))); };
   el.onpointerleave = function () { $("hov").style.display = "none"; $("spl").setAttribute("opacity", 0); $("spv").textContent = ""; };
   el.onclick = function (e) { const q = L[pick(e)]; flyTo({x: q[0], y: q[1]}, 8); openLens(q[0], q[1], null); }; }
 
@@ -481,8 +548,10 @@ $("tcol").classList.toggle("on", byCrack);
 $("tdef").classList.toggle("on", showDef);
 $("tdef").onclick = function () { showDef = !showDef; this.classList.toggle("on", showDef); drawLines(); placeDefects(); };
 $("theat").onclick = function () { showHeat = !showHeat; $("heat").style.opacity = showHeat ? .85 : 0; this.classList.toggle("on", showHeat); };
+$("tkin").classList.toggle("on", showKin);
+$("tkin").onclick = function () { showKin = !showKin; this.classList.toggle("on", showKin); drawLines(); };
 $("tcol").onclick = function () { byCrack = !byCrack; this.classList.toggle("on", byCrack); drawLines(); };
-["zin", "zout", "fit", "tline", "tcol", "tdef", "theat", "tmask"].forEach(function (id) { $(id).addEventListener("pointerdown", function (e) { e.stopPropagation(); }); });
+["zin", "zout", "fit", "tline", "tcol", "tkin", "tdef", "theat", "tmask"].forEach(function (id) { $(id).addEventListener("pointerdown", function (e) { e.stopPropagation(); }); });
 $("tl").addEventListener("pointerdown", function (e) { e.stopPropagation(); }); $("spark").addEventListener("pointerdown", function (e) { e.stopPropagation(); });
 window.addEventListener("resize", function () { fit(false); });
 setTimeout(function () { $("hint").style.opacity = 0; }, 4500);

@@ -19,7 +19,9 @@ SIZES = {"column": ((300, 300, 3000), 0), "beam": ((4000, 250, 500), 2500), "wal
 MATRIX_TO_SHAPE = {"column": "column", "beam": "beam", "slab": "slab", "load_bearing_wall": "wall",
                    "infill_wall": "wall"}
 NAMES = {"column": "Column", "beam": "Beam", "slab": "Slab", "wall": "Wall"}
-COLOURS = {"element": "#5a5a5a", "edges": "#d9d9d9", "crack": "#d62728", "marker": "#ffffff", "card": "#ffffff"}
+COLOURS = {"element": "#5a5a5a", "edges": "#d9d9d9", "crack": "#d62728", "marker": "#ffffff", "card": "#ffffff",
+           "opening": "#22d3ee", "sliding": "#fbbf24"}  # D99: how the crack moved, as in the crack viewer
+ARROW_MM = 18.0  # the drawn length of an opening arrow (the movement itself is far too small to see at this scale)
 OFFSET_MM = 1.0  # the crack and the card sit this far in front of the face, so they are never hidden in it
 RING_MM = 20.0  # radius of the ring at the widest point
 SCHEMATIC = "Schematic: element size and crack position assumed; crack shape and width measured."
@@ -79,6 +81,35 @@ def _ribbon(points, half):
             p = 2 * (i - 1)
             faces += [[p, p + 2, p + 3], [p, p + 3, p + 1]]
     return verts, faces
+
+
+def _arrow(x, y, ux, uy, length, both):
+    """Segments of an arrow centred on (x, y) along the unit direction (ux, uy): a shaft and one or two heads."""
+    a, b = [x - ux * length / 2, y - uy * length / 2], [x + ux * length / 2, y + uy * length / 2]
+    h, nx, ny = 0.3 * length, -uy, ux
+    head = lambda tip, s: [[tip, [tip[0] - s * ux * h + nx * h * 0.5, tip[1] - s * uy * h + ny * h * 0.5]],  # noqa: E731
+                           [tip, [tip[0] - s * ux * h - nx * h * 0.5, tip[1] - s * uy * h - ny * h * 0.5]]]
+    return [[a, b]] + head(b, 1) + (head(a, -1) if both else [])
+
+
+def _movement(stations, to3) -> list:
+    """The opening (cyan, double arrow across the crack) and sliding (amber, along it, scaled to the opening) of each
+    station, drawn at ARROW_MM so they can be seen (D99)."""
+    op, sl = [], []
+    for st in stations:
+        (x, y), (ox, oy) = st["point_mm"], st["opening_mm"]
+        m = math.hypot(ox, oy)
+        if m <= 0:
+            continue
+        op += _arrow(x, y, ox / m, oy / m, ARROW_MM, True)
+        if st.get("sliding_mm"):
+            sx, sy = st["sliding_mm"]
+            k = math.hypot(sx, sy)
+            if k > 0.2 * m:
+                sl += _arrow(x, y, sx / k, sy / k, ARROW_MM * min(2.0, k / m), False)
+    lift = lambda segs: [[to3(a), to3(b)] for a, b in segs]  # noqa: E731
+    out = [{"name": "opening", "kind": "segments", "color": COLOURS["opening"], "segments": lift(op)}] if op else []
+    return out + ([{"name": "sliding", "kind": "segments", "color": COLOURS["sliding"], "segments": lift(sl)}] if sl else [])
 
 
 def _ring(cx, cy, r, k=32):
@@ -146,6 +177,9 @@ def build(stats: dict) -> dict | None:
             [min(xs) - m, max(ys) + m], [min(xs) - m, min(ys) - m]]
     objects.append({"name": "crack_zone", "kind": "polyline", "color": COLOURS["crack"],
                     "points": [to3(p) for p in zone]})
+    mv = (g.get("movement") or {}).get("stations") or []
+    if mv and not placed:  # D99: how the crack moved, drawn at a readable size (the true values are in the label)
+        objects += _movement(mv, to3)
     stations = g.get("stations") or []
     if stations:  # the detailed drawing (D81)
         from gh3d import details
@@ -181,4 +215,12 @@ def label(stats: dict, shape: str, known: bool, placed: bool = False) -> list[st
         on = (stats.get("photo2") or {}).get("crack_on_element") or {}
         frame = f" Element in photo 2: {on['frame_source']}." if on.get("frame_source") else ""
         return [head, widths, level, note + sp + frame, ZONE_NOTE]
-    return [head, widths, level, SCHEMATIC, ZONE_NOTE[:-1] + "; the crack is drawn at real size."]
+    out = [head, widths, level, SCHEMATIC, ZONE_NOTE[:-1] + "; the crack is drawn at real size."]
+    mv = g.get("movement") or {}
+    if mv.get("opening_median_mm") is not None:  # D99
+        sl = mv.get("sliding_median_mm")
+        out.append(f"Movement: opening {mv['opening_median_mm']:.2f} mm (cyan), "
+                   + ("sliding not readable" if sl is None else f"sliding {sl:.2f} mm (amber)")
+                   + f", {mv.get('reading', '')}; arrows enlarged to be seen. Read from the crack's faces "
+                   "(Pantoja-Rosero et al. 2022, as in Corres Sojo 2024). Shown only.")
+    return out

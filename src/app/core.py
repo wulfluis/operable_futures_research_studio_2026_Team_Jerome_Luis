@@ -120,6 +120,8 @@ class MeasuredResult:
     parts_things: list | None = field(default=None, repr=False)  # SAM's masks, in memory only (D74)
     photo: Image.Image | None = field(default=None, repr=False)  # photo 1 upright, for the crack viewer (D83); memory only
     pixel_crack: CrackMeasurement | None = field(default=None, repr=False)  # the crack in pixels, no card (D83)
+    kinematics: list | None = field(default=None, repr=False)  # opening and sliding per crack (D99), shown only
+    growth: dict | None = None  # the change since an earlier photo of the same crack (D99), shown only
 
     @property
     def measured(self) -> bool:
@@ -162,6 +164,8 @@ class MeasuredResult:
                 "parts": self.parts,
                 "scene": None if self.scene is None else self.scene.to_dict(),
                 "geometry": self.geometry if self.measured else None,
+                "growth": self.growth,
+                "kinematics": None if not self.kinematics else [None if k is None else k.to_dict() for k in self.kinematics],
                 "estimate": self.estimate,
                 "photo2": None if self.on_element is None and self.spalling is None else {
                     "crack_on_element": None if self.on_element is None else self.on_element.to_dict(),
@@ -179,7 +183,7 @@ GEOMETRY_MAX_POINTS = 200  # the crack line sent to the 3D model (D57)
 STATION_MM = 50.0  # a section of the crack every this many mm along it, in the detailed drawing (D81)
 
 
-def wall_geometry(crack: CrackMeasurement, to_mm, card_corners_px) -> dict | None:
+def wall_geometry(crack: CrackMeasurement, to_mm, card_corners_px, kinematics: list | None = None) -> dict | None:
     """The crack on the wall plane, in mm, for the 3D model (D57): x to the right and y up as the phone saw it (phone
     upright), origin at the card's centre. Built from the card's scale (to_mm); None when there is no crack line."""
     if crack is None or not crack.found or crack.main_path_px is None or len(crack.main_path_px) < 2:
@@ -227,6 +231,20 @@ def wall_geometry(crack: CrackMeasurement, to_mm, card_corners_px) -> dict | Non
                              "edges_mm": rnd(frame(crack.profile_edges_px[kk])),
                              "across": rnd(np.array([-t[1], t[0]]))})  # tension acted about along this (D81)
         extra["stations"] = stations
+    k = next((x for x in (kinematics or []) if x is not None and x.stations), None)
+    if k is not None:  # how the crack moved (D99), for the arrows in 3D: point, opening and sliding vectors, mm
+        mv = []
+        for st_ in k.stations:
+            p0 = np.asarray(st_.point_px, float)
+            n_, t_, d_ = np.asarray(st_.normal), np.asarray(st_.tangent), np.asarray(st_.vector_px, float)
+            o_px, s_px = float(d_ @ n_) * n_, (None if st_.sliding is None else float(d_ @ t_) * t_)
+            q = frame(np.vstack([p0, p0 + o_px, p0 + (s_px if s_px is not None else 0 * t_)]))
+            mv.append({"point_mm": rnd(q[0]), "opening_mm": rnd(q[1] - q[0]),
+                       "sliding_mm": None if s_px is None else rnd(q[2] - q[0])})
+        extra["movement"] = {"reading": k.reading, "opening_median_mm": None if k.opening_median is None else
+                             round(k.opening_median, 3), "sliding_median_mm": None if k.sliding_median is None else
+                             round(k.sliding_median, 3), "stations": mv,
+                             "method": "two crack faces matched ([48], as in [46]); shown only"}
     return {**extra, "frame": "wall plane, mm; x right and y up as the phone saw it (phone upright); origin at the card's centre",
             "crack_path_mm": rnd(frame(path)),
             "widest_point_mm": None if crack.widest_point_px is None else rnd(frame(crack.widest_point_px)[0]),
@@ -329,6 +347,21 @@ def _draw_card_and_widest(overlay: Image.Image, scale: float, card, crack, full:
     return out
 
 
+def _add_kinematics(r: MeasuredResult) -> None:
+    """Opening and sliding of every traced crack (D99): the method of [48] used in Corres Sojo's thesis [46], read on
+    the crack's measured edges. In mm with a bank card that measured the width, else in pixels. Shown only."""
+    try:
+        from measure.kinematics import for_crack
+        traced = r.crack if (r.crack is not None and r.crack.found) else r.pixel_crack
+        if traced is None:
+            return
+        parts = [p for p in (getattr(traced, "cracks", None) or [traced]) if p is not None]
+        ks = [for_crack(p, r.measured) for p in parts]  # one per crack, in the viewer's order (None: not read)
+        r.kinematics = ks if any(k is not None for k in ks) else None
+    except Exception as e:  # noqa: BLE001  shown only: never stops the answer
+        r.warnings.append(f"Opening and sliding not read ({type(e).__name__}).")
+
+
 def _add_anomaly(r: MeasuredResult, full: Image.Image, prob: np.ndarray, d: Decision, card) -> None:
     """What looks different from sound concrete (D89): heatmap, score and other defects, separate from the traced
     cracks and the card. Shown only, never a level; skipped quietly when the autoencoder is not installed."""
@@ -400,6 +433,7 @@ def run_measured(photo: Image.Image, model, device: str = "cpu", scene_model=Non
                            paths=None if m is None else m.branch_paths_px, width_px=
                            None if m is None else (m.width_max_mm, m.width_median_mm))  # pixels: no card
             r.views = _views(work, prob, k, None, False)
+            _add_kinematics(r)
         _add_anomaly(r, full, prob, d, None)
         return r
 
@@ -445,7 +479,9 @@ def run_measured(photo: Image.Image, model, device: str = "cpu", scene_model=Non
                 r.warnings.append(f)
         if r.crack.matrix_input() is None and r.measure_note is None:
             r.measure_note = "The width could not be read: go closer so the crack is at least 3 pixels wide."
-        r.geometry = wall_geometry(r.crack, scale.to_mm, card.corners_px)
+        if r.measure_note is None and r.crack.matrix_input() is not None:
+            _add_kinematics(r)  # D99: in mm, before the 3D geometry, which draws it
+        r.geometry = wall_geometry(r.crack, scale.to_mm, card.corners_px, r.kinematics)
     elif d.statement == NO_CRACK:
         r.measure_note = "Bank card found; there is no crack to measure."
 
@@ -467,6 +503,8 @@ def run_measured(photo: Image.Image, model, device: str = "cpu", scene_model=Non
                                       r.crack if r.measured else None, full)
     if d.statement in (CRACK, UNSURE):
         r.views = _views(work, prob, k, r.crack, r.measured)
+        if r.kinematics is None:
+            _add_kinematics(r)
     _add_anomaly(r, full, prob, d, card)
     return r
 
@@ -622,14 +660,19 @@ class Wall:
 
 def analyse(data: bytes, consent: bool, share: bool, wall: Wall, model, device: str = "cpu",
             gpu: threading.Lock | None = None, scene_model=None, card_placed: bool = False,
-            test: bool = False) -> MeasuredResult:
-    """One upload, as the original: consent, size and format, then the pipeline. Only pixels are read."""
+            test: bool = False, previous: int | None = None) -> MeasuredResult:
+    """One upload, as the original: consent, size and format, then the pipeline. Only pixels are read.
+    previous: the wall number of an earlier photo of the same crack, to compare with (D99)."""
     if not consent:
         raise ConsentMissing("Tick the consent box first.")
     photo = _open_photo(data)
     with gpu or threading.Lock():
         result = run_measured(photo, model, device, scene_model, card_placed)
     result.test = test
+    if previous is not None and result.statement in (CRACK, UNSURE):
+        from measure.growth import compare
+        before = wall.get(previous)
+        result.growth = compare(None if before is None else before.stats, result.to_dict(), previous)
     if share:
         from app.crack_view import view_data
         result.wall_number = wall.add(result.statement, result.overlay, result.to_dict(), result.views,

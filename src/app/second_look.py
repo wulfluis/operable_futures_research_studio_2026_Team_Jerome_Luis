@@ -248,9 +248,16 @@ def phone_page() -> None:
                 f'<span>{TIP_SKETCHES["card"]}<span><b>Card</b> a bank-card-sized card flat beside the crack gives mm; '
                 'cover the number</span></span>'
                 f'<span>{TIP_SKETCHES["wall"]}<span><b>Only</b> the wall: no windows, sky or people</span></span>'
-                '</div>', unsafe_allow_html=True)
+                '</div>'
+                # D99: the photo advice of a crack engineer's method (Corres Sojo 2024 [46], ch. 5.2)
+                '<p class="note"><b>Like an engineer:</b> hold the phone flat to the wall, wipe the dust off the crack '
+                'first, and on a shiny wall try a photo without flash.</p>', unsafe_allow_html=True)
     card_placed = st.checkbox("I put a bank card next to the crack")  # no tick: no card search (D56)
     share = st.checkbox("Share results")
+    # D99: a second visit of the same crack, compared only beyond the measurement's error (Corres Sojo [46])
+    before = st.text_input("Photographed this crack before? Its result number (optional)", placeholder="e.g. 12",
+                           max_chars=6)
+    previous = int(before.strip().lstrip("#")) if before.strip().lstrip("#").isdigit() else None
     # one tick only (D34): sending the photo is the consent, so its terms stand right above the upload
     st.markdown('<p class="note">By sending a photo you confirm you took it, it shows no faces, house numbers or '
                 'addresses, and you agree it is analysed. It is analysed in memory, not saved; its location is not '
@@ -265,13 +272,16 @@ def phone_page() -> None:
         try:
             with st.spinner("Looking at the photo..."):
                 done[upload.file_id] = analyse(upload.getvalue(), consent, share, wall, model, device, gpu,
-                                               scene_model, card_placed)
+                                               scene_model, card_placed, previous=previous)
         except (ConsentMissing, PhotoRejected) as e:
             st.error(str(e))
             return
     result = done[upload.file_id]
     st.markdown(f'<p class="statement">{state(result.statement)}</p>', unsafe_allow_html=True)
     st.markdown(f'<p class="reason">{result.reason}</p>', unsafe_allow_html=True)
+    if result.growth:  # D99: since the last visit, beyond the error only
+        st.markdown(f'<p class="reason"><b>Since the last visit:</b> {result.growth["reason"]}</p>',
+                    unsafe_allow_html=True)
     explore(result, upload.file_id)
     if result.views:  # D81: the same photo as heatmaps and an enhanced view
         with st.expander("Heatmaps and enhanced view"):
@@ -734,6 +744,9 @@ def _window_html(entry) -> str:
     """Beside the crack: level first, everything else folded away (D83). The numbers are in the picture."""
     d = entry.stats
     out = _box("Element, position, type and level", where_what_html(d)) if where_what_html(d) else ""
+    if d.get("statement") in ("Crack found", "Expert needed"):  # D99: the crack read as a crack engineer reads it
+        from app import engineer
+        out += _box("Read like an engineer", engineer.html(d))
     more = _facts_html(d) + _photo2_html(entry) + _views_html(entry)
     return out + f'<details class="more"><summary>Measurement, photo 2 and heatmaps</summary>{more}</details>'
 
