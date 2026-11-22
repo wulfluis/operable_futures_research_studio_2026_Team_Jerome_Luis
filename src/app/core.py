@@ -447,6 +447,14 @@ def run_measured(photo: Image.Image, model, device: str = "cpu", scene_model=Non
         prob = np.where(reference_mask((h, w), card.corners_px * k, CARD_PAD * max(w, h)), 0.0, prob)
     d = decide(prob, scale=max(w, h) / 416)
     line = f"{d.reason} Confidence {d.confidence:.0%}." if d.confidence else d.reason
+    if scene is not None and scene.far and d.statement == NO_CRACK and card is None:
+        # D110: a photo farther than a close-up with no crack line found: thin cracks do not show there, so a retake
+        r = MeasuredResult("Retake", scene_mod.FAR_NO_CRACK, None,
+                           draw_overlay(work, np.zeros((h, w), bool), "Retake", scene_mod.FAR_NO_CRACK))
+        r.scene = scene
+        return r
+    if scene is not None and scene.far and d.statement in (CRACK, UNSURE):
+        line += scene_mod.FAR_CRACK
     steel = _check_steel(full)  # D107: on every usable close-up, a crack line found or not
     seen_steel = bool((steel or {}).get("seen"))
     if seen_steel and d.statement == NO_CRACK:  # bare steel is never "no crack found": a person decides (rule 2)

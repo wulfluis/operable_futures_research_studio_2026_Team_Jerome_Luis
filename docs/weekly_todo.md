@@ -26,10 +26,11 @@ Owner: J = Jerome, L = Luis, C = coding agent (Claude). Fill in the blanks.
 - [x] Growth beyond the measurement's error raises the level (C, 22 Nov, D103); the EPFL group's own model tested, not adopted (D104)
 - [x] Simulator sends every real case by default, field pairs first (C, 22 Nov, D101, D102)
 - [x] README with real photos and real app screenshots only (C, 22 Nov, D105, D106)
+- [x] Width rule checked against 14,198 hand-measured cracks: about 0.06 mm too wide, kept on the safe side (C, 22 Nov, D108, D109)
 - [x] Exposed steel on the close-up: outlined, crack widths not used, never "No crack found" (C, 22 Nov, D107)
 
 ### Next
-- [ ] The close-up check sent 20 of 76 real close-ups to Retake: review it on real phone close-ups (J + L, C)
+- [x] The close-up check no longer throws real cracks away: Retake 20 → 1 of 76, crack found 53 → 71 (C, 22 Nov, D110); still to check on our own phone close-ups (J + L)
 - [ ] Check the sliding on real photos before it may set the matrix's `offset` sign (C, J)
 - [ ] Upload models/unet_crack_v5.pt to GitHub Releases (C, when pushing)
 - [ ] Send Corres Sojo the questions with a screenshot of his method running in the app (J)

@@ -29,3 +29,7 @@ The confusion table on the test images; at `CLOSE_UP_MIN`: the share of close-up
 
 ## Tests
 `tests/test_scene_gate.py`: the rule with a stand-in model (close-up passes, wide view gets Retake with its reason, threshold choice on validation, missing model file passes everything to the crack model with a note), the app: a wide view never reaches the crack model.
+
+
+## A far photo goes to the crack model, never to "No crack found" (D110, 22 Nov)
+On our real crack close-ups the check sent 20 of 76 to retake: this model, trained on PHI-Net's very close close-ups, takes a crack photo from 30 to 100 cm for "a whole element". Now, without a bank card: a photo that looks most like a whole building is still a Retake; one that looks like a whole element goes to the crack model, marked far. If the crack model finds no crack line there, the answer is a Retake ("go closer": thin cracks do not show on a far photo), never "No crack found". If it finds a crack, the answer says the photo is far and asks for a closer one with a bank card for the width. Evidence (`src/experiments/scene_relax_eval.py`): our real close-ups let through 72 % → 99 %; PHI-Net test whole buildings let through 0 % → 3.7 % of 400 by the scene check alone (and those with no crack line are then a Retake); PHI-Net close-ups 96 % → 100 %. Through the whole app on the 76 real cases: Retake 20 → 1, crack found 53 → 71, a level given 53 → 73.

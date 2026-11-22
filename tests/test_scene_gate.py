@@ -49,11 +49,15 @@ def test_close_up_passes():
     assert a.ok and a.scene == "close_up"
 
 
-@pytest.mark.parametrize("probs, word", [({"object": 0.05, "close_up": 0.02, "structure": 0.93}, "building"),
-                                         ({"object": 0.9, "close_up": 0.05, "structure": 0.05}, "element")])
-def test_wide_view_is_a_retake_with_a_hint(probs, word):
-    a = scene.crack_photo_check(probs, close_up_min=0.1)
-    assert not a.ok and word in a.reason and "about 1 m" in a.reason and "20 to 40" not in a.reason
+def test_a_whole_building_is_a_retake_with_a_hint():
+    a = scene.crack_photo_check({"object": 0.05, "close_up": 0.02, "structure": 0.93}, close_up_min=0.1)
+    assert not a.ok and "building" in a.reason and "about 1 m" in a.reason and not a.far
+
+
+def test_a_whole_element_goes_on_as_far():
+    """D110: real crack close-ups often read as 'a whole element' to this model; the crack model reads them."""
+    a = scene.crack_photo_check({"object": 0.9, "close_up": 0.05, "structure": 0.05}, close_up_min=0.1)
+    assert a.ok and a.far and "never" in a.reason
 
 
 def test_element_photo_must_not_be_a_close_up():
@@ -148,7 +152,7 @@ def test_with_the_card_a_photo_from_about_a_metre_is_not_a_retake():
     """Field test of 11 Nov (D68): a crack and the card from about 50 cm read as 'a whole element'; the card shows it
     is a wall, so only a whole building is a retake then."""
     element_like = {"object": 0.8, "close_up": 0.05, "structure": 0.15}
-    assert not scene.crack_photo_check(element_like).ok  # without a card: as before (D54)
+    assert scene.crack_photo_check(element_like).far  # without a card: read, but far (D110)
     assert scene.crack_photo_check(element_like, card_found=True).ok
     building = {"object": 0.2, "close_up": 0.02, "structure": 0.78}
     a = scene.crack_photo_check(building, card_found=True)
@@ -161,4 +165,13 @@ def test_through_the_app_the_card_lets_an_element_like_photo_through():
     assert spy.called and r.card is not None and r.statement == "Crack found"
     spy2 = Spy()
     r2 = run_measured(_demo(1.0)[0], spy2, scene_model=FakeScene("object"), card_placed=False)
-    assert r2.statement == "Retake" and not spy2.called  # no card ticked: the check of D54 as before
+    assert spy2.called and r2.statement == "Crack found" and "far" in r2.reason  # D110: read, and told to go closer
+
+
+def test_a_far_photo_without_a_crack_line_is_a_retake_never_no_crack_found():
+    """D110: thin cracks do not show on a far photo, so no crack line there is never 'No crack found'."""
+    rng = np.random.default_rng(0)
+    wall = Image.fromarray(rng.integers(110, 190, (480, 640, 3), dtype=np.uint8))
+    assert run_measured(wall, DEMO_MODEL, scene_model=FakeScene("close_up")).statement == "No crack found"
+    r = run_measured(wall, DEMO_MODEL, scene_model=FakeScene("object"))
+    assert r.statement == "Retake" and "go closer" in r.reason

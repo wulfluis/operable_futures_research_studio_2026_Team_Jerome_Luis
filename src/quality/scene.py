@@ -1,6 +1,7 @@
 """Scene check: is the photo a close-up (P), a whole element (O) or a whole building (S)? Spec: spec/features/scene_gate.md
-(D54). The model reads the scale; written rules decide what happens: a crack photo that is not a close-up is a Retake,
-and an element photo must not be a close-up.
+(D54). The model reads the scale; written rules decide what happens: a crack photo of a whole building is a Retake; one
+that looks like a whole element goes to the crack model, and without a crack line it is a Retake, never "No crack
+found" (D110); an element photo must not be a close-up.
 """
 
 from __future__ import annotations
@@ -27,6 +28,11 @@ RETAKE_WIDE = ("This looks like {seen}, not a wall with a crack: go closer, abou
 RETAKE_BUILDING = ("This looks like a whole building, not a wall with a crack: go closer, about 1 m or nearer, so the "
                    "crack and the bank card fill most of the photo.")
 RETAKE_CLOSE = "This is a close-up: step back so the whole column, beam or wall is in the photo."
+FAR_NOTE = ("The photo looks farther than a close-up ({seen}, {p:.0%}): the crack model reads it, but if it finds no "
+            "crack line the answer is a retake, never \"No crack found\" (D110).")
+FAR_NO_CRACK = ("No crack line found, but the photo looks farther than a close-up, where thin cracks do not show: go "
+                "closer, about 1 m or nearer, so the crack and the wall around it fill most of the photo.")
+FAR_CRACK = " The photo is far: for the width, take it again closer, with a bank card next to the crack."
 
 
 @dataclass
@@ -35,10 +41,11 @@ class SceneAnswer:
     close_up: float | None  # calibrated probability of a close-up
     ok: bool
     reason: str
+    far: bool = False  # D110: let through to the crack model, but farther than a close-up
 
     def to_dict(self) -> dict:
         return {"scene": self.scene, "close_up_probability": None if self.close_up is None else round(self.close_up, 3),
-                "ok": self.ok, "reason": self.reason, "close_up_min": CLOSE_UP_MIN}
+                "ok": self.ok, "far": self.far, "reason": self.reason, "close_up_min": CLOSE_UP_MIN}
 
 
 def load(path: Path = MODEL_FILE, device: str = "cpu"):
@@ -91,8 +98,11 @@ def crack_photo_check(probs: dict[str, float] | None, close_up_min: float = CLOS
         return SceneAnswer(best, probs["close_up"], False, RETAKE_BUILDING)
     if probs["close_up"] >= close_up_min:
         return SceneAnswer(best, probs["close_up"], True, f"A close-up ({probs['close_up']:.0%}).")
-    seen = NAMES["structure" if probs["structure"] >= probs["object"] else "object"]
-    return SceneAnswer(best, probs["close_up"], False, RETAKE_WIDE.format(seen=seen))
+    if probs["structure"] >= probs["object"]:  # a whole building: a retake, as before (D54)
+        return SceneAnswer(best, probs["close_up"], False, RETAKE_WIDE.format(seen=NAMES["structure"]))
+    # D110: a whole element, or a crack close-up this model (trained on very close PHI-Net close-ups) takes for one:
+    # the crack model reads it; with no crack line found, the answer is a retake (run_measured), never "No crack found"
+    return SceneAnswer(best, probs["close_up"], True, FAR_NOTE.format(seen=NAMES["object"], p=probs["object"]), far=True)
 
 
 def element_photo_check(probs: dict[str, float] | None) -> SceneAnswer:
