@@ -18,6 +18,11 @@ from scipy.spatial import cKDTree
 MIN_PX_ACROSS = 3.0  # [46]: below 3 pixels across the crack, errors grow quickly
 GOOD_PX_ACROSS = 6.0  # [46]: 6 to 8 pixels across recommended (about +-15 %)
 WIDTH_UNCERTAINTY_PX = 1.0  # [46] ch. 5.2
+# D109: the crack's edge is where the brightness has gone this share of the way from the wall down to the crack's
+# darkest point. Half-way stays: deeper levels (0.6 to 0.85) read 14,198 hand-measured lab cracks closer [113], but
+# read drawn cracks of known width too narrow (1 to 2 mm cracks up to 0.18 mm under at 0.7), and too narrow could
+# lower a level. To decide on our own photos with a crack gauge.
+EDGE_DEPTH = 0.5
 BACKGROUND_PX = 41  # illustrative; must be wider than the widest crack in pixels
 MIN_COMPONENT_PX = 30  # illustrative
 MIN_ELONGATION = 3.0  # illustrative
@@ -234,8 +239,8 @@ def profile_width(grey_s, maskf, x, y, nx, ny, half):
     if len(left) and len(right):
         bl, br, c = float(np.median(left)), float(np.median(right)), float(g[ic])
         if min(bl, br) - c >= MIN_CONTRAST:
-            gl = _crossing(t, g, ic, -1, (bl + c) / 2, True)
-            gr = _crossing(t, g, ic, 1, (br + c) / 2, True)
+            gl = _crossing(t, g, ic, -1, bl - EDGE_DEPTH * (bl - c), True)
+            gr = _crossing(t, g, ic, 1, br - EDGE_DEPTH * (br - c), True)
             if gl is not None and gr is not None and 0.5 * mask_w - 1 <= gr - gl <= 1.5 * mask_w + 2:
                 return gl, gr, "grey"
     return ml, mr, "mask"

@@ -22,6 +22,7 @@ known width, they are not evidence about a real building (D91).
 
 import argparse
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -33,6 +34,8 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT / "src") not in sys.path:
     sys.path.insert(0, str(ROOT / "src"))
 from app.inbox import INBOX  # noqa: E402
+
+INBOX = Path(os.environ.get("SECOND_LOOK_INBOX") or INBOX)  # the same setting as the app: a second copy, its own inbox
 from measure.synthetic import make_demo  # noqa: E402
 
 PICKS = ROOT / "data" / "inbox_cases" / "picks.json"
