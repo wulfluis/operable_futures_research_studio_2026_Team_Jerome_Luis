@@ -39,6 +39,10 @@ PICKS = ROOT / "data" / "inbox_cases" / "picks.json"
 FIELD = ROOT / "data" / "field"  # the team's own field photos with a bank card (D87), local only
 BY_LEVEL = ROOT / "data" / "inbox_cases" / "by_level.json"
 TEST_SET = ROOT / "data" / "inbox_cases" / "test_set.json"  # D94: real cases reviewed by eye, local only
+TOPO_TEST = ROOT / "data" / "raw" / "epfl_topo" / "data" / "test_set" / "images"  # [108]: cracked buildings, local only
+# D101, reviewed by eye on 22 Nov: the close-up shows a real crack of the building in the far photo. Left out: the
+# close-up cut around a roof edge, the sky or a shutter (DSC_0123, IMG_4237, IMG_6845, KB0739).
+TOPO_KEEP = {"AD0021.png", "AD0043.png", "DSC_0086.png", "IMG_1400.png", "SFR_1955.png"}
 
 PHINET6 = ROOT / "data" / "raw" / "phinet" / "task6_component_type"
 PHINET1 = ROOT / "data" / "raw" / "phinet" / "task1_scene_level"
@@ -118,6 +122,53 @@ def real_cases(n: int, picks_file: Path | None = None):
                                         "(local only, D63)"}
 
 
+def all_real_cases():
+    """Every real two-photo case set, each case once (D101): the test set reviewed by eye (D94), the cases per risk tab
+    (D79) and the earlier picks (D63), by their photo and close-up."""
+    seen, out = set(), []
+    for f in (TEST_SET, BY_LEVEL, PICKS):
+        if not f.exists():
+            continue
+        for case in json.loads(f.read_text(encoding="utf-8"))["cases"]:
+            key = (case.get("photo"), tuple(case.get("crop") or ()))
+            if case.get("synthetic") or key in seen:
+                continue
+            seen.add(key)
+            out.append(case)
+    return out
+
+
+def topo_cases(folder: Path = TOPO_TEST):
+    """The EPFL test photos of cracked buildings after earthquakes ([108], CC BY 4.0, D101): photo 2 the whole photo
+    (a facade, often more than one element), photo 1 the close-up cut around the crack the crack model finds there.
+    Local only; the photos are never copied into the repository."""
+    from PIL import ImageOps
+    if not folder.is_dir():
+        return
+    import torch
+    from app.pick_cases import crop_box
+    from element import photo2
+    from segmentation.train import load_checkpoint
+    dev = "cuda" if torch.cuda.is_available() else "cpu"
+    model = load_checkpoint(ROOT / "models" / "unet_crack.pt", dev)
+    for path in sorted(folder.glob("*.png")):
+        if path.name not in TOPO_KEEP:
+            continue
+        with Image.open(path) as im:
+            full = ImageOps.exif_transpose(im).convert("RGB")
+        small = full.copy()
+        small.thumbnail((1100, 1100))
+        on = photo2.read(model, small, dev)  # only to place the close-up
+        if on.bbox_px is None:
+            continue
+        close_up = full.crop(crop_box(on.bbox_px, on.size_px, full.size))
+        whole = full.copy()
+        whole.thumbnail((2400, 2400))
+        yield close_up, whole, {"card_placed": False, "photo": path.name,
+                                "kind": "REAL: cracked building after an earthquake, EPFL test photo [108], close-up "
+                                        "cut around its crack (local only, D101)"}
+
+
 def field_cases(folder: Path = FIELD):
     """The team's own field photos (D87): every pair_N_crack.jpg with its pair_N_element.jpg, in any subfolder of
     data/field/. A crack photo without its element photo is sent alone. Local only, never copied into the repository
@@ -168,9 +219,25 @@ def main(argv=None) -> None:
     ap.add_argument("--no-field", action="store_true", help="leave out the team's own field photos (D87)")
     ap.add_argument("--test-set", action="store_true", help="the real test set reviewed by eye (D94)")
     ap.add_argument("--showcase", action="store_true", help="also the six drawn showcase cases, photo 1 only (D90, D91)")
+    ap.add_argument("--everything", action="store_true",
+                    help="every real case once: field photos, test set, risk tabs, picks, EPFL buildings, and the "
+                         "photos without a card, without a crack and of a whole building (D101)")
     args = ap.parse_args(argv)
     INBOX.mkdir(parents=True, exist_ok=True)
     field = ([] if args.no_field else list(field_cases())) + (list(showcase_cases()) if args.showcase else [])
+    if args.everything:
+        tmp = ROOT / "data" / "inbox_cases" / "_everything.json"  # local, rebuilt each run
+        tmp.write_text(json.dumps({"cases": all_real_cases()}), encoding="utf-8")
+        cases = field + list(real_cases(10_000, tmp)) + list(topo_cases()) + list(mixed_cases())
+        print(f"{len(cases)} real cases into {INBOX}: field photos, survey photos, EPFL buildings, and photos "
+              "without a card, without a crack and of a whole building.")
+        stamp = time.strftime("%H%M%S")
+        for i, (crack, element, meta) in enumerate(cases, 1):
+            _write(INBOX / f"{stamp}_{i:03d}", crack, element, meta)
+            print(f"  resident {i}: {meta['kind']}", flush=True)
+            time.sleep(args.delay)
+        print("Done. Wall: http://localhost:8501/?wall")
+        return
     if args.test_set:
         if not TEST_SET.exists():
             sys.exit(f"No test set yet ({TEST_SET}): py src/app/pick_test_set.py data/raw/haiti2010/Photos")
