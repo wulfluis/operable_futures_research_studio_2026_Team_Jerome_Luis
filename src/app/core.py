@@ -994,9 +994,11 @@ def level_for(result: MeasuredResult, element: str | None, position: str, patter
         c = {"width_mm": result.estimate["width_max_mm"], "width_uncertainty_mm": result.estimate["uncertainty_mm"]}
     conf = confidence if confidence is not None else result.confidence
     conf = conf if conf is not None else float("nan")
+    signs = (("rust_stain",) if rust_stain else ()) + (
+        ("growing",) if (result.growth or {}).get("grown") is True else ())  # D103: grown beyond the error ([46], D23)
     return assess(pattern or "none", element or "unknown", c["width_mm"] if c else float("nan"), conf,
                   result.statement != "Retake", width_uncertainty_mm=c["width_uncertainty_mm"] if c else 0.0,
-                  escalators=("rust_stain",) if rust_stain else (), location=POSITIONS[position])
+                  escalators=signs, location=POSITIONS[position])
 
 
 def where_on_element(result: MeasuredResult, element: str | None) -> tuple[str, str | None]:
@@ -1037,6 +1039,8 @@ def auto_triage(result: MeasuredResult, wall: Wall | None = None) -> LevelResult
                    f"{POSITION_NAMES[position]}.")
     if result.spalling:
         why.append(f"Spalling or exposed bars seen on the photo of the element ({result.spalling_p:.0%}).")
+    if (result.growth or {}).get("grown") is True:
+        why.append(result.growth["reason"])
     if not result.measured and result.test and result.estimate:
         why.append(f"Width {result.estimate['width_max_mm']:g} ± {result.estimate['uncertainty_mm']:g} mm "
                    f"{result.estimate['basis']}.")

@@ -44,6 +44,10 @@ What the viewer shows:
 - **The width at every point.** In millimetres with the bank card, in pixels without it, never invented.
 - **The crack's shape.** Its angle, how straight it runs, its branches and the closed cells of a network, which the written rules read to suggest its type.
 - **What looks different from sound concrete.** The autoencoder's heatmap, as a separate layer.
+- **How the crack moved, as a crack engineer reads it.** Cyan arrows across the crack show its opening, amber arrows along it its sliding, read from the crack's two faces: they were one surface, so the bumps of one match the hollows of the other. This is the method of Pantoja-Rosero et al. (EPFL, 2022) used in E. Corres Sojo's PhD thesis on cracks in reinforced concrete (EPFL, 2024), written as our own code and checked on the authors' published test cracks.
+- **How sure each width is.** A grey band of ± 1 pixel on the width chart: on a 50-year-old crack, photo widths matched a crack microscope within one pixel (Corres Sojo, ch. 5.2).
+
+Each result also has a panel, **Read like an engineer**: how the crack moved, how sure the width is, what a crack along a steel bar means for the bar's grip, whether it has grown since an earlier photo (only when the change is larger than the measurement's error), and the sources it rests on. It is shown only: the level still comes from the written rules.
 
 Shared results appear on a live wall for the class projector, one tab per answer. A result opens over the wall: the crack on the left, the level and its reason on the right, and the crack in 3D from Rhino and Grasshopper.
 
@@ -81,20 +85,22 @@ Learned models only see. Every level comes from written rules in `src/triage/`, 
 
 | Job | Done by | Compared with | Result so far |
 |---|---|---|---|
-| Find the crack | U-Net, ResNet-34 encoder (crack model v4), two thresholds | Our previous model, v3 | Building concrete, 588 unseen tiles: 19 of 281 cracks missed, 5 false alarms on 307 tiles without a crack (v3, 9 Nov: 30 missed, 21 false alarms) |
+| Find the crack | U-Net, ResNet-34 encoder (crack model v5, trained also on the EPFL photos of cracked buildings after earthquakes), two thresholds | Our previous model v4, and the EPFL group's own model | Our 76 real cases: 3 cracks missed (v4: 9; EPFL model: 2, but 2.5 times the false alarms). Building concrete, 588 unseen tiles: 20 of 281 missed, 8 false alarms on 307 clean tiles (v4: 19 and 5) |
 | Trace the whole crack | SAM 3.1 adds the lines connected to the crack found | The crack model alone | Same 588 tiles: 84.4 % of the crack traced instead of 81.6 %, the same 19 missed and 5 false alarms. Alone, SAM would have drawn cracks on 35 of the 307 clean tiles, so it never decides |
 | Is the photo a close-up? | ConvNeXt-tiny on PHI-Net's scene classes | No check | No whole building let through; 4 % of close-ups sent to retake |
 | Which element is it? | ConvNeXt-tiny on PHI-Net | Our first element model | Answers 67 % of 579 test photos with confidence, right on 86 % of those; a column called something else 4.9 % of the time (first model: 20.5 %) |
 | What looks different from sound concrete | Autoencoder trained on 39,885 sound-concrete photos | No check | Lights up the crack on 256 of 281 tiles, a false area on 0 of 307 clean tiles. It does not see soft stains (rust, damp): shown only, never a level |
 | Spalling as an area | SAM 3.1 with four prompts | Photos with and without spalling | Not reliable: the best prompt lit 52 % of spalling photos and 22 % of clean ones. Not shown |
 | Width in mm | Plain measurement from the bank card, no AI | A printed gauge with known widths | Gauge and script ready; no photos taken yet |
+| How the crack moved | Plain measurement: the two faces matched, no AI (method of [Pantoja-Rosero et al. 2022](https://doi.org/10.1016/j.conbuildmat.2022.128054)) | The known movements of the authors' 56 published test cracks | Sliding within 0.85 px; opening 1.4 px too large (their masks include border pixels); "mostly opening" or not right on 50 of 53. Shown only |
 | The level | Written risk matrix, no AI | An engineer's visual check | Not run yet: it needs engineer-labelled photos of our own |
 
 These are scores on public photos, not on our own. Success means beating an engineer's visual check on held-out, engineer-labelled photos while missing almost no Category 3 cases; we stop or redesign if the tool misses Category 3 cases that engineers would flag. Details: `docs/experiments/`.
 
-## Where we are (21 Nov 2026)
+## Where we are (22 Nov 2026)
 
-- **Working:** photo check, crack model with SAM 3.1 tracing, bank-card measurement, every crack in its own colour, element and scene models, the two linked photos, the risk matrix, the crack viewer, the autoencoder heatmap, the live wall and each crack in 3D in Rhino and Grasshopper.
+- **Working:** photo check, crack model with SAM 3.1 tracing, bank-card measurement, every crack in its own colour, element and scene models, the two linked photos with every crack traced on the whole element, the risk matrix, the crack viewer with each crack's opening and sliding, the autoencoder heatmap, growth since an earlier photo, the live wall and each crack in 3D in Rhino and Grasshopper.
+- **New today:** crack model v5, trained also on the EPFL photos of cracked buildings after earthquakes: 3 real cracks missed instead of 9. A crack that has grown beyond the measurement's error raises the level.
 - **Not yet:** spalling, rust and damp as areas (they need close-up photos of real defects to test on); a material model; every threshold is still to be calibrated with our engineering partners.
 - **Next:** photos of real spalling, rust and damp with the card, width-check photos, engineer-labelled photos for the baseline comparison, the app online.
 - The full history: `docs/status_history.md` and `spec/decisions.md`. This week: `docs/weekly_todo.md`. The plan to the final presentation on 17 Dec: `spec/constitution/roadmap.md`.

@@ -25,7 +25,7 @@ from segmentation.predict import MODEL, draw_overlay
 from segmentation.train import load_checkpoint, to_tensor
 
 DATASET = {"crackseg": "crack-seg", "cs9k": "CrackSeg9k", "metu": "METU", "sdnet": "SDNET2018", "darb": "Darbhanga",
-           "ozg": "Ozgenel"}
+           "ozg": "Ozgenel", "topo": "EPFL TOPO-Loss WILD", "dic": "EPFL DIC"}  # D100
 
 
 def outcome(statement: str, has_crack: bool) -> str:

@@ -22,11 +22,14 @@ Owner: J = Jerome, L = Luis, C = coding agent (Claude). Fill in the blanks.
 - [x] Real test set of 74 survey cases, reviewed by eye; the element photo traces every crack and spalled area inside the element's outline (C, 21 Nov, D94 to D96)
 - [x] Element photo: cracks traced whole, not in dashes; only the element holding the crack; no red ring in the parts view (C, 22 Nov, D97, D98)
 - [x] The crack read like an engineer, from Corres Sojo's thesis: opening and sliding arrows, ± 1 px width band, photo advice, growth since an earlier photo, "Read like an engineer" panel, arrows in 3D (C, 22 Nov, D99)
-- [x] EPFL crack sets downloaded and checked (TOPO-Loss WILD, DIC, kinematics); candidate crack model v5 trained on them (C, 22 Nov, D100)
+- [x] EPFL crack sets downloaded and checked (TOPO-Loss WILD, DIC, kinematics); crack model v5 trained on them replaces v4: 3 real cracks missed instead of 9 (C, 22 Nov, D100)
+- [x] Growth beyond the measurement's error raises the level (C, 22 Nov, D103); the EPFL group's own model tested, not adopted (D104)
+- [x] Simulator sends every real case by default, field pairs first (C, 22 Nov, D101, D102)
 
 ### Next
 - [ ] The close-up check sent 20 of 76 real close-ups to Retake: review it on real phone close-ups (J + L, C)
-- [ ] Decide whether the measured growth and sliding may set the matrix's `growing` and `offset` signs (J, D99)
+- [ ] Check the sliding on real photos before it may set the matrix's `offset` sign (C, J)
+- [ ] Upload models/unet_crack_v5.pt to GitHub Releases (C, when pushing)
 - [ ] Send Corres Sojo the questions with a screenshot of his method running in the app (J)
 - [ ] Close-up photos of real spalling, rust and damp, with the card, to test spalling and stain detection (J + L)
 - [ ] Photos with real rust, damp and spalling to test the autoencoder's colour rules (J + L)

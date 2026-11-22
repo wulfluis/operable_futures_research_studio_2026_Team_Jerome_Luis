@@ -146,3 +146,24 @@ def test_never_says_safe(shared_result):
         r.element = ElementAnswer(answer, False, 0.95, "")
         auto_triage(r, wall)
         assert not re.search(r"\bsafe\b|clearance|permit", str(r.to_dict()), re.I)
+
+
+def test_growth_beyond_the_error_raises_the_level_and_nothing_else_does(shared_result):
+    """D103: a crack grown by more than the error ([46], D23) sets the matrix's growing sign; no change, or no
+    comparison, leaves the level as it was."""
+    from triage.matrix import LEVELS
+    r, _ = shared_result
+    keep = r.growth
+    try:
+        r.growth = None
+        base = level_for(r, "beam", "middle", "flexural")
+        r.growth = {"grown": False, "reason": "no change"}
+        assert level_for(r, "beam", "middle", "flexural").level == base.level
+        r.growth = {"grown": None, "reason": "not compared"}
+        assert level_for(r, "beam", "middle", "flexural").level == base.level
+        r.growth = {"grown": True, "reason": "grown"}
+        grown = level_for(r, "beam", "middle", "flexural")
+        assert LEVELS.index(grown.level) >= LEVELS.index(base.level)
+        assert "grown" in grown.reason or LEVELS.index(grown.level) > LEVELS.index(base.level)
+    finally:
+        r.growth = keep

@@ -21,8 +21,9 @@ Jerome, 22 Nov: the app must read cracks the way an engineer does. E. Corres Soj
 - **Growth since an earlier photo** (`src/measure/growth.py`): the resident may give the result number of an earlier photo of the same crack. Both must be measured with a bank card (mm). Grown only when the widest width grew by more than the two photos' errors combined (root of the sum of squares, an assumption) ([46] ch. 5.3, D23). Narrower by more than the error: "more likely a different spot, light or distance", never "closing".
 - **"Read like an engineer" panel** in the result window (`src/app/engineer.py`): how the crack moved, how sure the width is, a crack along a bar weakens the bar's grip (bond, [46] ch. 2 and 4), the growth, and what it rests on; the sources by name. It says that the level does not come from this work.
 
-## Not wired to the level (open decision)
-The written matrix already has two signs this work can measure: `growing` (growth beyond the measurement uncertainty, D23) and `offset` (one side displaced, measured as sliding beyond its uncertainty). Both stay unset by the app until Jerome decides (D99); today only a person can report them.
+## Wired to the level
+- `growing` (D103): set when the growth is beyond the two photos' errors combined; +1 level, never lower.
+- `offset` (one side displaced): not set by the app; sliding stays shown only until it is checked on real photos.
 
 ## Limits
 - A clean crack with straight faces has no bumps to match: sliding is then not readable and is shown as "not readable", never as zero.

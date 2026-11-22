@@ -348,3 +348,12 @@ Jerome asked for many more real cases in the interface, in different categories,
 
 ## D102 (2026-11-22): every real case is the simulator's default population
 Jerome: always send all of these as residents, the team's field pairs included. `py src/app/simulate.py` with no option now sends the whole set of D101 (field pairs first); the older, smaller sets (`--test-set`, `--by-level`, `--synthetic`, `--mixed`) only when asked for by name. The photos stay local and are never saved by the app (rule 9): they are sent again after each restart.
+
+## D100 (2026-11-22): crack model v5, trained also on the EPFL crack photos, replaces v4
+v5 = v4's training plus the EPFL photos of cracked buildings after earthquakes [108] and of lab walls [109] (`src/segmentation/epfl.py`). On our 76 real cases through the app it misses 3 cracks instead of 9 (53 found instead of 47); on the EPFL building test tiles 46 instead of 65. Known weakness: 3 more false alarms on clean building concrete (8 of 307 against 5) and 16 more misses on the old public close-ups (mostly pavement, off-concept). The rule of D48 (judge on all test photos, missed cracks first, building concrete closest to the concept) is applied, now with our real cases first. `models/unet_crack.pt` is v5; v4 is kept as `models/unet_crack_v4.pt`, to go back at any time. Note: `docs/experiments/2026-11-22_crack_models_v5_epfl.md`.
+
+## D103 (2026-11-22): growth beyond the error raises the level
+Jerome agreed: a crack measured with a bank card twice, grown by more than the two photos' errors combined ([46] ch. 5.3, D23, `src/measure/growth.py`), sets the matrix's `growing` sign (+1 level, never lower). No change, a change within the error, or no comparison (no card) leaves the level as it was. The reason says so. Sliding (the `offset` sign) stays shown only until it is checked on real photos. Test: `tests/test_app_classification.py`.
+
+## D104 (2026-11-22): the EPFL group's own crack model, tested, not adopted
+The TOPO-Loss model [108] (their best weights, CC BY 4.0) runs in our own code for its layout (`src/segmentation/epfl_unet16.py`, TernausNet's UNet16 [112], MIT; the authors' code is GPL-3.0, read for how its output is used, not copied). It gives a distance to the crack line; under 2 px is crack, as the authors read it. On our real cases it misses 2 (v5: 3) but on clean building concrete it raises 20 false alarms of 307 (v5: 8) and is unsure on 8 cases: not adopted. Kept local (`models/unet_crack_epfl.pt`, not on Releases) for comparison. Test: `tests/test_epfl_unet16.py`.

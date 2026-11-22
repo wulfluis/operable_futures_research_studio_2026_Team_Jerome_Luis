@@ -29,8 +29,13 @@ def to_tensor(rgb: np.ndarray) -> torch.Tensor:
 
 
 def load_checkpoint(path: Path, device: str = "cpu") -> torch.nn.Module:
+    state = torch.load(path, map_location=device, weights_only=True)
+    if "model" not in state:  # D104: the EPFL crack model [108], loaded by its own layout
+        from segmentation.epfl_unet16 import is_epfl, load
+        if is_epfl(state):
+            return load(Path(path), device)
     model = build_model(pretrained=False)
-    model.load_state_dict(torch.load(path, map_location=device, weights_only=True)["model"])
+    model.load_state_dict(state["model"])
     return model.to(device).eval()
 
 

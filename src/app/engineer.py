@@ -63,8 +63,9 @@ def notes(d: dict) -> list[dict]:
         out.append({"title": "Since the last visit", "text": g.get("reason", ""), "source": "thesis"})
     out.append({"title": "What this rests on",
                 "text": "The movement, the width's error and the growth rule follow a crack engineer's published "
-                        "work. The level does not: it comes from our written risk rules, illustrative until an "
-                        "engineer calibrates them, and an engineer confirms every Category 3.",
+                        "work. The level comes from our written risk rules, illustrative until an engineer calibrates "
+                        "them; growth beyond the error raises it by one step (never lowers it), and an engineer "
+                        "confirms every Category 3.",
                 "source": "thesis"})
     return out
 
@@ -74,4 +75,4 @@ def html(d: dict) -> str:
     rows = "".join(f'<p class="d-line"><b>{n["title"]}.</b> {n["text"]}</p>' for n in notes(d))
     refs = "".join(f'<li>{SOURCES[k]}</li>' for k in ("thesis", "method"))
     return rows + f'<p class="d-note">Based on:</p><ul class="d-note">{refs}</ul><p class="d-note">Shown only: the ' \
-                  'level does not use it.</p>'
+                  'level does not use it, except growth beyond the error, which raises it (D103).</p>'
