@@ -112,6 +112,7 @@ Learned models only see. Every level comes from written rules in `src/triage/`, 
 | Is the photo a close-up? | ConvNeXt-tiny on PHI-Net's scene classes | No check | No whole building let through; 4 % of close-ups sent to retake |
 | Which element is it? | ConvNeXt-tiny on PHI-Net | Our first element model | Answers 67 % of 579 test photos with confidence, right on 86 % of those; a column called something else 4.9 % of the time (first model: 20.5 %) |
 | What looks different from sound concrete | Autoencoder trained on 39,885 sound-concrete photos | No check | Lights up the crack on 256 of 281 tiles, a false area on 0 of 307 clean tiles. It does not see soft stains (rust, damp): shown only, never a level |
+| Exposed steel on the close-up | SAM 3.1 asked for bars | Our real close-ups, checked by eye | About 15 bars found, none falsely, about 8 missed (under rubble or in shadow). When seen, the crack widths are not used and an expert looks |
 | Spalling as an area | SAM 3.1 with four prompts | Photos with and without spalling | Not reliable: the best prompt lit 52 % of spalling photos and 22 % of clean ones. Not shown |
 | Width in mm | Plain measurement from the bank card, no AI | A printed gauge with known widths | Gauge and script ready; no photos taken yet |
 | How the crack moved | Plain measurement: the two faces matched, no AI (method of [Pantoja-Rosero et al. 2022](https://doi.org/10.1016/j.conbuildmat.2022.128054)) | The known movements of the authors' 56 published test cracks | Sliding within 0.85 px; opening 1.4 px too large (their masks include border pixels); "mostly opening" or not right on 50 of 53. Shown only |
@@ -186,7 +187,7 @@ Raw data is not committed; `data/` stays empty in the repository.
 | Tools | Claude Code (agent) |
 | Why | to move fast on models, measurement and an app that were new to us, and for first drafts of the specs and texts |
 | Where | the training and evaluation scripts, the measurement code, the risk matrix code from our written rules, the app and the crack viewer, the autoencoder, SAM 3.1's extension, the Grasshopper script, the figures and the images of this README, and first drafts of the specs and the decisions log |
-| How | every feature starts as a spec in `spec/`, then code, then tests (629 pass); every model is scored on photos it never saw and against the plain way; thresholds are chosen on validation photos and reported on test photos; the levels come only from written rules; the team reads every decision in `spec/decisions.md` |
+| How | every feature starts as a spec in `spec/`, then code, then tests (636 pass); every model is scored on photos it never saw and against the plain way; thresholds are chosen on validation photos and reported on test photos; the levels come only from written rules; the team reads every decision in `spec/decisions.md` |
 
 Lessons learned:
 - **A number that looks good can hide a blind model.** The autoencoder's first threshold flagged almost nothing on real plaster; it was set on rough concrete. Look at the pictures, not only the score.

@@ -122,6 +122,7 @@ class MeasuredResult:
     pixel_crack: CrackMeasurement | None = field(default=None, repr=False)  # the crack in pixels, no card (D83)
     kinematics: list | None = field(default=None, repr=False)  # opening and sliding per crack (D99), shown only
     growth: dict | None = None  # the change since an earlier photo of the same crack (D99), shown only
+    exposed_steel: dict | None = None  # possible exposed steel on the close-up (D107); None: not checked
 
     @property
     def measured(self) -> bool:
@@ -165,6 +166,8 @@ class MeasuredResult:
                 "scene": None if self.scene is None else self.scene.to_dict(),
                 "geometry": self.geometry if self.measured else None,
                 "growth": self.growth,
+                "exposed_steel": None if self.exposed_steel is None else {
+                    k: self.exposed_steel.get(k) for k in ("seen", "score", "prompt")},
                 "kinematics": None if not self.kinematics else [None if k is None else k.to_dict() for k in self.kinematics],
                 "estimate": self.estimate,
                 "photo2": None if self.on_element is None and self.spalling is None else {
@@ -176,7 +179,8 @@ class MeasuredResult:
     def suggested_pattern(self) -> PatternSuggestion | None:
         """The written rules' type for the model's element (D43, D53); a suggestion, never a level by itself."""
         from element.predict import matrix_element
-        return self.pattern(matrix_element(self.element), spalling=self.spalling)
+        steel = bool((self.exposed_steel or {}).get("seen"))  # D107: exposed steel on the close-up
+        return self.pattern(matrix_element(self.element), spalling=self.spalling or steel or None)
 
 
 GEOMETRY_MAX_POINTS = 200  # the crack line sent to the 3D model (D57)
@@ -347,9 +351,35 @@ def _draw_card_and_widest(overlay: Image.Image, scale: float, card, crack, full:
     return out
 
 
+STEEL_NO_CRACK = ("No crack line found, but possible exposed steel on the photo (SAM 3.1): the concrete cover may be "
+                  "gone. An expert should look.")
+STEEL_NOTE = ("Possible exposed steel on the photo (SAM 3.1): the traced crack lines may follow the steel and the "
+              "broken concrete, so their widths are not used.")
+
+
+def _check_steel(full: Image.Image) -> dict | None:
+    """Exposed steel on the close-up (D107); None when SAM 3.1 is not on this laptop or fails (never stops the answer)."""
+    try:
+        from element.steel import find
+        return find(full)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _steel_defects(r: MeasuredResult) -> None:
+    """The steel's outline as a defect layer in the crack viewer (D107), beside the autoencoder's (D89)."""
+    st = r.exposed_steel or {}
+    if st.get("seen") and st.get("defects"):
+        if r.anomaly is None:
+            r.anomaly = {"score": None, "defects": [], "heat_png": None, "version": None}
+        r.anomaly["defects"] = st["defects"] + r.anomaly["defects"]
+
+
 def _add_kinematics(r: MeasuredResult) -> None:
     """Opening and sliding of every traced crack (D99): the method of [48] used in Corres Sojo's thesis [46], read on
     the crack's measured edges. In mm with a bank card that measured the width, else in pixels. Shown only."""
+    if (r.exposed_steel or {}).get("seen"):  # D107: the lines may follow the steel, not a crack's two faces
+        return
     try:
         from measure.kinematics import for_crack
         traced = r.crack if (r.crack is not None and r.crack.found) else r.pixel_crack
@@ -417,6 +447,12 @@ def run_measured(photo: Image.Image, model, device: str = "cpu", scene_model=Non
         prob = np.where(reference_mask((h, w), card.corners_px * k, CARD_PAD * max(w, h)), 0.0, prob)
     d = decide(prob, scale=max(w, h) / 416)
     line = f"{d.reason} Confidence {d.confidence:.0%}." if d.confidence else d.reason
+    steel = _check_steel(full)  # D107: on every usable close-up, a crack line found or not
+    seen_steel = bool((steel or {}).get("seen"))
+    if seen_steel and d.statement == NO_CRACK:  # bare steel is never "no crack found": a person decides (rule 2)
+        line = STEEL_NO_CRACK
+    elif seen_steel and card is None:  # with a card, the note comes as "Width not measured: ..."
+        line += " " + STEEL_NOTE
 
     if card is None:  # exactly the original's answer
         if d.statement != NO_CRACK:
@@ -425,6 +461,10 @@ def run_measured(photo: Image.Image, model, device: str = "cpu", scene_model=Non
                      " Width unknown: add a bank card (or the scale card) next to the crack.")
         r = MeasuredResult(d.statement, line, d.confidence, draw_overlay(work, d.mask, d.statement, line), d)
         r.scene = scene
+        r.exposed_steel = steel
+        if seen_steel and d.statement == NO_CRACK:
+            r.statement = UNSURE
+            r.overlay = draw_overlay(work, d.mask, UNSURE, line)
         if d.statement in (CRACK, UNSURE):  # the type needs no scale; the answer above stays the original's
             m = pixel_line(full, prob, d.mask)
             r.pixel_shape = pixel_shape(m)
@@ -435,11 +475,17 @@ def run_measured(photo: Image.Image, model, device: str = "cpu", scene_model=Non
             r.views = _views(work, prob, k, None, False)
             _add_kinematics(r)
         _add_anomaly(r, full, prob, d, None)
+        _steel_defects(r)
         return r
 
     r = MeasuredResult(d.statement, line, d.confidence, work, d, card)
     r.scene = scene
-    if card.status == "retake":
+    r.exposed_steel = steel
+    if seen_steel and d.statement == NO_CRACK:
+        r.statement = UNSURE
+    if seen_steel:  # D107: no width from lines that may follow the steel
+        r.measure_note = STEEL_NOTE
+    elif card.status == "retake":
         r.measure_note = card.message
     elif card.status == "tilted":
         r.warnings.append(card.message)
@@ -482,7 +528,7 @@ def run_measured(photo: Image.Image, model, device: str = "cpu", scene_model=Non
         if r.measure_note is None and r.crack.matrix_input() is not None:
             _add_kinematics(r)  # D99: in mm, before the 3D geometry, which draws it
         r.geometry = wall_geometry(r.crack, scale.to_mm, card.corners_px, r.kinematics)
-    elif d.statement == NO_CRACK:
+    elif d.statement == NO_CRACK and not seen_steel:
         r.measure_note = "Bank card found; there is no crack to measure."
 
     if d.statement in (CRACK, UNSURE):
@@ -499,13 +545,14 @@ def run_measured(photo: Image.Image, model, device: str = "cpu", scene_model=Non
     elif d.statement != NO_CRACK:
         line += " Width not measured: " + r.measure_note[0].lower() + r.measure_note[1:]
     r.reason = line
-    r.overlay = _draw_card_and_widest(draw_overlay(work, d.mask, d.statement, line), k, card,
+    r.overlay = _draw_card_and_widest(draw_overlay(work, d.mask, r.statement, line), k, card,
                                       r.crack if r.measured else None, full)
     if d.statement in (CRACK, UNSURE):
         r.views = _views(work, prob, k, r.crack, r.measured)
         if r.kinematics is None:
             _add_kinematics(r)
     _add_anomaly(r, full, prob, d, card)
+    _steel_defects(r)
     return r
 
 

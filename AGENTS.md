@@ -47,6 +47,7 @@ Every output carries a one-sentence reason. Never output "safe", a clearance or 
 - `src/app/crack_view.py`: the crack to explore, zoom, drag and loupe (D83); `src/app/theme.py`: the dark look (D82).
 - `src/measure/cracks.py`: every crack in the photo, not only the longest (D88). `src/segmentation/sam_extend.py`: SAM 3.1 extends the crack the model found, never decides (D91). `src/anomaly/`: the autoencoder trained on sound concrete, its heatmap and the other defects (rust, dark patches), shown only (D89).
 - `src/measure/kinematics.py`: opening and sliding of each crack from its two faces (method of [48], as in [46], D99); `src/measure/growth.py`: growth since an earlier photo, only beyond the error; `src/app/engineer.py`: the "Read like an engineer" panel. `src/segmentation/epfl.py`: the EPFL crack sets behind crack model v5 (D100); `src/segmentation/epfl_unet16.py`: the EPFL group's own model, tested, not adopted (D104).
+- `src/element/steel.py`: possible exposed steel on the close-up, from SAM 3.1 (D107).
 - `src/app/logo.py`: the logo (word mark, D38). `data/`: local datasets, never committed.
 
 ## Data rules

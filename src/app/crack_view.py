@@ -109,6 +109,8 @@ def view_data(result, size: tuple[int, int] | None = None) -> dict | None:
             "defects": [{"kind": f["kind"], "label": f["label"], "c": f["centre"], "o": f["outline"]}
                         for f in an["defects"]] if an else [],
             "kin": kin_data(getattr(result, "kinematics", None), W, H),
+            # D107: possible exposed steel: the traced lines may follow it, so no width is shown as the crack's
+            "steel": bool((getattr(result, "exposed_steel", None) or {}).get("seen")),
             # the error of every width: one pixel, as found against a crack microscope on an old crack ([46] ch. 5.2)
             "unc": round(WIDTH_UNCERTAINTY_PX * (float(c.mm_per_px) if unit == "mm" and c.mm_per_px else 1.0), 4),
             "surface_score": None,  # not shown: not calibrated for photos at the app's scale (D89)
@@ -310,8 +312,8 @@ const PAL = ["#f472b6", "#38bdf8", "#fbbf24", "#a78bfa", "#fb923c", "#e879f9", "
 const CR = C.cracks || [], MULTI = CR.length > 1;
 let byCrack = MULTI;
 // other defects, separate from the cracks (D89): outlined, dashed, each with its label; shown only
-const DF = C.defects || [], DCOL = {spalling: "#ff5c7a", rust: "#f97316", dark: "#94a3b8", other: "#e2e8f0"},
-  DSHORT = {spalling: "Spalling?", rust: "Rust?", dark: "Dark patch", other: "Unusual"};
+const DF = C.defects || [], DCOL = {steel: "#ef4444", spalling: "#ff5c7a", rust: "#f97316", dark: "#94a3b8", other: "#e2e8f0"},
+  DSHORT = {steel: "Steel?", spalling: "Spalling?", rust: "Rust?", dark: "Dark patch", other: "Unusual"};
 let showDef = DF.length > 0, showHeat = false;
 // how the crack moved (D99): opening across it, sliding along it, from its two faces; shown only
 const KIN = C.kin || [], HASKIN = KIN.some(function (k) { return k && k.st && k.st.length; });
@@ -373,7 +375,7 @@ function kinArrows() {  // at each point: a double arrow across the crack (openi
       g += ln(x - vx * S, y - vy * S, x + vx * S, y + vy * S, "#fbbf24") + head(x + vx * S, y + vy * S, vx, vy, Math.min(h, S * 0.6), "#fbbf24"); } } }); });
   return g; }
 
-function place() { const m = $("marks"); if (!HAS) { m.innerHTML = ""; return; }
+function place() { const m = $("marks"); if (!HAS || C.steel) { m.innerHTML = ""; return; }
   if (!m.childElementCount) {
     [["widest", "max", "Widest"], ["narrowest", "min", "Narrowest"]].forEach(function (d) {
       const p = C[d[0]], el = document.createElement("div"); el.className = "mk " + d[1]; el.dataset.k = d[0];
@@ -454,11 +456,12 @@ function kinRow() {  // how the crack moved (D99): the main crack's opening, sli
   return '<span class="row"></span>' + sm("Opening", f(k.opening_median), "#22d3ee") + sm("Sliding", k.sliding_median == null ? "not readable" : f(k.sliding_median), "#fbbf24") +
     sm("Movement", k.reading, null); }
 function defectChips() {  // counts of the other defects and the photo's surface score (D89)
-  const n = {spalling: 0, rust: 0, dark: 0, other: 0}; DF.forEach(function (d) { n[d.kind]++; });
-  const TIP = {spalling: "Possible spalling or missing plaster: SAM 3.1 and written rules (an area, not a crack line, clearly different in colour from the wall around it). Unverified, tested on a few photos only.",
+  const n = {steel: 0, spalling: 0, rust: 0, dark: 0, other: 0}; DF.forEach(function (d) { n[d.kind]++; });
+  const TIP = {steel: "Possible exposed steel: SAM 3.1 asked for bars. The concrete cover is gone here; the crack widths on this photo are not used, since the lines may follow the steel.",
+    spalling: "Possible spalling or missing plaster: SAM 3.1 and written rules (an area, not a crack line, clearly different in colour from the wall around it). Unverified, tested on a few photos only.",
     rust: "Possible rust stains: what the autoencoder found unusual, labelled by its colour.", dark: "Possible dark patches (damp or dirt?): what the autoencoder found unusual, labelled by its colour.",
     other: "Other unusual areas the autoencoder found."};
-  let h = ""; [["spalling", "Spalling?"], ["rust", "Rust?"], ["dark", "Dark"], ["other", "Unusual"]].forEach(function (k) { if (n[k[0]])
+  let h = ""; [["steel", "Steel?"], ["spalling", "Spalling?"], ["rust", "Rust?"], ["dark", "Dark"], ["other", "Unusual"]].forEach(function (k) { if (n[k[0]])
     h += '<span class="chip" style="border-style:dashed;border-color:' + DCOL[k[0]] + '" title="' + TIP[k[0]] +
       ' Separate from the cracks; shown only, an engineer decides."><span class="k" style="color:' + DCOL[k[0]] + '">' + k[1] + '</span><span class="val">' + n[k[0]] + "</span></span>"; });
   if (C.surface_score != null) h += '<span class="chip opt" title="How unusual the whole surface is compared with the sound concrete the autoencoder learned: above 1, more unusual than 95 % of it. Shown only."><span class="k">Surface</span><span class="val' +
@@ -466,6 +469,10 @@ function defectChips() {  // counts of the other defects and the photo's surface
   return h; }
 function hud() { const tl = $("tl"); if (!HAS) { tl.innerHTML = '<span class="chip"><span class="k">Crack</span><span class="val">no line to measure</span></span>'; return; }
   const chip = function (id, k, val, cls) { return '<button class="chip ' + (cls || "") + '" id="' + id + '"><span class="k">' + k + '</span><span class="val">' + val + "</span></button>"; };
+  if (C.steel) {  // D107: the lines may follow the steel and the broken concrete: their widths are not the crack's
+    tl.innerHTML = '<span class="chip" style="border-color:#ef4444" title="SAM 3.1 sees possible exposed steel. The traced lines may follow the steel and the broken concrete, so their widths are not used and not shown. An expert should look."><span class="k" style="color:#ef4444">Exposed steel?</span><span class="val">widths not used</span></span>' +
+      defectChips();
+    return; }
   tl.innerHTML = chip("cmax", "Max", fmt(C.widest.w), "max") + chip("cmin", "Min", fmt(C.narrowest.w), "min") +
     '<span class="chip opt"><span class="k">Median</span><span class="val">' + fmt(C.median) + "</span></span>" +
     '<span class="chip"><span class="k">Length</span><span class="val">' + lenFmt(C.length) + "</span></span>" +
@@ -478,6 +485,7 @@ function hud() { const tl = $("tl"); if (!HAS) { tl.innerHTML = '<span class="ch
   $("cmin").onclick = function () { flyTo(C.narrowest, 8); openLens(C.narrowest.x, C.narrowest.y, "narrowest"); }; }
 
 function spark() { if (!HAS) return; const L = C.line, n = L.length, el = $("spark");
+  if (C.steel) { el.style.visibility = "hidden"; return; }  // D107: no width chart for lines that may follow steel
   const pts = [], ws = L.map(function (q) { return q[2]; });
   let st = 0; const cum = [0]; for (let i = 1; i < n; i++) { st += Math.hypot((L[i][0] - L[i - 1][0]) * W, (L[i][1] - L[i - 1][1]) * H); cum.push(st); }
   const X = function (i) { return 1000 * cum[i] / (st || 1); }, Y = function (w) { return 38 - 34 * (w / WMAX); };
