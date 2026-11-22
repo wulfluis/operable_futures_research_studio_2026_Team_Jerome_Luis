@@ -20,7 +20,7 @@ Residents of old concrete buildings see cracks every day but cannot tell a harml
 
 <p align="center"><b>The model measures, rules decide, an engineer confirms.</b></p>
 
-![The crack viewer on the team's own field photo: a thin crack in a plastered wall with a bank card beside it (the card blurred), traced in two colours with the widest and narrowest points; a click on Max flies to the widest point and opens a loupe with a calliper and the width there in millimetres; up close, cyan arrows across the crack show its opening and small amber marks its sliding; then the colours switch to the width along the crack](docs/images/crack_viewer.gif)
+![The crack viewer on the team's own field photo: a thin crack in a plastered wall with a bank card beside it (the card blurred), traced in two colours with the widest and narrowest points; a click on Max flies to the widest point and opens a loupe with a calliper and the width there in millimetres; up close, cyan arrows across the crack show its opening and small amber marks its sliding; then the colours switch to the width along the crack](docs/images/crack_viewer_field.gif)
 
 <sub>The crack viewer on the team's own field photo, with a bank card beside the crack (the card blurred). Every number in it is the app's own reading. No resident's photo appears in this repository.</sub>
 
@@ -36,7 +36,7 @@ A resident opens the phone page, ticks "I put a bank card next to the crack", an
 
 | The phone page | The crack to explore |
 |---|---|
-| ![The phone page in its dark look: three tips with line sketches, the bank-card and share ticks, the upload, and the answer with the widest width and the length in mm](docs/images/app_phone.jpg) | ![The crack viewer on the team's field photo: the loupe at the widest point with the calliper and the width in millimetres; chips for max, min, median, length, angle, opening, sliding and movement; the width chart with its grey error band; cyan opening arrows along the crack](docs/images/app_crack_viewer.jpg) |
+| ![The phone page with the team's field photo: Crack found, widest width and length in mm from the bank card, the crack to explore with its opening, sliding and movement, then step 2, the photo of the whole element](docs/images/app_phone.jpg) | ![The crack viewer on the team's field photo: the loupe at the widest point with the calliper and the width in millimetres; chips for max, min, median, length, angle, opening, sliding and movement; the width chart with its grey error band; cyan opening arrows along the crack](docs/images/app_crack_viewer.jpg) |
 
 What the viewer shows:
 
@@ -51,7 +51,7 @@ What the viewer shows:
 
 | Up close: opening and sliding | Read like an engineer |
 |---|---|
-| ![Up close on the field crack: cyan double arrows across the crack show how far its two faces moved apart, small amber marks along it how far they slid; chips at the top give the opening, the sliding and the reading](docs/images/crack_movement.jpg) | ![The Read like an engineer panel: how the crack moved, how sure the width is, what this rests on, and the two sources: Corres Sojo's PhD thesis (EPFL 2024) and Pantoja-Rosero et al. 2022](docs/images/engineer_panel.png) |
+| ![Up close on the field crack: cyan double arrows across the crack show how far its two faces moved apart, small amber marks along it how far they slid; chips at the top give the opening, the sliding and the reading](docs/images/crack_movement.jpg) | ![The Read like an engineer panel in the app's result window: how the crack moved, how sure the width is, what this rests on, and the two sources: Corres Sojo's PhD thesis (EPFL 2024) and Pantoja-Rosero et al. 2022](docs/images/engineer_panel.png) |
 
 Each result has a panel, **Read like an engineer**: how the crack moved, how sure the width is, what a crack along a steel bar means for the bar's grip, whether it has grown since an earlier photo, and the sources it rests on. A crack measured twice with a bank card that has grown by more than the two photos' errors raises the level by one step (E. Corres Sojo's rule: only growth beyond the error counts); nothing in the panel ever lowers a level.
 
@@ -63,15 +63,17 @@ The second photo shows the whole element. The app carries the crack across, trac
 
 <sub>Of five such photos, only this one passed the close-up check: the other four close-ups, cut from far photos, were sent back as "Retake". That check is still too strict on cut close-ups (`docs/weekly_todo.md`).</sub>
 
-With a bank card, the crack is measured in millimetres and drawn in 3D on its element in Rhino and Grasshopper, with how it moved:
-
-![The field crack in 3D, drawn by the app's 3D model on a column, a beam and a wall, a red frame marking where the crack is; and up close, the crack in red with its cyan opening arrows and the card's outline](docs/images/crack_3d.jpg)
-
-<sub>The same measured crack placed on the three element shapes the 3D model draws (sizes assumed: a 3 m column, a 4 m beam, a 3 × 3 m wall). In the app, the element comes from the second photo.</sub>
+With a bank card, the crack is measured in millimetres and drawn in 3D on its element in Rhino and Grasshopper, with how it moved (`src/gh3d/`).
 
 Shared results appear on a live wall for the class projector, one tab per answer. A result opens over the wall: the crack on the left, the level and its reason on the right, and the crack in 3D from Rhino and Grasshopper.
 
-![The live wall: tabs Category 3, Expert needed, Category 2 and Category 1 with their counts, and result cards with the crack, its measuring instruments and the widest width](docs/images/app_wall.jpg)
+![The live wall, Expert needed tab: three real results, the team's two field cracks with a bank card (card blurred) and a cracked wall after an earthquake (EPFL photo), each with its element photo in the corner](docs/images/app_wall.jpg)
+
+| A result opened over the wall: the field crack, in mm | The EPFL wall, in pixels (no card) |
+|---|---|
+| ![The field crack opened over the wall: the crack viewer in mm with opening and sliding on the left; on the right the level Expert needed, the element (load-bearing wall, model 81 %), the position from photo 2, the type not clear, and the reason](docs/images/app_result.jpg) | ![The EPFL wall opened over the wall: five cracks traced in their colours with opening and sliding arrows, in pixels; on the right Expert needed, element not clear, and the reason](docs/images/app_result_epfl.jpg) |
+
+<sub>Real photos only: the team's own field cracks and a building cracked by an earthquake from the EPFL test photos (CC BY 4.0). All three answer "Expert needed", each for its reason: a crack pattern the written rules do not recognise, an element the model is not sure of. The app does not guess.</sub>
 
 ## How it works
 

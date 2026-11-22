@@ -43,9 +43,10 @@ WALL_KEY = os.environ.get("SECOND_LOOK_WALL_KEY", "")
 ELEMENT_KEYS = {"unknown": None, **{name: key for key, name in ELEMENTS.items()}}
 ELEMENT_WORDS = {"column": "Column", "beam": "Beam", "wall": "Wall", "others": "Not an element", "unsure": "Unsure"}
 WALL_GALLERY_COLUMNS = 6  # photos per row in an opened collection
-MODEL_LINE = ("Model: U-Net crack segmentation, ResNet-34 encoder (crack model v4), trained on 12,477 photos: public crack "
-              "close-ups, building concrete with crack masks and brick walls without cracks, plus written rules for the "
-              "statement, plus bank-card measurement in mm")  # update with models/unet_crack.pt (D48)
+MODEL_LINE = ("Model: U-Net crack segmentation, ResNet-34 encoder (crack model v5), trained on 19,357 photos: public crack "
+              "close-ups, building concrete with crack masks, brick walls without cracks, and the EPFL photos of "
+              "buildings cracked by earthquakes, plus written rules for the statement, plus bank-card measurement in mm"
+              )  # update with models/unet_crack.pt (D48, D100: v4's 12,477 + 6,511 EPFL building + 369 EPFL lab tiles)
 
 STYLE = "<style>" + THEME_CSS + LOGO_CSS + """
 /* the QR page: the code alone, centred, as large as the screen allows */
