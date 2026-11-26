@@ -1,7 +1,2 @@
-# The app's look (D82): dark concrete. launch.py passes the same values on the command line.
-[theme]
-base = "dark"
-primaryColor = "#22d3ee"
-backgroundColor = "#0a0c0f"
-secondaryBackgroundColor = "#15191f"
-textColor = "#eef1f5"
+# No fixed theme: Streamlit's own Light, Dark and System choices (menu, top right) work, and the phone page follows
+# them (src/app/theme.py, phone_css and MODE_JS). The wall keeps its dark concrete look through its own CSS (D82).

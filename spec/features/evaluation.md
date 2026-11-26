@@ -41,3 +41,8 @@ Rows: engineer on site. Columns: tool output. Each cell is a count; the label sa
 
 ## Threshold curve
 Recompute Table 1 for confidence thresholds 0.5 to 0.95 and plot missed Category 3 against referral rate (deck slide 7 shows the illustrative shape). Pick the threshold with the engineering partner, then record it in `spec/decisions.md`.
+
+## Test with people who know nothing about buildings (D118 to D121, review 26 Nov 2026)
+Protocol, not yet run. 5 people with no building background (for example a parent or an aunt), each alone with a phone and the sample crack photo, no help.
+Tasks: (1) take and send the photo with the card; (2) say what the app found and what to do now; (3) show only the widest crack; (4) remove a crack the app got wrong; (5) answer the questions.
+Record: done or not, time, where they hesitated, what they said the result means. Fail if anyone reads the result as "safe".

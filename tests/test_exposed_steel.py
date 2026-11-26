@@ -46,7 +46,7 @@ def test_with_steel_seen_the_width_is_not_used_and_the_type_is_spalling_with_exp
     assert r.statement == "Crack found"
     assert not r.measured and r.measure_note == core.STEEL_NOTE
     assert r.kinematics is None
-    assert r.to_dict()["exposed_steel"] == {"seen": True, "score": 0.8, "prompt": "rebar"}
+    assert r.to_dict()["exposed_steel"] == {"seen": True, "score": 0.8, "prompt": "rebar", "causes": []}
     s = r.suggested_pattern()
     assert s is None or s.pattern == "spalling_exposed_bar"
 

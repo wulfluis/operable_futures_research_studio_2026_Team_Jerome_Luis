@@ -1,6 +1,6 @@
 """Has the crack grown since the last photo? (D99) Spec: spec/features/crack_kinematics.md ("Growth").
 
-E. Corres Sojo's thesis [46] (ch. 5.3, D23): a change counts as growth only when it is larger than the measurement's
+The reference thesis [46] (ch. 5.3, D23): a change counts as growth only when it is larger than the measurement's
 uncertainty; photos should be taken in similar conditions. Both photos must be measured with a bank card (millimetres):
 pixels of two photos taken from different distances cannot be compared. The two uncertainties are combined as
 independent errors (root of the sum of squares): an assumption. Shown only (rule 5)."""
@@ -25,6 +25,8 @@ def compare(before: dict | None, now: dict, before_number: int | None = None) ->
     b, n = before["crack"], now["crack"]
     change = n["width_max_mm"] - b["width_max_mm"]
     u = math.hypot(b["width_uncertainty_mm"], n["width_uncertainty_mm"])
+    if before.get("received_at") is not None and now.get("received_at") is not None:  # D122: for the growth per day (illustration only)
+        out["days"] = round((now["received_at"] - before["received_at"]) / 86400.0, 2)
     out.update(change_mm=round(change, 3), uncertainty_mm=round(u, 3), width_before_mm=round(b["width_max_mm"], 3),
                width_now_mm=round(n["width_max_mm"], 3), length_before_mm=b.get("length_main_mm"),
                length_now_mm=n.get("length_main_mm"))

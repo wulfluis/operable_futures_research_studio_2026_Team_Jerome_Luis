@@ -21,10 +21,11 @@ import torch
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT / "src") not in sys.path:
     sys.path.insert(0, str(ROOT / "src"))
-from app.theme import FONT, MONO, THEME_CSS, label, scan_frame, state  # dark concrete look (D82)
+from app.theme import FONT, MODE_JS, MONO, THEME_CSS, label, phone_css, scan_frame, state, wall_css  # dark concrete look (D82)
 from app.logo import LOGO_CSS, logo_title
 from app.viewer3d import HEIGHT as VIEW_HEIGHT, viewer_html
 from app import crack_view  # the crack to explore: zoom, drag, loupe (D83)
+from app import result_blocks as blocks  # the result in reading order (D115 to D122)
 from app.inbox import INBOX, start as start_inbox
 from app.core import (EXPORT_DIR, NOT_A_SAFETY_CHECK, RISK_TABS, WAITING, WAITING_SHORT, risk_group, ConsentMissing, PhotoRejected, Wall,
                       analyse, analyse_element, make_qr, wall_key_ok)
@@ -49,6 +50,9 @@ MODEL_LINE = ("Model: U-Net crack segmentation, ResNet-34 encoder (crack model v
               )  # update with models/unet_crack.pt (D48, D100: v4's 12,477 + 6,511 EPFL building + 369 EPFL lab tiles)
 
 STYLE = "<style>" + THEME_CSS + LOGO_CSS + """
+/* no "Made with Streamlit" line */
+footer, .stApp footer, [data-testid="stFooter"], [class*="viewerBadge"], a[href*="streamlit.io"] { display: none !important; }
+[data-testid="stMainMenuPopover"] div:has(> button[title="Copy version to clipboard"]) { display: none !important; }
 /* the QR page: the code alone, centred, as large as the screen allows */
 .qr-alone { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 50;
             background: #07080a; }
@@ -72,6 +76,17 @@ STYLE = "<style>" + THEME_CSS + LOGO_CSS + """
 .stApp .st-key-gh-tabs button code { display: inline-block; min-width: 20px; margin-left: 6px; padding: 0 6px;
     font-family: """ + MONO + """ !important; font-size: 12px; font-weight: 600; line-height: 20px; text-align: center; color: var(--gh-fg) !important;
     background: rgba(255, 255, 255, 0.08) !important; border-radius: 2em; }
+.stApp .st-key-gh-tab-Category-3 .stButton button p::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; background: #f85149; box-shadow: 0 0 8px #f85149; vertical-align: 1px; }
+.stApp .st-key-gh-tab-Expert-needed .stButton button p::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; background: #b180d7; box-shadow: 0 0 8px #b180d7; vertical-align: 1px; }
+.stApp .st-key-gh-tab-Category-2 .stButton button p::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; background: #e5a50a; box-shadow: 0 0 8px #e5a50a; vertical-align: 1px; }
+.stApp .st-key-gh-tab-Category-1 .stButton button p::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; background: #86c5ff; box-shadow: 0 0 8px #86c5ff; vertical-align: 1px; }
+.stApp .map-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: -4px 0 10px; font-size: 13px; color: var(--gh-muted); }
+.stApp .map-legend span { display: inline-flex; align-items: center; gap: 7px; }
+.stApp .map-legend i { width: 11px; height: 11px; border-radius: 50%; border: 2px solid #fff; display: inline-block; }
+.stApp .map-legend b { color: var(--gh-fg); font-weight: 600; }
+.stApp p.tab-desc { margin: -4px 12px 18px !important; font-size: 12.5px !important; line-height: 1.4 !important;
+                    color: var(--gh-muted) !important; white-space: nowrap; }
+.stApp [class*="st-key-gh-tab-"] { gap: 0 !important; min-width: 250px; flex: 0 1 auto !important; }
 /* wall: each shared result is a card; a see-through button over it opens the result over the wall (D77) */
 .stApp .st-key-gh-cards { display: grid !important; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
                           gap: 16px !important; }
@@ -140,6 +155,14 @@ STYLE = "<style>" + THEME_CSS + LOGO_CSS + """
 @media (max-width: 480px) { .stApp .tips { grid-template-columns: 1fr; } .stApp .tips > span { display: flex; gap: 12px;
                             align-items: center; } .stApp .tips svg { flex: 0 0 76px; width: 76px; height: 46px; margin: 0; }
                             .stApp .tips b { display: inline; } }
+/* D115: exposed steel first; D121: what to do now */
+.stApp .sl-alert { margin: 0 0 14px; padding: 14px 16px; border-radius: 16px; background: rgba(127, 29, 29, 0.55);
+                   border: 1px solid #f87171; font-size: 15px; line-height: 1.4; }
+.stApp .sl-alert b { color: #fecaca; }
+.stApp .sl-alert.cause { background: rgba(67, 20, 7, 0.55); border-color: #fb923c; }
+.stApp .sl-alert.cause b { color: #fed7aa; }
+.stApp ul.todo { margin: 4px 0 6px; padding-left: 20px; font-size: 15px; line-height: 1.45; }
+.stApp ul.todo li { margin: 0 0 6px; }
 /* everything that is not the answer, folded away */
 .stApp details.more { margin: 8px 0 0; border: 1px solid var(--gh-border); border-radius: 16px; background: var(--gh-subtle); }
 .stApp details.more > summary { cursor: pointer; padding: 12px 16px; font-size: 14px; font-weight: 600; color: var(--gh-fg);
@@ -241,71 +264,99 @@ TIP_SKETCHES = {
 }
 
 
+@st.cache_resource
+def _mode_watcher():
+    import streamlit.components.v2 as components_v2
+    return components_v2.component("sl_mode_watch", js=MODE_JS, isolate_styles=False)
+
+
 def phone_page() -> None:
+    """The photo taker (review 26 Nov 2026): instructions, then the photo button, then the options, on a light
+    concrete wall (theme.phone_css)."""
+    st.markdown(phone_css(), unsafe_allow_html=True)
+    _mode_watcher()(key="sl_mode")  # light or dark, as chosen in the menu (top right) or by the phone
     st.markdown(f'<div class="gh-header">{logo_title()}</div>', unsafe_allow_html=True)
-    st.markdown('<p class="lead">Photograph a crack. See it measured.</p>'
-                '<div class="tips">'
-                f'<span>{TIP_SKETCHES["close"]}<span><b>≤ 1 m</b> close, wall fills the photo</span></span>'
-                f'<span>{TIP_SKETCHES["card"]}<span><b>Card</b> a bank-card-sized card flat beside the crack gives mm; '
-                'cover the number</span></span>'
-                f'<span>{TIP_SKETCHES["wall"]}<span><b>Only</b> the wall: no windows, sky or people</span></span>'
-                '</div>'
-                # D99: the photo advice of a crack engineer's method (Corres Sojo 2024 [46], ch. 5.2)
-                '<p class="note"><b>Like an engineer:</b> hold the phone flat to the wall, wipe the dust off the crack '
-                'first, and on a shiny wall try a photo without flash.</p>', unsafe_allow_html=True)
-    card_placed = st.checkbox("I put a bank card next to the crack")  # no tick: no card search (D56)
-    share = st.checkbox("Share results")
-    # D99: a second visit of the same crack, compared only beyond the measurement's error (Corres Sojo [46])
-    before = st.text_input("Photographed this crack before? Its result number (optional)", placeholder="e.g. 12",
-                           max_chars=6)
+    with st.container(key="ph-intro"):
+        st.markdown('<p class="lead">Photograph a crack.<br>See it measured.</p>'
+                    '<p class="lead-sub">Free, about a minute. An engineer looks at anything serious.</p>'
+                    '<div class="tips">'
+                    f'<span>{TIP_SKETCHES["close"]}<span><b><span class="step-n">1</span>Close</b>within 1 m, the wall '
+                    'fills the photo</span></span>'
+                    f'<span>{TIP_SKETCHES["card"]}<span><b><span class="step-n">2</span>Card</b>a bank or credit card '
+                    'flat beside the crack gives mm; cover its number</span></span>'
+                    f'<span>{TIP_SKETCHES["wall"]}<span><b><span class="step-n">3</span>Wall only</b>no windows, sky '
+                    'or people</span></span>'
+                    '</div>'
+                    # D99: the photo advice of a crack engineer's method ([46] ch. 5.2)
+                    '<p class="note">Tip: hold the phone flat to the wall, wipe the dust off the crack, and on a shiny '
+                    'wall try without flash.</p>', unsafe_allow_html=True)
+    with st.container(key="ph-options"):
+        st.markdown('<p class="m-head">Before the photo</p>', unsafe_allow_html=True)
+        card_placed = st.checkbox("I put a bank or credit card next to the crack")  # no tick: no card search (D56)
+        share = st.checkbox("Share with the engineers' wall")
+        share_location = st.checkbox("Share where the photo was taken (only engineers see it, on their map)",
+                                     disabled=not share) and share
+        # D99: a second visit of the same crack, compared only beyond the measurement's error ([46])
+        before = st.text_input("Photographed this crack before? Its result number", placeholder="optional, e.g. 12",
+                               max_chars=6)
+        # one confirmation (D34): it is the consent, so its terms stand right above the button
+        st.markdown('<p class="note">By confirming you agree: you took the photo, it shows no faces, house numbers '
+                    'or addresses, and it is analysed. It is analysed in memory, not saved. Its location is read only '
+                    'if you tick "Share where the photo was taken", and then only the engineers see it.</p>',
+                    unsafe_allow_html=True)
+        if not st.session_state.get("ph_ready"):
+            if st.button("Confirm", key="ph-confirm", type="primary", width="stretch"):
+                st.session_state["ph_ready"] = True
+                st.rerun()
+    if not st.session_state.get("ph_ready"):
+        return
+    with st.container(key="ph-photo"):
+        upload = st.file_uploader("📷  Take or choose a photo", type=["jpg", "jpeg", "png", "heic", "heif"],
+                                  max_upload_size=10)
     previous = int(before.strip().lstrip("#")) if before.strip().lstrip("#").isdigit() else None
-    # one tick only (D34): sending the photo is the consent, so its terms stand right above the upload
-    st.markdown('<p class="note">By sending a photo you confirm you took it, it shows no faces, house numbers or '
-                'addresses, and you agree it is analysed. It is analysed in memory, not saved; its location is not '
-                'read.</p>', unsafe_allow_html=True)
     consent = True
-    upload = st.file_uploader("Take or choose a photo", type=["jpg", "jpeg", "png"], max_upload_size=10)
     if upload is None:
         return
     done = st.session_state.setdefault("done", {})
-    if upload.file_id not in done:  # analyse each upload once, even when the page reruns
+    key = f"{upload.file_id}-{int(card_placed)}-{int(share)}-{previous}-{int(share_location)}"  # an option changed: read again
+    if key not in done:  # analyse each upload once, even when the page reruns
         model, device, gpu, wall, _, scene_model, _ = shared()
         try:
             with st.spinner("Looking at the photo..."):
-                done[upload.file_id] = analyse(upload.getvalue(), consent, share, wall, model, device, gpu,
-                                               scene_model, card_placed, previous=previous)
+                done[key] = analyse(upload.getvalue(), consent, share, wall, model, device, gpu,
+                                    scene_model, card_placed, previous=previous, share_location=share_location)
         except (ConsentMissing, PhotoRejected) as e:
             st.error(str(e))
             return
-    result = done[upload.file_id]
-    st.markdown(f'<p class="statement">{state(result.statement)}</p>', unsafe_allow_html=True)
-    st.markdown(f'<p class="reason">{result.reason}</p>', unsafe_allow_html=True)
-    if result.growth:  # D99: since the last visit, beyond the error only
-        st.markdown(f'<p class="reason"><b>Since the last visit:</b> {result.growth["reason"]}</p>',
-                    unsafe_allow_html=True)
-    explore(result, upload.file_id)
-    if result.views:  # D81: the same photo as heatmaps and an enhanced view
-        with st.expander("Heatmaps and enhanced view"):
-            for name, img in result.views.items():
-                st.image(img, caption=name, width="stretch")
-    if result.card is not None:
-        measurement_block(result, upload.name)
-    if result.statement in (CRACK, UNSURE):
-        classification_block(result, upload.file_id)
-    st.markdown(f'<p class="note">{NOT_A_SAFETY_CHECK}</p>', unsafe_allow_html=True)
-
-
-def explore(result, key: str, height: int = 540) -> None:
-    """The crack to explore (D83): zoom, drag, click a point for the loupe. A retake or a photo without a crack keeps
-    the answer picture."""
+    upload_key = key
+    result = done[upload_key]
+    wall = shared()[3]
+    if share_location:
+        blocks.where(result, upload_key, wall)  # the photo's place, or the phone's, for the engineer's map
+    blocks.steel_alert(result)  # D115: exposed steel first
+    with st.container(key="ph-result"):
+        st.markdown(f'<p class="statement">{state(result.statement)}</p>', unsafe_allow_html=True)
+        st.markdown(f'<p class="reason">{result.reason}</p>', unsafe_allow_html=True)
+        if result.triage:
+            level_block(result)
+        if result.growth:  # D99: since the last visit, beyond the error only
+            st.markdown(f'<p class="reason"><b>Since the last visit:</b> {result.growth["reason"]}</p>',
+                        unsafe_allow_html=True)
+        if result.statement in (CRACK, UNSURE):
+            blocks.todo(result)  # D121: what to do now
     if result.photo is None or result.statement not in (CRACK, UNSURE):
         st.image(result.overlay, width="stretch")
-        return
-    cache = st.session_state.setdefault("explore", {})
-    if key not in cache:
-        cache[key] = crack_view.viewer_html(crack_view.photo_jpeg(result.photo), crack_view.view_data(result),
-                                            crack_view.photo_jpeg(crack_view.mask_image(result.overlay), 1400))
-    components.html(cache[key], height=height)
+    else:
+        blocks.explore(result, upload.file_id, wall=wall)  # D118, D119
+    blocks.before_after(result, wall)  # D122
+    if result.statement in (CRACK, UNSURE):
+        blocks.ask(result, upload.file_id, wall)  # D120
+        blocks.knock(result, upload.file_id, wall)  # D120
+        classification_block(result, upload.file_id)
+    if result.card is not None:
+        measurement_block(result, upload.name)
+    blocks.how_sure()  # D120
+    st.markdown(f'<p class="note">{NOT_A_SAFETY_CHECK}</p>', unsafe_allow_html=True)
 
 
 def classification_block(result, key: str) -> None:
@@ -313,39 +364,43 @@ def classification_block(result, key: str) -> None:
     second photo; the element model and the written rules read element and type; the written risk matrix gives the
     level by itself (D55). Any doubt gives Expert needed."""
     _, device, gpu, wall, element_model, scene_model, _ = shared()
-    st.markdown('<p class="m-head">Step 2 · the whole element</p>', unsafe_allow_html=True)
-    st.markdown('<p class="lead-s">Step back: photograph the whole column, beam or wall, phone upright.</p>',
-                unsafe_allow_html=True)
-    second = st.file_uploader("Photo of the whole element", type=["jpg", "jpeg", "png"], max_upload_size=10,
-                              key=f"element_{key}")
-    seen = st.session_state.setdefault("element_seen", {})
-    if second is not None and seen.get(key) != second.file_id:
-        try:
-            sam = parts_model()
-            with st.spinner("Looking at the element..." + (" SAM 3.1 adds about 10 s." if sam else "")):
-                analyse_element(second.getvalue(), result, wall, element_model, device, gpu, scene_model,
-                                crack_model=shared()[0], spalling_model=shared()[6], parts_model=sam)
-            seen[key] = second.file_id
-        except PhotoRejected as e:
-            st.error(str(e))
-    a, s = result.element, result.suggested_pattern()
-    cells = [_cell("Element", "—" if a is None else (ELEMENT_WORDS.get(a.element, a.element)),
-                   "send the photo above" if a is None else
-                   (f"model, {a.probability:.0%}" if a.element != UNSURE_ELEMENT else "model unsure"),
-                   red=a is not None and a.could_be_column),
-             _cell("Type", "—" if s is None or s.pattern is None else PATTERN_NAMES[s.pattern].capitalize(),
-                   _type_sub(result, s)),
-             _cell("Position", *_position_cell(result))]
-    if result.parts is not None:
-        cells.append(_cell("Lies on", *parts_words(result.parts)))
-    if result.on_element is not None and result.on_element.overlay is not None:
-        st.image(result.on_element.overlay, caption="Photo 2: the whole element, the crack in red", width="stretch")
-    st.markdown('<div class="m-grid">' + "".join(cells) + "</div>", unsafe_allow_html=True)
-    level_block(result)
-    if a is None and result.location is None:
-        return
-    with st.expander("How it was read"):  # the notes behind element, type and position, folded away (D83)
-        _classification_notes(result, a)
+    with st.container(key=f"ph-step2-{key}"):  # its own card on the phone page
+        st.markdown('<p class="m-head">Step 2 · the whole element</p>', unsafe_allow_html=True)
+        st.markdown('<p class="lead-s">Step back: photograph the whole column, beam or wall, phone upright.</p>',
+                    unsafe_allow_html=True)
+        second = st.file_uploader("Photo of the whole element", type=["jpg", "jpeg", "png", "heic", "heif"], max_upload_size=10,
+                                  key=f"element_{key}")
+        seen = st.session_state.setdefault("element_seen", {})
+        if second is not None and seen.get(key) != second.file_id:
+            try:
+                sam = parts_model()
+                with st.spinner("Looking at the element..." + (" SAM 3.1 adds about 10 s." if sam else "")):
+                    analyse_element(second.getvalue(), result, wall, element_model, device, gpu, scene_model,
+                                    crack_model=shared()[0], spalling_model=shared()[6], parts_model=sam)
+                seen[key] = second.file_id
+                st.rerun()  # the level, the advice and the viewer at the top follow photo 2
+            except PhotoRejected as e:
+                st.error(str(e))
+        a, s = result.element, result.suggested_pattern()
+        cells = [_cell("Element", "—" if a is None else (ELEMENT_WORDS.get(a.element, a.element)),
+                       "send the photo above" if a is None else
+                       (f"model, {a.probability:.0%}" if a.element != UNSURE_ELEMENT else "model unsure"),
+                       red=a is not None and a.could_be_column),
+                 _cell("Position", *_position_cell(result))]
+        if s is not None and s.pattern is not None:  # the crack's kind, only when the rules could read it
+            cells.insert(1, _cell("Type of crack", PATTERN_NAMES[s.pattern].capitalize(),
+                                  "read from the crack's shape and direction" + ("" if s.clear else ", unclear")))
+        if result.parts is not None:
+            cells.append(_cell("Lies on", *parts_words(result.parts)))
+        if result.on_element is not None and result.on_element.overlay is not None:
+            st.image(result.on_element.overlay, caption="Photo 2: the element the crack lies on in light blue, the crack in red", width="stretch")
+        st.markdown('<div class="m-grid">' + "".join(cells) + "</div>", unsafe_allow_html=True)
+        if result.triage is None:
+            level_block(result)  # the level itself stands at the top of the page once given (D121)
+        if a is None and result.location is None:
+            return
+        with st.expander("How it was read"):  # the notes behind element, type and position, folded away (D83)
+            _classification_notes(result, a)
 
 
 def _classification_notes(result, a) -> None:
@@ -397,9 +452,9 @@ def diagnosis_html(d: dict) -> str:
     """Each step of linking the two photos, in plain words, for field tests (D67). No photo, only numbers."""
     yes = lambda v: "yes" if v else "no"  # noqa: E731
     rows = [("Bank card in the close-up", yes(d.get("card_in_close_up")) + ("" if d.get("card_in_close_up") else
-             " (tick \"I put a bank card next to the crack\", or the card was not found there)")),
+             " (tick \"I put a bank or credit card next to the crack\", or the card was not found there)")),
             ("Crack line in the close-up", yes(d.get("crack_line_in_close_up"))),
-            ("Element photo size", " x ".join(map(str, d.get("element_photo_px", []))) + " px")]
+            ]
     if "card_plainness" in d:
         rows.append(("Card print (needs 4 or more)", str(d["card_plainness"])))
     if "card_upright_in_photo" in d:
@@ -423,12 +478,19 @@ def diagnosis_html(d: dict) -> str:
 
 def _position_cell(result) -> tuple[str, str]:
     """Position on the element (core.where_on_element): from the two photos linked (D66), else from the crack on
-    photo 2 (D62), else not known, counted as an end zone."""
+    photo 2 (D62), else not known, counted as an end zone. Said in plain words for the resident."""
     t = result.triage or {}
     pos = t.get("position", "unknown")
-    if pos not in ("end_zone", "middle"):
-        return "not known", "counts as an end zone"
-    return POSITION_WORDS[pos], position_source(t)
+    if result.element is None:
+        return "—", "where on the column, beam or wall the crack sits: send photo 2"
+    if pos == "end_zone":
+        return "Near an end", ("close to where it meets a floor, beam or column. The steel bars are anchored there, "
+                               "so a crack there counts more.")
+    if pos == "middle":
+        return "In the middle", ("away from the ends of the " + (t.get("element_name") or "element")
+                                 + ", where a crack counts less.")
+    return "Not known", ("the app could not place the crack on the element, so it counts it as near an end, the "
+                         "more serious case.")
 
 
 def position_source(t: dict) -> str:
@@ -471,8 +533,7 @@ def measurement_block(result, name: str) -> None:
     if result.measured:
         cells += [_cell("Width, widest point", f"{c.width_max_mm:.2f} mm", f"± {c.width_uncertainty_mm:.2f} mm"),
                   _cell("Width, median", f"{c.width_median_mm:.2f} mm"),
-                  _cell("Length", f"{c.length_main_mm:.0f} mm", f"all branches {c.length_total_mm:.0f} mm"),
-                  _cell("Pixels across", f"{c.px_across:.1f} px", "need ≥ 3, best 6–8")]
+                  _cell("Length", f"{c.length_main_mm:.0f} mm", f"all branches {c.length_total_mm:.0f} mm")]
     cells.append(_cell("Camera angle to the wall", f"{90 - card.tilt_deg:.0f}°", tilt_sub, red=card.status == "retake"))
     if result.measure_note:
         st.markdown(f'<p class="m-line"><b>Width not measured.</b> {result.measure_note}</p>', unsafe_allow_html=True)
@@ -510,6 +571,13 @@ def _wall_href(**extra) -> str:
     return "?" + urlencode({"wall": st.query_params.get("wall") or "", **extra})
 
 
+# what each risk tab means, in a line under it (the five outputs of AGENTS.md)
+TAB_WORDS = {"Category 3": "An engineer must confirm, sent now",
+             "Expert needed": "The app is unsure: an engineer decides",
+             "Category 2": "Low-cost advice, recheck in a month",
+             "Category 1": "Routine monitoring, recheck in 6 months"}
+
+
 @st.fragment(run_every=4)
 def wall_grid() -> None:
     """One tab per risk level with its count, highest risk first (D78); no photo is shown until a tab opens that collection. Each card opens
@@ -524,10 +592,12 @@ def wall_grid() -> None:
     opened = st.session_state.get("opened")
     with st.container(key="gh-tabs", horizontal=True, gap="small"):  # GitHub's tabs, each with its counter (D76)
         for s in RISK_TABS:
-            if st.button(f"{s} `{counts[s]}`", key=f"open_{s}", width="content",
-                         type="primary" if opened == s else "secondary"):
-                opened = None if opened == s else s  # a second click closes it
-                st.session_state["opened"] = opened
+            with st.container(key=f"gh-tab-{s.replace(' ', '-')}", gap=None):
+                if st.button(f"{s} `{counts[s]}`", key=f"open_{s}", width="content",
+                             type="primary" if opened == s else "secondary"):
+                    opened = None if opened == s else s  # a second click closes it
+                    st.session_state["opened"] = opened
+                st.markdown(f'<p class="tab-desc">{TAB_WORDS[s]}</p>', unsafe_allow_html=True)
     if opened is None:
         st.markdown('<div class="gh-blank">Choose a tab to see its results.</div>', unsafe_allow_html=True)
         return
@@ -557,6 +627,8 @@ def _photo_badge(stats: dict) -> str:
     out = label("TEST", "severe") if stats.get("test") else ""
     if stats.get("measured") and c.get("width_max_mm") is not None:
         out += label(f'{c["width_max_mm"]:.2f} mm', "accent")
+    elif ((stats.get("scale_estimate") or {}).get("crack") or {}).get("width_max_mm") is not None:  # D116
+        out += label(f'≈ {stats["scale_estimate"]["crack"]["width_max_mm"]:.2f} mm', "accent")
     t, e = stats.get("triage"), stats.get("element")
     if t:
         out += label(t["level"]) + f'<span>{(t["element_name"] or "element unknown").capitalize()}</span>'
@@ -632,6 +704,16 @@ def _views_html(entry) -> str:
                 'stress map: that needs a structural model with the loads and materials, not a photo.</p>')
 
 
+def _steps_html(entry) -> str:
+    """The photo in steps, for the engineer (review 26 Nov 2026): photo, crack over it, crack alone, unusual surface."""
+    from app.sequence import steps_from_entry
+    s = steps_from_entry(entry.zoom, entry.marks)
+    if len(s) < 2:
+        return ""
+    cells = "".join(f'<div><p class="d-lab">{cap}</p>{_img(jpg, f"Result {entry.number}, {cap}")}</div>' for cap, jpg in s)
+    return _box("Photo 1 · step by step", f'<div class="d-views">{cells}</div>')
+
+
 def _photo2_html(entry) -> str:
     d = entry.stats
     return ((_box("Photo 2 · the whole element", _img(entry.photo2, f"Result {entry.number}, photo 2"))
@@ -652,8 +734,14 @@ def _facts_html(d: dict) -> str:
         html.append('<div class="d-hero">' + _big("Width, widest point", f'{c["width_max_mm"]:.2f}', " mm",
                                                   f'± {c["width_uncertainty_mm"]:.2f} mm') + "</div>")
         cells = [_big("Width, median", f'{c["width_median_mm"]:.2f}', " mm"),
-                 _big("Length", f'{c["length_main_mm"]:.0f}', " mm", f'all branches {c["length_total_mm"]:.0f} mm'),
-                 _big("Pixels across", f'{c["px_across_at_widest"]:.1f}', " px", "need ≥ 3, best 6–8")]
+                 _big("Length", f'{c["length_main_mm"]:.0f}', " mm", f'all branches {c["length_total_mm"]:.0f} mm')]
+    elif (d.get("scale_estimate") or {}).get("crack"):  # D116: from a door in photo 2, an estimate
+        e = d["scale_estimate"]
+        html.append('<div class="d-hero">' + _big("Width, widest point, ESTIMATED", f'≈ {e["crack"]["width_max_mm"]:.2f}',
+                                                  " mm", f'± {e["crack"]["uncertainty_mm"]:.2f} mm · {e["basis"]}')
+                    + "</div>")
+        cells = [_big("Length, estimated", f'≈ {e["crack"]["length_mm"]:.0f}', " mm", e["name"])] \
+            if e["crack"].get("length_mm") is not None else []
     elif d.get("estimate"):  # TEST cases only (D62): an estimate, never a measurement
         e = d["estimate"]
         html.append('<div class="d-hero">' + _big("Width of the marked damage, ESTIMATED (not measured)",
@@ -694,6 +782,8 @@ def result_page(number: int) -> None:
     """One shared result on its own page (a direct link, /?wall=...&item=<n>), laid out as a GitHub issue (D76).
     From the wall, a card opens the same result over the wall instead (result_overlay, D77)."""
     entry = shared()[3].get(number)
+    st.markdown(wall_css(), unsafe_allow_html=True)  # the same design as the wall
+    _mode_watcher()(key="sl_mode")
     st.markdown(f'<a class="d-back" href="{_wall_href(**({"open": risk_group(entry.stats)} if entry and risk_group(entry.stats) else {}))}" '
                 'target="_self">&larr; Back to the wall</a>', unsafe_allow_html=True)
     if entry is None:
@@ -738,18 +828,64 @@ def entry_viewer(entry, height: int) -> None:
                     f'<div class="meta"><span class="num">#{entry.number}</span>{_photo_badge(entry.stats)}</div>'
                     '</div>', unsafe_allow_html=True)
         return
-    components.html(crack_view.viewer_html(entry.zoom, entry.marks, entry.large), height=height)
+    # the engineer's viewer: corrections (add, remove) come back and are kept with the result (D119)
+    corr = blocks.viewer(crack_view.viewer_html(entry.zoom, entry.marks, entry.large, engineer=True),
+                         f"wall_viewer_{entry.number}", height)
+    seen = st.session_state.setdefault("wall_corr_seen", {})
+    if corr and seen.get(entry.number) != json.dumps(corr, sort_keys=True):
+        seen[entry.number] = json.dumps(corr, sort_keys=True)
+        e = blocks.save_entry_corrections(entry, corr, shared()[3])
+        st.success(f"Saved: {len(e['removed'])} crack(s) removed, {len(e['added'])} drawn. Kept for retraining.")
 
 
 def _window_html(entry) -> str:
     """Beside the crack: level first, everything else folded away (D83). The numbers are in the picture."""
     d = entry.stats
-    out = _box("Element, position, type and level", where_what_html(d)) if where_what_html(d) else ""
+    out = ""
+    if (d.get("exposed_steel") or {}).get("seen"):  # D115: first
+        out += ('<div class="sl-alert"><b>⚠ Exposed steel seen: critical.</b> An engineer must look, whatever the '
+                'crack looks like.</div>')
+    causes = [c["kind"] for c in (d.get("exposed_steel") or {}).get("causes") or []]
+    if causes:
+        out += f'<div class="sl-alert cause"><b>Possible {", ".join(blocks.CAUSE_WORDS.get(c, c) for c in causes)}' \
+               '</b> near the crack (SAM 3.1).</div>'
+    out += _box("Element, position, type and level", where_what_html(d)) if where_what_html(d) else ""
+    out += _when_where_html(d)
+    out += _resident_html(d)
     if d.get("statement") in ("Crack found", "Expert needed"):  # D99: the crack read as a crack engineer reads it
         from app import engineer
         out += _box("Read like an engineer", engineer.html(d))
-    more = _facts_html(d) + _photo2_html(entry) + _views_html(entry)
+    more = _facts_html(d) + _steps_html(entry) + _photo2_html(entry) + _views_html(entry)
     return out + f'<details class="more"><summary>Measurement, photo 2 and heatmaps</summary>{more}</details>'
+
+
+def _when_where_html(d: dict) -> str:
+    """When the photo was taken (its own record) and where, if the sender shared it (review 26 Nov 2026)."""
+    p = d.get("place") or {}
+    rows = [f'<p class="d-line">Taken: <b>{d.get("taken_at") or "not in the photo"}</b></p>']
+    if p.get("lat") is not None:
+        src = "the photo's record" if p.get("source") == "photo" else "the sender's phone" + (
+            f", ± {p['accuracy_m']} m" if p.get("accuracy_m") else "")
+        rows.append(f'<p class="d-line">Place: <b>{p["lat"]:.5f}, {p["lon"]:.5f}</b> (from {src}) · '
+                    f'<a href="https://www.openstreetmap.org/?mlat={p["lat"]}&mlon={p["lon"]}#map=19/{p["lat"]}/{p["lon"]}" '
+                    'target="_blank">open map</a></p>')
+    else:
+        rows.append('<p class="d-line">Place: not shared</p>')
+    return _box("When and where", "".join(rows))
+
+
+def _resident_html(d: dict) -> str:
+    """D119, D120: what the resident answered, the knock's numbers and their corrections, for the engineer."""
+    from app.questions import words
+    rows = [f'<p class="d-line">{q} <b>{a}</b></p>' for q, a in words(d.get("answers") or {})]
+    if d.get("tap"):
+        t = d["tap"]
+        rows.append(f'<p class="d-line">Knock: {t["knocks"]} knock(s), pitch {t["pitch_hz"]} Hz, rings '
+                    f'{t["ring_ms"]:.0f} ms. Hollow or solid not read yet.</p>')
+    for c in d.get("corrections") or []:
+        rows.append(f'<p class="d-line d-red">Resident\'s correction: {len(c["removed"])} crack(s) marked as wrong, '
+                    f'{len(c["added"])} drawn ({", ".join(a["kind"] for a in c["added"]) or "none"}). Check them.</p>')
+    return _box("What the resident told us", "".join(rows)) if rows else ""
 
 
 def model_3d(number: int, stats: dict) -> None:
@@ -786,11 +922,56 @@ def wall_page() -> None:
     the opened tab's cards, the model in the footer. No QR here (1 Nov): it has its own page, /?qr."""
     st.markdown("<style>.block-container { max-width: 1280px; padding-top: 2rem !important; }</style>",
                 unsafe_allow_html=True)
+    st.markdown(wall_css(), unsafe_allow_html=True)  # the phone page's design, in VS Code's colours
+    _mode_watcher()(key="sl_mode")  # light or dark, as chosen in the menu
     st.markdown(f'<div class="gh-header gh-large">{logo_title()}'
                 '<span class="gh-right"><span class="gh-dot"></span>Live · shared results appear by themselves</span>'
                 '</div>', unsafe_allow_html=True)
+    wall_map()
     wall_grid()
     st.markdown(f'<div class="gh-footer">{MODEL_LINE}.</div>', unsafe_allow_html=True)
+
+
+# one colour per category, the same on the tabs, the legend and the map (never green: it reads as "safe")
+CATEGORY_HEX = {"Category 3": "#f85149", "Expert needed": "#b180d7", "Category 2": "#e5a50a", "Category 1": "#86c5ff"}
+MAP_COLOURS = {k: [int(v[i:i + 2], 16) for i in (1, 3, 5)] for k, v in CATEGORY_HEX.items()}
+
+
+@st.fragment(run_every=8)
+def wall_map() -> None:
+    """Where the shared results were taken, on one map (review 26 Nov 2026). Only results whose sender shared the
+    place; a click on a point opens that result. Locations stay on this laptop's wall."""
+    import pydeck as pdk
+    from app.place import valid
+    pts = []
+    for e in shared()[3].entries():
+        p, g = e.stats.get("place") or {}, risk_group(e.stats)
+        if g and valid(p.get("lat"), p.get("lon")):
+            pts.append({"number": e.number, "lat": p["lat"], "lon": p["lon"], "level": g,
+                        "when": e.stats.get("taken_at") or "time not in the photo",
+                        "source": "photo" if p.get("source") == "photo" else "phone", "colour": MAP_COLOURS[g]})
+    st.markdown(f'<p class="gh-h">Map · {len(pts)} shared place{"s" if len(pts) != 1 else ""}</p>'
+                '<div class="map-legend">' + "".join(
+                    f'<span><i style="background:{c}"></i>{k} <b>{sum(p["level"] == k for p in pts)}</b></span>'
+                    for k, c in CATEGORY_HEX.items()) + "</div>", unsafe_allow_html=True)
+    if not pts:
+        st.markdown('<div class="gh-blank">No shared places yet. A result appears here when the sender ticks "Share '
+                    'where the photo was taken".</div>', unsafe_allow_html=True)
+        return
+    lat = sum(p["lat"] for p in pts) / len(pts)
+    lon = sum(p["lon"] for p in pts) / len(pts)
+    spread = max(max(abs(p["lat"] - lat) for p in pts), max(abs(p["lon"] - lon) for p in pts))
+    zoom = 15 if spread < 0.002 else 13 if spread < 0.02 else 10 if spread < 0.3 else 6
+    layer = pdk.Layer("ScatterplotLayer", data=pts, id="results", get_position="[lon, lat]", get_fill_color="colour",
+                      get_radius=16, radius_min_pixels=8, radius_max_pixels=20, stroked=True,
+                      get_line_color=[255, 255, 255], line_width_min_pixels=2, pickable=True)
+    deck = pdk.Deck(layers=[layer], initial_view_state=pdk.ViewState(latitude=lat, longitude=lon, zoom=zoom),
+                    map_style="light" if st.context.theme.type == "light" else "dark", tooltip={"html": "<b>#{number}</b> · {level}<br>{when}<br>place from the {source}"})
+    ev = st.pydeck_chart(deck, on_select="rerun", selection_mode="single-object", key="wall-map", height=380)
+    picked = ((getattr(ev, "selection", None) or {}).get("objects") or {}).get("results") or []
+    if picked and st.session_state.get("item") != picked[0]["number"]:
+        st.session_state["item"] = picked[0]["number"]
+        st.rerun(scope="app")
 
 
 def qr_page() -> None:

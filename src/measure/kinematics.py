@@ -56,7 +56,7 @@ class Kinematics:
                 "sliding_median": r(self.sliding_median), "sliding_max": r(self.sliding_max),
                 "sliding_share": r(self.sliding_share), "readable_share": round(self.readable_share, 2),
                 "reading": self.reading, "reason": self.reason, "n_stations": len(self.stations),
-                "method": "two crack faces matched (Pantoja-Rosero et al. 2022 [48], as in Corres Sojo 2024 [46]); "
+                "method": "two crack faces matched (docs/sources.md [48], as in [46]); "
                           "one photo: the displacement since the crack formed; shown only"}
 
 

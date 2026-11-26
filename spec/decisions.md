@@ -399,3 +399,35 @@ Jerome on three real cases (a blue and a green column, a plastered block wall): 
 - Tried and not used: asking SAM for "brick", "concrete block" or "masonry" inside a spall to tell a block wall from concrete: on a real concrete column it answered "concrete block". Telling masonry from concrete needs labelled photos.
 - Not solved: exposed bars under dust or rubble. SAM 3.1 scores them under 0.4 even on enlarged quarters, and the threshold stays 0.5 (steel is Category 3, D112, so a false alarm costs much). A model trained on labelled photos of exposed bars is needed; until then such a case stays "Expert needed" with an engineer's review.
 Evidence (76 real cases, 26 Nov, reviewed by eye): spalling found on 35 (16 before D114), the false outlines on dark stretches of ordinary crack removed by the same strip rule as for SAM's areas; 69 cracks found and 4 "Expert needed" (2 of them only a spall's edge, so no crack width), none lost to "No crack found". 648 tests pass.
+
+## D115 (2026-11-26): what comes before the crack, and steel already after photo 1
+Studio review of 26 Nov. Exposed steel is Category 3 by Jerome's rule (D112, `assess(..., exposed_steel=True)`); in addition the phone page shows it first, above everything, and the level is given right after photo 1 when steel is seen on the close-up (`core.steel_first`), before photo 2. The same SAM 3.1 call on the close-up asks for what may come before the crack: roots and pipes (`src/element/steel.py`, `CAUSES`), shown only. Water was tried and left out the same day: on real photos it marked plain wall. Words and thresholds untested on real photos (assumption). Tests: `tests/test_review_26nov.py`.
+
+## D116: millimetres only, a door in photo 2 when there is no card
+Pixels tell an engineer nothing: the app shows no pixel number any more. Without a bank card, a door seen whole and upright in photo 2 (SAM 3.1, new context part `door`) gives an estimated scale, carried to photo 1 through the link of the two photos (`src/measure/photo2_scale.py`): door 2.10 m (assumption), error ± 16 % (door heights ± 5 %, depth and angle ± 15 %, assumptions), shown as "≈ mm ± %". The card shows its own error. A level read from an estimated width is never Category 1 (rule 3: Expert needed instead). Without either scale, no width number is shown, only relative colours. A person is not used as a scale: photos must not show people (rule 9). Scaffolding is not used: no standard frame size found yet. Not validated: SAM 3.1 is not on every laptop, and no photo pairs with both a card and a door have been compared yet.
+
+Relation to D113 (decided by Luis, 26 Nov): D113 stops the old photo-2 guess (the damage on photo 2 read with an assumed element size), which gave 40 to 150 mm. The door scale stays: it measures the crack itself on photo 1, only carries a door's assumed height to it, shows "≈" with its error, and can never give Category 1 (Expert needed instead, rule 3).
+## D117: an angle for every segment, against the room's vertical in photo 2
+Every branch is cut into segments (about 3.5 % of the photo's long side) and each segment gets its own angle; each branch also gets its angle, length and widest width, and a number counted from the crack's centre outwards (`src/app/crack_view.py`). When the two photos are linked, angles are read against the room's vertical found in photo 2 (door and window frames, corners, the ceiling line, D69), not against the card or the phone; on a beam or slab, from horizontal. Without photo 2, against the photo, said so. The reported "horizontal crack read as 46°" was not reproduced (no photo); with per-segment angles against photo 2 it can be checked.
+
+## D118: layers, legend, colours on the crack, one crack at a time
+The crack viewer's icon buttons become a layers panel (crack lines, each crack, branch numbers, movement, steel and other marks, heatmap, model area, growth). Colour by width, by angle (0° cyan, 45° amber, 90° red) or by crack. The width colours are stretched over this crack's own widths (rank, so each colour covers about the same share), with a legend in mm. Clicking a crack shows only its colours, values and branches; the rest goes grey. Movement arrows are off at first.
+
+## D119: the sender corrects the app
+Edit mode in the viewer: remove a false crack, draw a missed crack or spalling. The corrections come back to Python through a two-way component (`src/app/result_blocks.py`), are kept with the result and its wall entry, and written to `data/corrections/` (never committed, numbers only) for retraining. They do not change the level: an engineer checks them (removing a crack must never lower a level by itself).
+
+## D120: questions, the knock, and the app's confidence said openly
+Twelve short questions, one at a time with "I don't know" (`src/app/questions.py`): six on where the crack sits in the building (context, kept as training data) and six on signs the matrix knows (sticking doors, earthquake, added floors, damp, sagging; a "yes" raises, nothing lowers; "it changed" stays context, growth needs two measured photos). The knock: the resident records a knock next to the crack; the app keeps its pitch, ringing and count, not the sound, and does not say hollow or solid: there are 0 labelled knocks to learn it from. "How sure is the app today" lists measured numbers only (3 of 76 missed, 67 % / 86 % elements, 0.06 mm, 0 engineer-rated cases), no invented percentage.
+
+## D121: advice, not only a category
+Written precautions per level and per sign (`src/triage/advice.py`): move heavy loads such as a full fridge or water tanks away, do not drill, find the water, do not knock off loose concrete at the steel, when to leave the room. General precautions, illustrative until reviewed by engineers; never "safe", never a level.
+
+## D122: the photo in steps, before and after, growth as an illustration
+The photo, the crack over it, the crack alone on black, the autoencoder's map on black (`src/app/sequence.py`). With an earlier result number, both photos side by side with a slider. The growth over 5, 10 or 20 days is drawn only when two dated photos with a card, at least a day apart, measured growth beyond the error; it is the measured rate carried on, labelled "an illustration, not a forecast". One photo's movement (opening, sliding) has no rate, so it gives no animation.
+
+## D123: no author's name in the app
+The app cites by number ([46], [48]); the names stay in `docs/sources.md` and the README. Crediting Enrique Corres Sojo by name in the repository's acknowledgements and in a later paper waits until he has been asked.
+
+
+## D124 (2026-11-26): when and where, on the engineer's map
+The engineer wall shows every shared result on one map. The photo's time is always read; its place only with the resident's opt-in ("Share where the photo was taken"), from the photo's GPS record or, since phones usually remove it, from the phone's location with permission. Rule 9: a household's place is personal, so it stays on the laptop's wall, never on the phone page or in git, and the consent text says so. Spec: `spec/features/engineer_map.md`.

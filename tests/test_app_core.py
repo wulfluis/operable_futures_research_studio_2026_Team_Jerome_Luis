@@ -59,7 +59,7 @@ def test_bad_uploads_are_refused(data, why):
 
 
 def test_other_formats_are_refused():
-    with pytest.raises(PhotoRejected, match="JPEG or PNG"):
+    with pytest.raises(PhotoRejected, match="JPEG, PNG or HEIC"):
         analyse(_jpeg(fmt="BMP"), consent=True, share=False, wall=Wall(), model=FakeModel())
 
 

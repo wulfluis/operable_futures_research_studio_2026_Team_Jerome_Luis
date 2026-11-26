@@ -156,7 +156,7 @@ Photos are analysed in memory and never saved; the wall forgets them when the ap
 | [`src/anomaly/`](src/anomaly/) | the autoencoder trained on sound concrete, its heatmap and the area rules |
 | [`src/element/`](src/element/) | the element and spalling models, SAM 3.1's parts, what photo 2 adds |
 | [`src/triage/`](src/triage/) | the risk matrix, the pattern rules, the dispatch rule and the evaluation tables |
-| [`src/app/`](src/app/) | the app: phone page, live wall, crack viewer, theme, launcher, simulated residents |
+| [`src/app/`](src/app/) | the app: phone page, live wall, crack viewer (layers, angles per segment, corrections), questions and knock, the photo in steps, theme, launcher, simulated residents |
 | [`src/gh3d/`](src/gh3d/) | each crack in 3D: the model in plain Python and the Grasshopper script for Rhino 8 |
 | [`src/mcp_osm/`](src/mcp_osm/) | the MCP server for building data from OpenStreetMap |
 | [`tests/`](tests/) | the tests: run `pytest` |

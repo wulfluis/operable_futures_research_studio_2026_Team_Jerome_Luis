@@ -1,15 +1,14 @@
 """The crack read the way a crack engineer reads it (D99): how it moved, how sure each width is, what a crack along a
-bar means, and what this rests on. From E. Corres Sojo's thesis [46] and the method it uses [48]. Shown only: nothing
-here changes a level (rule 5); the thesis gives no width limits, the levels stay in src/triage/.
+bar means, and what this rests on. From the reference thesis [46] and the method it uses [48] (docs/sources.md).
+D123: no author's name in the app; they are credited in the repository (docs/sources.md, README). Shown only:
+nothing here changes a level (rule 5); the thesis gives no width limits, the levels stay in src/triage/.
 Spec: spec/features/crack_kinematics.md ("Read like an engineer")."""
 
 from __future__ import annotations
 
-SOURCES = {
-    "thesis": "E. Corres Sojo, Contributions to rebar-to-concrete interaction and its structural implications for "
-              "design and monitoring applications, PhD thesis 10772, EPFL, 2024 [46]",
-    "method": "B. G. Pantoja-Rosero et al., Determining crack kinematics from imaged crack patterns, Construction and "
-              "Building Materials 343, 2022 [48]",
+SOURCES = {  # D123: by number only; the names are in docs/sources.md and the README, not in the app
+    "thesis": "[46] in the project's list of sources",
+    "method": "[48] in the project's list of sources",
 }
 
 
@@ -48,8 +47,10 @@ def notes(d: dict) -> list[dict]:
                     "source": "thesis"})
     elif d.get("statement") in ("Crack found", "Expert needed"):
         out.append({"title": "How sure the width is",
-                    "text": "Without a bank card the width is in the photo's pixels, ± 1 pixel. A card next to the "
-                            "crack turns it into millimetres.",
+                    "text": ("The width is estimated from a door in photo 2: ≈ mm, with the error shown. A bank card "
+                             "next to the crack measures it." if d.get("scale_estimate") else
+                             "Without a bank card no width is shown (D116): a card next to the crack gives "
+                             "millimetres, ± one pixel of the photo."),
                     "source": "thesis"})
     pattern = ((d.get("triage") or {}).get("pattern") or (d.get("pattern_suggestion") or {}).get("pattern"))
     if pattern == "along_bar":
@@ -73,6 +74,5 @@ def notes(d: dict) -> list[dict]:
 def html(d: dict) -> str:
     """The notes as the result window's panel body."""
     rows = "".join(f'<p class="d-line"><b>{n["title"]}.</b> {n["text"]}</p>' for n in notes(d))
-    refs = "".join(f'<li>{SOURCES[k]}</li>' for k in ("thesis", "method"))
-    return rows + f'<p class="d-note">Based on:</p><ul class="d-note">{refs}</ul><p class="d-note">Shown only: the ' \
-                  'level does not use it, except growth beyond the error, which raises it (D103).</p>'
+    return rows + ('<p class="d-note">Sources by number in the project\'s repository ([46], [48]). Shown only: the '
+                   'level does not use it, except growth beyond the error, which raises it (D103).</p>')

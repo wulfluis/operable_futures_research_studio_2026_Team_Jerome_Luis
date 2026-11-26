@@ -19,3 +19,4 @@ transformers==5.22.1  # Grounding DINO for the element-model test (no language m
 
 # Planned (add pinned versions when each is first used)
 # ultralytics   (YOLO, only if element boxes are needed later; AGPL-3.0, decision D9)
+pillow-heif>=0.18  # iPhone HEIC/HEIF photos

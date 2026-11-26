@@ -17,11 +17,13 @@ def test_phone_page_has_one_tick_and_states_the_consent_terms(page):
     at = page.run()
     assert not at.exception
     labels = [c.label for c in at.checkbox]  # the card tick (D56) and the share tick; consent is the upload (D34)
-    assert labels == ["I put a bank card next to the crack", "Share results"]
-    assert not any(c.value for c in at.checkbox)  # both off: no card search, nothing shared, unless ticked
+    assert labels == ["I put a bank or credit card next to the crack", "Share with the engineers' wall",
+                      "Share where the photo was taken (only engineers see it, on their map)"]
+    assert not any(c.value for c in at.checkbox)  # all off: no card search, nothing shared, no place, unless ticked
     text = " ".join(m.value for m in at.markdown)
     assert "temporary disguise" not in text  # the quote was removed (D78)
-    assert "By sending a photo you confirm you took it" in text and "no faces" in text  # consent is the upload (D34)
+    assert "By confirming you agree" in text and "no faces" in text  # consent is the Confirm button (D34)
+    assert not at.get("file_uploader")  # the photo comes only after Confirm
 
 
 def test_wall_refuses_a_wrong_key(page):
@@ -147,6 +149,6 @@ def test_phone_page_shows_a_sketch_on_each_tip_and_no_loop_tag(page):
     at = page.run()
     text = " ".join(m.value for m in at.markdown)
     tips = text[text.index('<div class="tips">'):]
-    tips = tips[:tips.index("</div>")]
+    tips = tips[:tips.index('<p class="note">')]
     assert tips.count("<svg") == 3 and tips.count("</svg>") == 3  # one line sketch per tip (D84)
     assert "Human in the loop" not in text  # the tag is gone from the header (D84)

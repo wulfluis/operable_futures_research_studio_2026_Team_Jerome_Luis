@@ -15,9 +15,11 @@ Owner: J = Jerome, L = Luis, C = coding agent (Claude). Fill in the blanks.
 - [x] The population reviewed case by case: no width guessed for real photos, steel before a far retake, wide patches, weak cases left out (C, 26 Nov, D113)
 
 ### To do
+- [ ] Test the phone page with people who know nothing about buildings (protocol in `spec/features/evaluation.md`) (J, L)
 - [ ] Meeting with the engineer, 27 Nov: is steel always Category 3? advice list, growth animation, zoom (J, L)
 - [ ] Two spalls still painted as crack on the wall: a better spall model needs real labelled spalls (C)
-- [ ] Millimetres only on screen, advice per level, research-paper strip, best cases first (review of 26 Nov) (C)
+- [x] Review of 26 Nov, rest of the list (L, 26 Nov, D115 to D124): millimetres only (door scale without a card), angles per segment against photo 2, layers and legend, corrections on the engineer's wall, questions and the knock, advice per level, the photo in steps, no author's names in the app, the engineer's map with time and place
+- [ ] Best cases first on the wall (review of 26 Nov) (C)
 - [ ] Our own photos with a bank card: without them the wall has no Category 1 or 2 (J, L)
 
 ---

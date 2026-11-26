@@ -35,12 +35,13 @@ PARTS = {
     "balcony": ["balcony"],
     "stairs": ["staircase", "stairs"],
     "window": ["window"],
+    "door": ["door"],  # D116: context, and the scale of photo 2 when there is no bank card
     "expansion joint": ["expansion joint"],
 }
 PART_NAMES = {"column": "Column", "wall": "Wall", "beam": "Beam", "slab": "Slab", "balcony": "Balcony",
-              "stairs": "Stairs", "window": "Window", "expansion joint": "Expansion joint"}
+              "stairs": "Stairs", "window": "Window", "door": "Door", "expansion joint": "Expansion joint"}
 COLOURS = {"column": (230, 25, 75), "wall": (60, 180, 75), "beam": (255, 225, 25), "slab": (0, 130, 200),
-           "balcony": (245, 130, 48), "stairs": (145, 30, 180), "window": (70, 240, 240),
+           "balcony": (245, 130, 48), "stairs": (145, 30, 180), "window": (70, 240, 240), "door": (170, 110, 40),
            "expansion joint": (240, 50, 230)}
 WALL_NOTE = "load-bearing or infill: not known from the photo"
 

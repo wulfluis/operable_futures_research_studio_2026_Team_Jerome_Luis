@@ -102,10 +102,11 @@ def page(monkeypatch):
 def test_phone_page_keeps_the_original_layout_and_adds_the_card_hint(page):
     at = page.run()
     assert not at.exception
-    assert [c.label for c in at.checkbox] == ["I put a bank card next to the crack", "Share results"]  # D56
+    assert [c.label for c in at.checkbox][:2] == ["I put a bank or credit card next to the crack",
+                                                  "Share with the engineers' wall"]  # D56; then the place (opt-in)
     text = " ".join(m.value for m in at.markdown)
-    assert "temporary disguise" not in text and "By sending a photo you confirm you took it" in text  # D78
-    assert "bank-card-sized card" in text
+    assert "temporary disguise" not in text and "By confirming you agree" in text  # D78, D34
+    assert "bank or credit card" in text
 
 
 def test_wall_refuses_a_wrong_key(page):

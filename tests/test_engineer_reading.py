@@ -37,14 +37,15 @@ def test_a_narrower_crack_is_not_called_closed():
     assert "Retake both" in compare(_r(1.5), _r(1.0))["reason"]
 
 
-def test_the_engineer_panel_reads_the_movement_and_names_its_sources():
+def test_the_engineer_panel_reads_the_movement_and_cites_its_sources_by_number_only():
     d = {"statement": "Crack found", "measured": True, "crack": {"width_uncertainty_mm": 0.08},
          "kinematics": [{"unit": "mm", "opening_median": 0.4, "sliding_median": 0.3, "reading": "opening and sliding"}],
          "triage": {"pattern": "along_bar"}}
     titles = [n["title"] for n in engineer.notes(d)]
     assert titles[:3] == ["How the crack moved", "How sure the width is", "A crack along a steel bar"]
     html = engineer.html(d)
-    assert "shear" in html and "Corres Sojo" in html and "Pantoja-Rosero" in html and "level does not use it" in html
+    assert "shear" in html and "[46]" in html and "[48]" in html and "level does not use it" in html
+    assert "Corres" not in html and "Pantoja" not in html  # D123: no author's name in the app
 
 
 def test_the_panel_never_says_safe():

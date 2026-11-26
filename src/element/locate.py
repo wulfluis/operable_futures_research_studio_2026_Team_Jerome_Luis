@@ -61,6 +61,7 @@ class Location:
     preview: Image.Image | None = field(default=None, repr=False)  # element photo with the link drawn; never shared
     crack_px: np.ndarray | None = field(default=None, repr=False)  # the crack's line in the element photo's pixels
     link_map: tuple | None = field(default=None, repr=False)  # (H, kc, ke): close_grey pixels -> element photo (D75)
+    down: np.ndarray | None = field(default=None, repr=False)  # the room's true vertical in photo 2 (unit, D69, D117)
 
     def carry(self, close_px: np.ndarray) -> np.ndarray | None:
         """Points of the crack photo (close_grey pixels, as given to locate) in the element photo's own pixels, through
@@ -441,6 +442,7 @@ def locate(close_grey: np.ndarray, crack_px: np.ndarray | None, element_rgb: np.
     def with_direction(loc: Location) -> Location:
         loc.crack_px = crack / ke  # for the part it lies on (D70); in the element photo's own pixels
         loc.link_map = (H, kc, ke)  # every branch of the crack is carried with it (D75)
+        loc.down = None if down is None else np.asarray(down, float)  # D117: every segment's angle is read against it
         if to_vertical is not None:
             loc.crack_to_vertical_deg, loc.direction = to_vertical, direction_word(to_vertical)
         return loc

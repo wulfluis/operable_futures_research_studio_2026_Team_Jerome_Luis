@@ -34,3 +34,13 @@ A second row of chips under the width chips, from the same measurement: Angle fr
 
 ## Every crack and the other defects (D88, D89, 21 Nov)
 Every branch of every crack is drawn, each independent crack in its own colour (◈ switches to the width colours; `spec/features/all_cracks.md`). Two more layers, each with its own button: the other defects (◇: possible rust stains, dark patches and other unusual areas, separate from the cracks, outlined and dashed with their label) and the autoencoder's heatmap (▦: what looks different from sound concrete). Chips count each kind of defect and give the surface score. Shown only, never a level (`spec/features/anomaly_ae.md`).
+
+## Review of 26 Nov 2026 (D116 to D119, D122)
+- Units: mm only (card, or ≈ from a door with its error); otherwise no width number.
+- Layers panel: crack lines, each crack, branch numbers, movement, steel and marks, heatmap, model area, growth.
+- Colour by width (stretched over the crack's own widths, legend in mm), by angle (0° cyan, 45° amber, 90° red), or by crack.
+- Each branch: segments with their own angle, its angle, length, widest width, number from the centre. Angles against photo 2's room vertical when linked; from horizontal on a beam or slab.
+- Click a crack: only it in colour, its values and branches. Esc or "Show all" goes back.
+- Edit: remove a crack, draw a missed crack or spalling, send. The corrections go to Python (`src/app/result_blocks.py`); the level is not changed by them.
+- Steel first: a red bar above everything; possible water, roots, pipes in orange.
+- Steps: photo, crack over it, crack alone on black, autoencoder map on black (`src/app/sequence.py`). Before and after with a slider. Growth over 5, 10, 20 days only from a measured rate.

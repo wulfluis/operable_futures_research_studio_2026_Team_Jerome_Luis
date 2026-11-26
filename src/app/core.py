@@ -127,6 +127,16 @@ class MeasuredResult:
     spalling_close: list | None = None  # spalled areas on the close-up (D111), found before the crack is measured
     spalling_element: bool | None = None  # photo 2: a spalled area (SAM 3.1) at the crack (D111); None: not checked
     steel_element: dict | None = None  # photo 2: exposed steel inside the element's outline (D112); None: not checked
+    link_k: float = 1.0  # photo 1's full pixels -> link_grey pixels (D117)
+    link_down: np.ndarray | None = field(default=None, repr=False)  # the true vertical in photo 2 (D117)
+    scale_estimate: dict | None = None  # mm per pixel from a door in photo 2, an estimate (D116); None: none
+    answers: dict = field(default_factory=dict)  # the resident's short answers (D120), training data
+    tap: dict | None = None  # features of a recorded knock on the wall (D120), shown only
+    corrections: list = field(default_factory=list)  # what the sender removed or added in the viewer (D119)
+    previous: int | None = None  # the wall number of an earlier photo of the same crack (D99, D122)
+    received_at: float | None = None  # when the photo arrived (seconds), for the growth per day (D122)
+    taken_at: str | None = None  # when the photo was taken, from its own record (engineer's map)
+    place: dict | None = None  # where, only when the resident shares it: {lat, lon, source, accuracy_m}
 
     @property
     def measured(self) -> bool:
@@ -176,8 +186,17 @@ class MeasuredResult:
                 "spalling_on_element_photo": self.spalling_element,
                 "exposed_steel_on_element_photo": None if self.steel_element is None else {
                     k: self.steel_element.get(k) for k in ("seen", "score", "prompt")},
+                "received_at": self.received_at,
+                "taken_at": self.taken_at,
+                "place": self.place,
                 "exposed_steel": None if self.exposed_steel is None else {
-                    k: self.exposed_steel.get(k) for k in ("seen", "score", "prompt")},
+                    **{k: self.exposed_steel.get(k) for k in ("seen", "score", "prompt")},
+                    "causes": [{"kind": c["kind"], "score": c["score"]} for c in self.exposed_steel.get("causes") or []]},
+                "scale_estimate": None if self.scale_estimate is None else {
+                    k: v for k, v in self.scale_estimate.items() if k != "door"},
+                "answers": self.answers or None,
+                "tap": self.tap,
+                "corrections": self.corrections or None,
                 "kinematics": None if not self.kinematics else [None if k is None else k.to_dict() for k in self.kinematics],
                 "estimate": self.estimate,
                 "photo2": None if self.on_element is None and self.spalling is None else {
@@ -335,6 +354,7 @@ def _keep_for_link(r: MeasuredResult, full: Image.Image, line_px: np.ndarray | N
     from element.locate import card_patch, card_view, to_link_size
     from element.photo2 import MIN_BRANCH_SHARE, trace_network
     r.link_grey, k = to_link_size(np.asarray(full.convert("L")))
+    r.link_k = k
     r.link_line_px = None if line_px is None else np.asarray(line_px, dtype=float) * k
     paths = [np.asarray(p, float) for p in (paths or []) if p is not None and len(p) >= 2]
     if paths:  # every branch of every traced crack, as measured (D88, D92): the element photo shows them all
@@ -430,16 +450,43 @@ def _check_steel(full: Image.Image) -> dict | None:
 
 
 def _steel_defects(r: MeasuredResult) -> None:
-    """The steel's outline as a defect layer in the crack viewer (D107), beside the autoencoder's (D89)."""
+    """The steel's outline as a defect layer in the crack viewer (D107), beside the autoencoder's (D89), and the
+    possible causes before the crack: water, roots, pipes (D115)."""
     st = r.exposed_steel or {}
-    if st.get("seen") and st.get("defects"):
+    extra = (st.get("defects") or []) if st.get("seen") else []
+    for c in st.get("causes") or []:
+        extra += c.get("outlines") or []
+    if extra:
         if r.anomaly is None:
             r.anomaly = {"score": None, "defects": [], "heat_png": None, "version": None}
-        r.anomaly["defects"] = st["defects"] + r.anomaly["defects"]
+        r.anomaly["defects"] = extra + r.anomaly["defects"]
+
+
+def causes_seen(r: MeasuredResult) -> list[str]:
+    """The possible causes before the crack on the close-up (D115): 'roots', 'pipe'."""
+    return [c["kind"] for c in (r.exposed_steel or {}).get("causes") or []]
+
+
+def steel_first(result: MeasuredResult, wall: Wall | None = None) -> LevelResult | None:
+    """D112, D115: exposed steel on the close-up gives Category 3 at once, already before photo 2, whatever the crack
+    looks like (the written rule in src/triage/matrix.py). None when no steel is seen."""
+    if not steel_seen(result) or result.statement not in ("Crack found", "Expert needed") or result.triage:
+        return None
+    level = assess("none", "unknown", float("nan"), float("nan"), True, exposed_steel=True)  # D112
+    result.triage = {"source": "written rule: exposed steel (D112)", "element": None, "element_name": None,
+                     "element_probability": None, "position": "unknown", "position_name": POSITION_NAMES["unknown"],
+                     "position_reason": None, "pattern": "spalling_exposed_bar",
+                     "pattern_name": PATTERN_NAMES.get("spalling_exposed_bar"), "pattern_suggested": None,
+                     "confidence": None, "level": level.level, "reason": level.reason,
+                     "why": "SAM 3.1 sees possible exposed steel on the close-up.",
+                     "engineer_review": level.engineer_review, "next_step": level.next_step, "steel_first": True}
+    if wall is not None and result.wall_number is not None:
+        wall.update(result.wall_number, result.to_dict())
+    return level
 
 
 def _add_kinematics(r: MeasuredResult) -> None:
-    """Opening and sliding of every traced crack (D99): the method of [48] used in Corres Sojo's thesis [46], read on
+    """Opening and sliding of every traced crack (D99): the method of [48] used in the reference thesis [46], read on
     the crack's measured edges. In mm with a bank card that measured the width, else in pixels. Shown only."""
     if (r.exposed_steel or {}).get("seen"):  # D107: the lines may follow the steel, not a crack's two faces
         return
@@ -783,6 +830,15 @@ class Wall:
                     return True
         return False
 
+    def set_marks(self, number: int, marks: dict | None) -> bool:
+        """New crack-viewer data for a result still on the wall (after photo 2: angles, scale; D116, D117)."""
+        with self._lock:
+            for e in self._items:
+                if e.number == number:
+                    e.marks = marks
+                    return True
+        return False
+
     def update(self, number: int, stats: dict) -> bool:
         """New stats for a result still on the wall (after the element photo); False if it is gone."""
         with self._lock:
@@ -806,15 +862,23 @@ class Wall:
 
 def analyse(data: bytes, consent: bool, share: bool, wall: Wall, model, device: str = "cpu",
             gpu: threading.Lock | None = None, scene_model=None, card_placed: bool = False,
-            test: bool = False, previous: int | None = None) -> MeasuredResult:
+            test: bool = False, previous: int | None = None, share_location: bool = False) -> MeasuredResult:
     """One upload, as the original: consent, size and format, then the pipeline. Only pixels are read.
     previous: the wall number of an earlier photo of the same crack, to compare with (D99)."""
     if not consent:
         raise ConsentMissing("Tick the consent box first.")
     photo = _open_photo(data)
+    from app import place as place_mod
+    meta = place_mod.read(data)  # the photo's own record: its time always, its place only when shared
     with gpu or threading.Lock():
         result = run_measured(photo, model, device, scene_model, card_placed)
+    result.taken_at = meta["taken_at"]
+    if share_location and place_mod.valid(meta["lat"], meta["lon"]):
+        result.place = {"lat": meta["lat"], "lon": meta["lon"], "source": "photo", "accuracy_m": None}
     result.test = test
+    result.previous = previous
+    import time
+    result.received_at = round(time.time(), 1)
     if previous is not None and result.statement in (CRACK, UNSURE):
         from measure.growth import compare
         before = wall.get(previous)
@@ -823,7 +887,15 @@ def analyse(data: bytes, consent: bool, share: bool, wall: Wall, model, device: 
         from app.crack_view import view_data
         result.wall_number = wall.add(result.statement, result.overlay, result.to_dict(), result.views,
                                       result.photo, view_data(result))
+    steel_first(result, wall)  # D115: exposed steel is Category 3 at once, before photo 2
     return result
+
+
+try:  # iPhone photos (HEIC/HEIF): read by pillow-heif when it is installed
+    from pillow_heif import register_heif_opener
+    register_heif_opener()
+except ImportError:
+    pass
 
 
 def _open_photo(data: bytes) -> Image.Image:
@@ -832,8 +904,8 @@ def _open_photo(data: bytes) -> Image.Image:
         raise PhotoRejected("The photo is larger than 10 MB.")
     try:
         with Image.open(io.BytesIO(data)) as img:
-            if img.format not in ("JPEG", "PNG", "MPO"):
-                raise PhotoRejected("Send a JPEG or PNG photo.")
+            if img.format not in ("JPEG", "PNG", "MPO", "HEIF", "HEIC"):
+                raise PhotoRejected("Send a JPEG, PNG or HEIC/HEIF photo.")
             img.load()
             return img.copy()
     except (OSError, Image.DecompressionBombError) as e:
@@ -877,6 +949,7 @@ def analyse_element(data: bytes, result: MeasuredResult, wall: Wall, model, devi
     if parts_model is not None:
         find_parts_for(result, photo, parts_model, gpu)
         frame_from_parts(result)
+        estimate_scale(result, ImageOps.exif_transpose(photo).size)  # D116: a door, when there is no card
     # D62 for drawn test photos only; D113: never for real photos, where the damage on photo 2 is not the crack's width
     result.estimate = estimate_from_photo2(result) if result.test and not result.real_photos else None
     if result.wall_number is not None and result.on_element is not None and result.on_element.overlay is not None:
@@ -884,6 +957,9 @@ def analyse_element(data: bytes, result: MeasuredResult, wall: Wall, model, devi
     if result.wall_number is not None and result.parts_preview is not None:
         wall.set_photo2(result.wall_number, result.parts_preview, "parts_img")
     auto_triage(result, wall)
+    if result.wall_number is not None:  # the wall's viewer reads the angles and the scale from photo 2 too
+        from app.crack_view import view_data
+        wall.set_marks(result.wall_number, view_data(result))
     return result.element
 
 
@@ -987,6 +1063,25 @@ def photo2_picture(result: MeasuredResult) -> Image.Image:
     return img
 
 
+def estimate_scale(result: MeasuredResult, photo2_size: tuple[int, int]) -> None:
+    """D116: without a bank card, a door seen whole in photo 2 gives an estimated scale, carried to photo 1 through the
+    link of the two photos. Needs SAM 3.1's masks of photo 2 and the link; else nothing (the width stays unknown)."""
+    from element.locate import Location
+    from measure import photo2_scale as ps
+    result.scale_estimate = None
+    if result.card is not None or result.measured or result.link_map is None or not result.parts_things:
+        return
+    door = ps.door_in(result.parts_things, photo2_size)
+    lm = Location(True, "unknown", "")
+    lm.link_map = result.link_map
+    scale = ps.scale_from_door(door, ps.local_scale(lm.carry, result.link_line_px, result.link_k))
+    m = result.pixel_crack
+    if scale is None or m is None or not m.found:
+        return
+    scale["crack"] = ps.widths(scale, m.width_max_mm, m.width_median_mm, m.length_main_mm)  # pixels: no card
+    result.scale_estimate = scale
+
+
 def estimate_from_photo2(result: MeasuredResult) -> dict | None:
     """TEST cases only (D62): the crack's width and length estimated from photo 2, assuming the element fills the photo
     and has its typical size. Coarse (one pixel of uncertainty). None without a crack measured on photo 2, or when the
@@ -1024,6 +1119,7 @@ def locate_crack(result: MeasuredResult, photo: Image.Image) -> None:
     result.location, result.location_preview = loc.to_dict(), loc.preview
     result.link_crack_element = loc.crack_px
     result.link_map = loc.link_map
+    result.link_down = loc.down
 
 
 PARTS_SIDE = 1600  # the element photo's long side for SAM 3.1 (it reads 644 px anyway)
@@ -1094,6 +1190,21 @@ def _lines_mask(nets: list, w: int, h: int) -> np.ndarray:
         for q in np.asarray(b, float).astype(int):
             m[min(h - 1, max(0, q[1])), min(w - 1, max(0, q[0]))] = True
     return m
+
+
+ELEMENT_TINT = (34, 211, 238)  # the app's light blue: the element the crack lies on, on photo 2
+
+
+def tint_element(img: Image.Image, mask: np.ndarray, alpha: float = 0.32) -> Image.Image:
+    """Photo 2 with the element the crack lies on coloured and outlined (review 26 Nov 2026). mask: the image's size."""
+    a = np.asarray(img.convert("RGB")).astype(float)
+    m = np.asarray(mask, bool)
+    if m.shape != a.shape[:2] or not m.any():
+        return img.convert("RGB").copy()
+    a[m] = (1 - alpha) * a[m] + alpha * np.array(ELEMENT_TINT, float)
+    edge = m & ~ndimage.binary_erosion(m, iterations=max(2, img.width // 300))
+    a[edge] = ELEMENT_TINT
+    return Image.fromarray(a.clip(0, 255).astype(np.uint8))
 
 
 def whole_element(result: MeasuredResult, photo: Image.Image, rgb: np.ndarray, p) -> None:
@@ -1176,7 +1287,8 @@ def whole_element(result: MeasuredResult, photo: Image.Image, rgb: np.ndarray, p
     result.spalling_element = bool(any((_poly_mask(poly, w, h) & near).any() for poly in on.spalling_px))
     if cut.any():
         nets = _cut_lines(nets, cut)
-    img = work.copy()
+    on.element_mask = small  # the element the crack lies on, photo 2's size
+    img = tint_element(work, small)  # coloured in the app's light blue, the cracks drawn over it
     d = ImageDraw.Draw(img)
     lw = max(3, img.width // 160)
     for poly in on.spalling_px:
@@ -1228,16 +1340,32 @@ def level_for(result: MeasuredResult, element: str | None, position: str, patter
     """The written risk matrix's level for these inputs (rule 5). No width (no bank card, or too few pixels) gives
     Expert needed in the matrix itself; never a "safe" answer. confidence: the crack model's when not given."""
     c = result.crack.matrix_input() if result.measured else None
+    estimated = False
     if c is None and result.test and result.estimate:  # D62: test cases only, labelled as an estimate
         c = {"width_mm": result.estimate["width_max_mm"], "width_uncertainty_mm": result.estimate["uncertainty_mm"]}
+    est = (result.scale_estimate or {}).get("crack") if c is None else None
+    if est:  # D116: mm from a door in photo 2, an estimate with its error
+        c, estimated = {"width_mm": est["width_max_mm"], "width_uncertainty_mm": est["uncertainty_mm"]}, True
     conf = confidence if confidence is not None else result.confidence
     conf = conf if conf is not None else float("nan")
     signs = (("rust_stain",) if rust_stain else ()) + (
         ("growing",) if (result.growth or {}).get("grown") is True else ())  # D103: grown beyond the error ([46], D23)
-    return assess(pattern or "none", element or "unknown", c["width_mm"] if c else float("nan"), conf,
-                  result.statement != "Retake", width_uncertainty_mm=c["width_uncertainty_mm"] if c else 0.0,
-                  escalators=signs, location=POSITIONS[position],
-                  exposed_steel=steel_seen(result))  # D112: steel on either photo is Category 3
+    signs += tuple(s for s in answer_signs(result.answers) if s not in signs)  # D120: the resident's answers
+    out = assess(pattern or "none", element or "unknown", c["width_mm"] if c else float("nan"), conf,
+                 result.statement != "Retake", width_uncertainty_mm=c["width_uncertainty_mm"] if c else 0.0,
+                 escalators=signs, location=POSITIONS[position],
+                 exposed_steel=steel_seen(result))  # D112: steel on either photo is Category 3
+    if estimated and out.level == "Category 1":  # rule 3: Category 1 is earned, never from an assumed door height
+        from triage.matrix import NEXT_STEPS
+        return LevelResult("Expert needed", "The width is estimated from a door in photo 2, not measured: Category 1 "
+                           "needs a bank card next to the crack, so an engineer decides.", True,
+                           NEXT_STEPS["Expert needed"])
+    return out
+
+
+def answer_signs(answers: dict | None) -> tuple[str, ...]:
+    from app.questions import signs
+    return signs(answers or {})
 
 
 def where_on_element(result: MeasuredResult, element: str | None) -> tuple[str, str | None]:
@@ -1288,7 +1416,13 @@ def auto_triage(result: MeasuredResult, wall: Wall | None = None) -> LevelResult
         why.append(f"Spalling or exposed bars seen on the photo of the element ({result.spalling_p:.0%}).")
     if (result.growth or {}).get("grown") is True:
         why.append(result.growth["reason"])
-    if not result.measured and result.test and result.estimate:
+    est = (result.scale_estimate or {}).get("crack")
+    if steel_seen(result):
+        why.insert(0, "SAM 3.1 sees possible exposed steel on the close-up.")
+    if not result.measured and est:
+        why.append(f"Width ≈ {est['width_max_mm']:.2f} ± {est['uncertainty_mm']:.2f} mm, estimated from "
+                   f"{result.scale_estimate['name']} ({result.scale_estimate['basis']}).")
+    elif not result.measured and result.test and result.estimate:
         why.append(f"Width {result.estimate['width_max_mm']:g} ± {result.estimate['uncertainty_mm']:g} mm "
                    f"{result.estimate['basis']}.")
     elif not result.measured:
