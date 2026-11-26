@@ -9,7 +9,7 @@ Jerome, 22 Nov, on a real case: a column whose cover has fallen off, a vertical 
    - the reason says so in one sentence, and the crack viewer outlines the steel (a "Steel?" chip, its own colour, like the other defects);
    - the traced crack lines may follow the steel and the broken concrete, so their widths are not used: the width is reported as not measured, and the level gets no width;
    - the type is "spalling with exposed bar" (the matrix pattern `spalling_exposed_bar`), as when the element photo shows spalling (D61).
-3. **The level** comes from the written matrix as always (rule 5). Without a usable width it is "Expert needed": an engineer reviews it, and the reason names the exposed steel. Exposed steel never lowers a level.
+3. **The level (D112, 26 Nov):** exposed steel is Category 3 straight away, whatever the crack looks like; the crack is not needed. It is a written rule in the matrix (`src/triage/matrix.py`, `assess(..., exposed_steel=True)`), checked right after the photo is found usable, so an engineer confirms every such case (rule 4). Steel counts on the close-up, or on the element photo when it lies inside the element's outline (a window grille or railing outside the element does not count). Exposed steel never lowers a level. Reason (the review of 26 Nov): visible bars mean the concrete cover is gone, which is critical whatever the crack looks like.
 4. Without SAM 3.1 on the laptop nothing changes and nothing is claimed.
 
 ## Evidence (`src/experiments/exposed_steel_eval.py`, 22 Nov)

@@ -16,7 +16,8 @@ def test_the_answer_without_a_card_is_still_the_original():
     mine, original = run_measured(photo, DEMO_MODEL), run(photo, DEMO_MODEL)
     assert mine.card is None and mine.crack is None and mine.pixel_shape is not None
     assert (mine.statement, mine.reason, mine.confidence) == (original.statement, original.reason, original.confidence)
-    assert np.array_equal(np.asarray(mine.overlay), np.asarray(original.overlay))
+    # D111: the red layer is the crack as traced and measured (same answer, same picture size), not the raw groups
+    assert mine.overlay.size == original.overlay.size
 
 
 def test_the_shape_in_pixels_agrees_with_the_shape_measured_with_the_card():

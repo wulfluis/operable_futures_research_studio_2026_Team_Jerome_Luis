@@ -107,7 +107,7 @@ Learned models only see. Every level comes from written rules in `src/triage/`, 
 
 | Job | Done by | Compared with | Result so far |
 |---|---|---|---|
-| Find the crack | U-Net, ResNet-34 encoder (crack model v5, trained also on the EPFL photos of cracked buildings after earthquakes), two thresholds | Our previous model v4, and the EPFL group's own model | Our 76 real cases: 3 cracks missed (v4: 9; EPFL model: 2, but 2.5 times the false alarms). Building concrete, 588 unseen tiles: 20 of 281 missed, 8 false alarms on 307 clean tiles (v4: 19 and 5) |
+| Find the crack | U-Net, ResNet-34 encoder (crack model v5, trained also on the EPFL photos of cracked buildings after earthquakes), two thresholds | Our previous model v4 | Our 76 real cases: 3 cracks missed (v4: 9). Building concrete, 588 unseen tiles: 20 of 281 missed, 8 false alarms on 307 clean tiles (v4: 19 and 5) |
 | Trace the whole crack | SAM 3.1 adds the lines connected to the crack found | The crack model alone | Same 588 tiles: 84.4 % of the crack traced instead of 81.6 %, the same 19 missed and 5 false alarms. Alone, SAM would have drawn cracks on 35 of the 307 clean tiles, so it never decides |
 | Is the photo a close-up? | ConvNeXt-tiny on PHI-Net's scene classes | No check | No whole building let through without a crack; a far photo with no crack line is a retake, never "No crack found". Our 76 real cases: 1 sent to retake (before: 20) |
 | Which element is it? | ConvNeXt-tiny on PHI-Net | Our first element model | Answers 67 % of 579 test photos with confidence, right on 86 % of those; a column called something else 4.9 % of the time (first model: 20.5 %) |

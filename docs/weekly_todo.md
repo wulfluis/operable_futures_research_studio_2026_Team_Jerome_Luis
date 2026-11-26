@@ -6,6 +6,22 @@ Owner: J = Jerome, L = Luis, C = coding agent (Claude). Fill in the blanks.
 
 ---
 
+## Week 5: 23 to 29 Nov
+
+### Done
+- [x] Review of 26 Nov: the EPFL model comparison taken out of the README and docs (C, 26 Nov)
+- [x] A spall is not a crack: found first, the crack cut out of it on both photos; the red layer is the traced crack (C, 26 Nov, D111)
+- [x] Exposed steel is Category 3 straight away, on either photo (C, 26 Nov, D112)
+- [x] The population reviewed case by case: no width guessed for real photos, steel before a far retake, wide patches, weak cases left out (C, 26 Nov, D113)
+
+### To do
+- [ ] Meeting with the engineer, 27 Nov: is steel always Category 3? advice list, growth animation, zoom (J, L)
+- [ ] Two spalls still painted as crack on the wall: a better spall model needs real labelled spalls (C)
+- [ ] Millimetres only on screen, advice per level, research-paper strip, best cases first (review of 26 Nov) (C)
+- [ ] Our own photos with a bank card: without them the wall has no Category 1 or 2 (J, L)
+
+---
+
 ## Week 4: 16 to 22 Nov (hackathon 16 to 20 Nov)
 
 ### Done
@@ -23,7 +39,7 @@ Owner: J = Jerome, L = Luis, C = coding agent (Claude). Fill in the blanks.
 - [x] Element photo: cracks traced whole, not in dashes; only the element holding the crack; no red ring in the parts view (C, 22 Nov, D97, D98)
 - [x] The crack read like an engineer, from Corres Sojo's thesis: opening and sliding arrows, ± 1 px width band, photo advice, growth since an earlier photo, "Read like an engineer" panel, arrows in 3D (C, 22 Nov, D99)
 - [x] EPFL crack sets downloaded and checked (TOPO-Loss WILD, DIC, kinematics); crack model v5 trained on them replaces v4: 3 real cracks missed instead of 9 (C, 22 Nov, D100)
-- [x] Growth beyond the measurement's error raises the level (C, 22 Nov, D103); the EPFL group's own model tested, not adopted (D104)
+- [x] Growth beyond the measurement's error raises the level (C, 22 Nov, D103); the EPFL group's own model tried; it does a different job, not used in the app (D104)
 - [x] Simulator sends every real case by default, field pairs first (C, 22 Nov, D101, D102)
 - [x] README with real photos and real app screenshots only (C, 22 Nov, D105, D106)
 - [x] Width rule checked against 14,198 hand-measured cracks: about 0.06 mm too wide, kept on the safe side (C, 22 Nov, D108, D109)

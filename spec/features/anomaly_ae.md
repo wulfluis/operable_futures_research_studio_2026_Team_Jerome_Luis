@@ -44,6 +44,16 @@ Separate layers, each switched on and off: the cracks (crack 1, 2, 3 in their co
 ## Possible spalling (D93, 21 Nov)
 On close-ups of plastered walls, SAM 3.1 is asked for "missing plaster" and "broken plaster" (`src/anomaly/spalling_sam.py`); written rules keep an area only when its score is at least 0.5, it is an area and not a crack line (the traced cracks are removed first, and it survives an erosion of 1.2 % of the long side), it covers 0.5 % to 40 % of the photo, and its colour differs clearly from the wall around it (CIELAB difference at least 15). Shown as "Possible spalling or missing plaster (SAM 3.1, unverified)", a dashed outline and a "Spalling?" chip. Tried on 12 photos only (4 real with spalling, 2 field photos without, 6 drawn): it outlined the spalled patch of a survey photo and two plaster flakes of another, missed a large spall and a small one, and marked nothing on the 8 photos without spalling once the colour difference was raised from 12 to 15 (a door frame had 13.3). Not a measured result: real close-ups of spalling are needed. "Exposed concrete" is not asked: on painted walls it covered whole walls, and on PHI-Net it lit half the photos without spalling (D91).
 
+### A spall is not a crack (D111, 26 Nov)
+The crack model often marks a spall as a very wide crack. Now:
+- the spalling check runs **before** the crack is measured, and only the crack's thin lines are taken out of SAM's area first (a wide area the crack model marked stays a candidate);
+- the outline drawn is SAM's whole area, with the crack lines along its rim;
+- an open crack's dark gap is not a spall: not much darker than the wall around it (CIELAB lightness at most 35 darker), and not a small, long, thin and dark strip (elongation at least 3.5, at least 18 darker, under 5 % of the photo); illustrative, from the 76 real cases checked by eye;
+- the crack is cut out of the spall (grown by 1 % of the photo's long side), also after SAM's crack extension (D91): it is traced and measured only outside it, so the width, the opening and the sliding are the crack's;
+- spalling on the close-up, or on the element photo at the crack, gives the type "spalling with exposed bar" (rule 2 of the type rules), so the level is raised by the written matrix;
+- on the element photo, no crack line is drawn inside a spalled area or on exposed steel.
+Evidence (76 real cases, 26 Nov): same answers as before (crack found 71), spalling found on 16 after the dark-gap rule (19 before it: 3 were open cracks), the false widths across spalls gone. Still "unverified": one reviewer.
+
 ## Not changed (until evaluated)
 Shown only: the areas and the score do not raise the level or send a case to "Expert needed" yet. After the evaluation (rule 6) the team decides whether a high score sends the case to an expert and whether a confirmed rust stain feeds the risk matrix's "rust staining" raise. Never lowers anything.
 

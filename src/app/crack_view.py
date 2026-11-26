@@ -111,6 +111,8 @@ def view_data(result, size: tuple[int, int] | None = None) -> dict | None:
             "kin": kin_data(getattr(result, "kinematics", None), W, H),
             # D107: possible exposed steel: the traced lines may follow it, so no width is shown as the crack's
             "steel": bool((getattr(result, "exposed_steel", None) or {}).get("seen")),
+            # D111: spalling on the close-up: the crack is traced and measured only outside it
+            "spall": bool(getattr(result, "spalling_close", None)),
             # the error of every width: one pixel, as found against a crack microscope on an old crack ([46] ch. 5.2)
             "unc": round(WIDTH_UNCERTAINTY_PX * (float(c.mm_per_px) if unit == "mm" and c.mm_per_px else 1.0), 4),
             "surface_score": None,  # not shown: not calibrated for photos at the app's scale (D89)
@@ -470,10 +472,11 @@ function defectChips() {  // counts of the other defects and the photo's surface
 function hud() { const tl = $("tl"); if (!HAS) { tl.innerHTML = '<span class="chip"><span class="k">Crack</span><span class="val">no line to measure</span></span>'; return; }
   const chip = function (id, k, val, cls) { return '<button class="chip ' + (cls || "") + '" id="' + id + '"><span class="k">' + k + '</span><span class="val">' + val + "</span></button>"; };
   if (C.steel) {  // D107: the lines may follow the steel and the broken concrete: their widths are not the crack's
-    tl.innerHTML = '<span class="chip" style="border-color:#ef4444" title="SAM 3.1 sees possible exposed steel. The traced lines may follow the steel and the broken concrete, so their widths are not used and not shown. An expert should look."><span class="k" style="color:#ef4444">Exposed steel?</span><span class="val">widths not used</span></span>' +
+    tl.innerHTML = '<span class="chip" style="border-color:#ef4444" title="SAM 3.1 sees exposed steel bars: the concrete cover is gone. This is Category 3 whatever the crack looks like, and an engineer confirms it. The traced lines may follow the steel, so their widths are not shown."><span class="k" style="color:#ef4444">Exposed steel</span><span class="val">Category 3 · engineer confirms</span></span>' +
       defectChips();
     return; }
-  tl.innerHTML = chip("cmax", "Max", fmt(C.widest.w), "max") + chip("cmin", "Min", fmt(C.narrowest.w), "min") +
+  const SP = C.spall ? '<span class="chip" style="border-color:#ff5c7a" title="SAM 3.1 sees spalling: a piece of plaster or concrete has broken away. The crack is not traced or measured inside it. An engineer should look."><span class="k" style="color:#ff5c7a">Spalling</span><span class="val">crack measured outside it only</span></span>' : "";
+  tl.innerHTML = SP + chip("cmax", "Max", fmt(C.widest.w), "max") + chip("cmin", "Min", fmt(C.narrowest.w), "min") +
     '<span class="chip opt"><span class="k">Median</span><span class="val">' + fmt(C.median) + "</span></span>" +
     '<span class="chip"><span class="k">Length</span><span class="val">' + lenFmt(C.length) + "</span></span>" +
     (U === "px" ? '<span class="chip opt"><span class="k">Scale</span><span class="val">no card · pixels</span></span>' : "") +

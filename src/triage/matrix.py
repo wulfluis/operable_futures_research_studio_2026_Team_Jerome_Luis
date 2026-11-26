@@ -63,9 +63,13 @@ def _result(level: str, reason: str) -> Result:
     return Result(level, reason, level in NEEDS_ENGINEER, NEXT_STEPS[level])
 
 
+STEEL_REASON = ("Exposed steel bars are visible: the concrete cover is gone, which is critical whatever the crack looks "
+                "like (D112).")
+
+
 def assess(pattern: str, element: str, width_mm: float, confidence: float, image_ok: bool, *,
            width_uncertainty_mm: float = 0.0, material: str = "concrete", material_confidence: float = 1.0,
-           escalators: tuple[str, ...] = (), location: str = "unknown") -> Result:
+           escalators: tuple[str, ...] = (), location: str = "unknown", exposed_steel: bool = False) -> Result:
     """Return level, one-sentence reason, engineer-review flag and next step. Any doubt goes to an expert.
     Order: photo usable -> material -> element and pattern -> confidence -> width -> base level -> raises
     (element, then location on the element, then warning signs). An unknown location counts as an end zone."""
@@ -76,6 +80,8 @@ def assess(pattern: str, element: str, width_mm: float, confidence: float, image
         raise ValueError(f"unknown location: {location!r}")
     if image_ok is not True:
         return _result("Retake", "Photo not usable (blur, light or scale card missing): retake it.")
+    if exposed_steel is True:  # D112: visible bars are critical whatever the crack looks like; no crack reading needed
+        return _result("Category 3", STEEL_REASON)
     if not _valid(material_confidence) or not MATERIAL_THRESHOLD <= material_confidence <= 1:
         return _result("Expert needed", "Material unclear from the photo: an engineer decides.")
     if material not in SUPPORTED_MATERIALS:

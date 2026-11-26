@@ -45,7 +45,9 @@ TEST_SET = ROOT / "data" / "inbox_cases" / "test_set.json"  # D94: real cases re
 TOPO_TEST = ROOT / "data" / "raw" / "epfl_topo" / "data" / "test_set" / "images"  # [108]: cracked buildings, local only
 # D101, reviewed by eye on 22 Nov: the close-up shows a real crack of the building in the far photo. Left out: the
 # close-up cut around a roof edge, the sky or a shutter (DSC_0123, IMG_4237, IMG_6845, KB0739).
-TOPO_KEEP = {"AD0021.png", "AD0043.png", "DSC_0086.png", "IMG_1400.png", "SFR_1955.png"}
+TOPO_KEEP = {"AD0021.png", "IMG_1400.png"}  # D113, 26 Nov: AD0043 (a brick wall read far), DSC_0086 (a gate) and
+# SFR_1955 (a whole building) came back as Retake: left out of the default population
+DROPPED = ROOT / "data" / "inbox_cases" / "dropped.json"  # D113: weak or illogical cases left out after review, local
 
 PHINET6 = ROOT / "data" / "raw" / "phinet" / "task6_component_type"
 PHINET1 = ROOT / "data" / "raw" / "phinet" / "task1_scene_level"
@@ -128,15 +130,19 @@ def real_cases(n: int, picks_file: Path | None = None):
 def all_real_cases():
     """Every real two-photo case set, each case once (D101): the test set reviewed by eye (D94), the cases per risk tab
     (D79) and the earlier picks (D63), by their photo and close-up."""
-    seen, out = set(), []
+    seen, photos, out = set(), set(), []
+    if DROPPED.exists():  # D113: reviewed by eye and left out (wrong photo 2, a duplicate, cables, no visible crack)
+        for case in json.loads(DROPPED.read_text(encoding="utf-8"))["cases"]:
+            seen.add((case.get("photo"), tuple(case.get("crop") or ())))
     for f in (TEST_SET, BY_LEVEL, PICKS):
         if not f.exists():
             continue
         for case in json.loads(f.read_text(encoding="utf-8"))["cases"]:
             key = (case.get("photo"), tuple(case.get("crop") or ()))
-            if case.get("synthetic") or key in seen:
+            if case.get("synthetic") or key in seen or case.get("photo") in photos:  # D113: one case per photo
                 continue
             seen.add(key)
+            photos.add(case.get("photo"))
             out.append(case)
     return out
 

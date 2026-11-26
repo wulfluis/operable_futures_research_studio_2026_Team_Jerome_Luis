@@ -98,6 +98,7 @@ class MeasuredResult:
     scene: scene_mod.SceneAnswer | None = None  # close-up check of the crack photo (D54)
     geometry: dict | None = None  # the crack on the wall plane in mm, for the 3D model (D57); with a card only
     test: bool = False  # a simulated resident (test inbox, D59): marked TEST everywhere
+    real_photos: bool = False  # a simulated resident sending real photos (D113): no width guessed from photo 2
     on_element: object | None = None  # photo 2: the crack's place and extent on the element (D61)
     spalling: bool | None = None  # photo 2: spalling or exposed bars seen (D61); None: not known
     spalling_p: float | None = None
@@ -123,6 +124,9 @@ class MeasuredResult:
     kinematics: list | None = field(default=None, repr=False)  # opening and sliding per crack (D99), shown only
     growth: dict | None = None  # the change since an earlier photo of the same crack (D99), shown only
     exposed_steel: dict | None = None  # possible exposed steel on the close-up (D107); None: not checked
+    spalling_close: list | None = None  # spalled areas on the close-up (D111), found before the crack is measured
+    spalling_element: bool | None = None  # photo 2: a spalled area (SAM 3.1) at the crack (D111); None: not checked
+    steel_element: dict | None = None  # photo 2: exposed steel inside the element's outline (D112); None: not checked
 
     @property
     def measured(self) -> bool:
@@ -166,6 +170,12 @@ class MeasuredResult:
                 "scene": None if self.scene is None else self.scene.to_dict(),
                 "geometry": self.geometry if self.measured else None,
                 "growth": self.growth,
+                "spalling_on_close_up": None if self.spalling_close is None else {
+                    "seen": bool(self.spalling_close), "areas": len(self.spalling_close),
+                    "share": round(sum(f["share"] for f in self.spalling_close), 4)},
+                "spalling_on_element_photo": self.spalling_element,
+                "exposed_steel_on_element_photo": None if self.steel_element is None else {
+                    k: self.steel_element.get(k) for k in ("seen", "score", "prompt")},
                 "exposed_steel": None if self.exposed_steel is None else {
                     k: self.exposed_steel.get(k) for k in ("seen", "score", "prompt")},
                 "kinematics": None if not self.kinematics else [None if k is None else k.to_dict() for k in self.kinematics],
@@ -180,7 +190,9 @@ class MeasuredResult:
         """The written rules' type for the model's element (D43, D53); a suggestion, never a level by itself."""
         from element.predict import matrix_element
         steel = bool((self.exposed_steel or {}).get("seen"))  # D107: exposed steel on the close-up
-        return self.pattern(matrix_element(self.element), spalling=self.spalling or steel or None)
+        steel = steel or bool((self.steel_element or {}).get("seen"))  # D112: or on the element photo
+        spall = bool(self.spalling_close) or bool(self.spalling_element)  # D111: on either photo
+        return self.pattern(matrix_element(self.element), spalling=self.spalling or steel or spall or None)
 
 
 GEOMETRY_MAX_POINTS = 200  # the crack line sent to the 3D model (D57)
@@ -266,15 +278,26 @@ def _full_mask(prob: np.ndarray, keep: np.ndarray, size: tuple[int, int]) -> np.
     return (p > LOW_THRESHOLD) & k
 
 
-def crack_line_mask(full: Image.Image, prob: np.ndarray, keep: np.ndarray) -> np.ndarray:
-    """Where the crack runs, full size: the crack model's crack, extended by SAM 3.1's connected lines (D91)."""
+def crack_line_mask(full: Image.Image, prob: np.ndarray, keep: np.ndarray, cut: np.ndarray | None = None) -> np.ndarray:
+    """Where the crack runs, full size: the crack model's crack, extended by SAM 3.1's connected lines (D91), never
+    inside a spalled area (cut, working size, D111)."""
     from segmentation.sam_extend import extended
-    return extended(full, _full_mask(prob, keep, full.size))
+    unet = _full_mask(prob, keep, full.size)
+    out = extended(full, unet)
+    added = out & ~unet  # D114: SAM may add a whole broken patch; it adds lines only, never areas
+    if added.any():
+        r = max(1, round(EXTEND_LINE_SHARE * max(full.size)))
+        area = ndimage.binary_dilation(ndimage.binary_erosion(added, iterations=r), iterations=r + 1)
+        out &= ~(area & added)
+    if cut is not None and cut.any():
+        out &= ~(np.asarray(Image.fromarray(cut.astype(np.uint8) * 255).resize(full.size, Image.NEAREST)) > 0)
+    return out
 
 
-def pixel_line(full: Image.Image, prob: np.ndarray, keep: np.ndarray) -> CrackMeasurement | None:
+def pixel_line(full: Image.Image, prob: np.ndarray, keep: np.ndarray,
+               cut: np.ndarray | None = None) -> CrackMeasurement | None:
     """The U-Net's crack line measured in the photo's pixels (no millimetres), with the same code as with a card."""
-    line = crack_line_mask(full, prob, keep)
+    line = crack_line_mask(full, prob, keep, cut)
     if not line.any():
         return None
     grey = np.asarray(full.convert("L"), dtype=float)
@@ -351,10 +374,50 @@ def _draw_card_and_widest(overlay: Image.Image, scale: float, card, crack, full:
     return out
 
 
-STEEL_NO_CRACK = ("No crack line found, but possible exposed steel on the photo (SAM 3.1): the concrete cover may be "
-                  "gone. An expert should look.")
-STEEL_NOTE = ("Possible exposed steel on the photo (SAM 3.1): the traced crack lines may follow the steel and the "
-              "broken concrete, so their widths are not used.")
+STEEL_NO_CRACK = ("No crack line found, but exposed steel on the photo (SAM 3.1): the concrete cover is gone. "
+                  "Exposed steel is Category 3 with the element photo (D112); an engineer confirms it.")
+STEEL_NOTE = ("Exposed steel on the photo (SAM 3.1): Category 3 with the element photo (D112), whatever the crack looks "
+              "like; the traced lines may follow the steel, so their widths are not used.")
+
+
+SPALL_NOTE = ("Spalling on the photo (SAM 3.1): a piece of plaster or concrete has broken away. The crack is not "
+              "traced or measured inside it; an engineer should look.")
+SPALL_ONLY = ("Spalling on the photo (SAM 3.1): a piece of plaster or concrete has broken away, and the line the crack "
+              "model marked lies inside it, so no crack width is given. An expert should look.")
+EXTEND_LINE_SHARE = 0.008  # D114: what SAM adds wider than 1.6 % of the long side is an area, not a crack line
+SPALL_CUT_SHARE = 0.025  # D114: the spall's outline grown by 2.5 % of the long side, so its rim is not drawn as a crack
+
+
+def _check_spalling(full: Image.Image, prob: np.ndarray, d: Decision, card) -> list | None:
+    """Spalled areas on the close-up (D93, D111), looked for before the crack is measured; None when SAM 3.1 is not on
+    this laptop or fails (never stops the answer)."""
+    try:
+        from anomaly import spalling_sam
+        crack = _full_mask(prob, d.mask, full.size) if d.mask is not None and d.mask.any() else None
+        exclude = (reference_mask((full.height, full.width), card.corners_px, CARD_PAD * max(full.size))
+                   if card is not None else None)
+        return spalling_sam.find(full, crack, exclude)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _spall_mask(spall: list, w: int, h: int) -> np.ndarray:
+    """The spalled areas at the working size, grown a little: the crack is cut out of them (D111)."""
+    import cv2
+    m = np.zeros((h, w), np.uint8)
+    for f in spall:
+        cv2.fillPoly(m, [np.round(np.asarray(f["outline"], float) * (w, h)).astype(np.int32)], 1)
+    return ndimage.binary_dilation(m > 0, iterations=max(1, round(SPALL_CUT_SHARE * max(w, h))))
+
+
+def _traced_mask(traced, w: int, h: int, fallback: np.ndarray) -> np.ndarray:
+    """The red layer: exactly the cracks that are traced and measured (D111), at the working size, so the red marking and
+    the drawn crack lines are the same cracks; the crack model's own groups when nothing was traced."""
+    parts = [p.mask for p in (getattr(traced, "cracks", None) or [traced]) if p is not None and p.mask is not None]
+    if not parts:
+        return fallback
+    full = np.logical_or.reduce([m for m in parts if m.shape == parts[0].shape])
+    return np.asarray(Image.fromarray(full.astype(np.uint8) * 255).resize((w, h), Image.NEAREST)) > 0
 
 
 def _check_steel(full: Image.Image) -> dict | None:
@@ -392,7 +455,7 @@ def _add_kinematics(r: MeasuredResult) -> None:
         r.warnings.append(f"Opening and sliding not read ({type(e).__name__}).")
 
 
-def _add_anomaly(r: MeasuredResult, full: Image.Image, prob: np.ndarray, d: Decision, card) -> None:
+def _add_anomaly(r: MeasuredResult, full: Image.Image, prob: np.ndarray, d: Decision, card, spall=None) -> None:
     """What looks different from sound concrete (D89): heatmap, score and other defects, separate from the traced
     cracks and the card. Shown only, never a level; skipped quietly when the autoencoder is not installed."""
     try:
@@ -410,7 +473,8 @@ def _add_anomaly(r: MeasuredResult, full: Image.Image, prob: np.ndarray, d: Deci
         lines = np.logical_or.reduce(parts) if parts and all(p.shape == parts[0].shape for p in parts) else crack
         exclude = (reference_mask((full.height, full.width), card.corners_px, CARD_PAD * max(full.size))
                    if card is not None else None)
-        spall = spalling_sam.find(full, lines, exclude)
+        if spall is None:  # D111: usually found already, before the crack was measured
+            spall = spalling_sam.find(full, lines, exclude)
         if spall:
             if r.anomaly is None:
                 r.anomaly = {"score": None, "defects": [], "heat_png": None, "version": None}
@@ -447,18 +511,32 @@ def run_measured(photo: Image.Image, model, device: str = "cpu", scene_model=Non
         prob = np.where(reference_mask((h, w), card.corners_px * k, CARD_PAD * max(w, h)), 0.0, prob)
     d = decide(prob, scale=max(w, h) / 416)
     line = f"{d.reason} Confidence {d.confidence:.0%}." if d.confidence else d.reason
-    if scene is not None and scene.far and d.statement == NO_CRACK and card is None:
-        # D110: a photo farther than a close-up with no crack line found: thin cracks do not show there, so a retake
+    steel = _check_steel(full)  # D107: on every usable close-up, a crack line found or not
+    seen_steel = bool((steel or {}).get("seen"))
+    if scene is not None and scene.far and d.statement == NO_CRACK and card is None and not seen_steel:
+        # D110 (D112: bare steel on a far photo is not a retake: it goes on to Category 3): a photo farther than a close-up with no crack line found: thin cracks do not show there, so a retake
         r = MeasuredResult("Retake", scene_mod.FAR_NO_CRACK, None,
                            draw_overlay(work, np.zeros((h, w), bool), "Retake", scene_mod.FAR_NO_CRACK))
         r.scene = scene
         return r
     if scene is not None and scene.far and d.statement in (CRACK, UNSURE):
         line += scene_mod.FAR_CRACK
-    steel = _check_steel(full)  # D107: on every usable close-up, a crack line found or not
-    seen_steel = bool((steel or {}).get("seen"))
+    spall = _check_spalling(full, prob, d, card) if d.statement != NO_CRACK else None
+    if d.statement != NO_CRACK:  # D113: wide areas of the crack model that are not a dark gap (no SAM needed)
+        from anomaly.spalling_sam import wide_patches
+        patches = wide_patches(np.asarray(work), d.mask)
+        if patches:
+            spall = (spall or []) + patches
+    spall_only, cut = False, None
+    if spall:  # D111: a spall is not a crack: the crack is traced and measured only outside it
+        cut = _spall_mask(spall, w, h)
+        kept = d.mask & ~cut
+        spall_only = not kept.any()
+        d = replace(d, mask=kept, statement=NO_CRACK if spall_only else d.statement)
+        prob = np.where(cut, 0.0, prob)
+        line = SPALL_ONLY if spall_only else f"{line} {SPALL_NOTE}"
     if seen_steel and d.statement == NO_CRACK:  # bare steel is never "no crack found": a person decides (rule 2)
-        line = STEEL_NO_CRACK
+        line = STEEL_NO_CRACK if not spall_only else f"{SPALL_ONLY} {STEEL_NOTE}"
     elif seen_steel and card is None:  # with a card, the note comes as "Width not measured: ..."
         line += " " + STEEL_NOTE
 
@@ -470,27 +548,33 @@ def run_measured(photo: Image.Image, model, device: str = "cpu", scene_model=Non
         r = MeasuredResult(d.statement, line, d.confidence, draw_overlay(work, d.mask, d.statement, line), d)
         r.scene = scene
         r.exposed_steel = steel
-        if seen_steel and d.statement == NO_CRACK:
+        r.spalling_close = spall
+        if (seen_steel or spall_only) and d.statement == NO_CRACK:  # never "no crack found" on a spall (rule 2)
             r.statement = UNSURE
             r.overlay = draw_overlay(work, d.mask, UNSURE, line)
         if d.statement in (CRACK, UNSURE):  # the type needs no scale; the answer above stays the original's
-            m = pixel_line(full, prob, d.mask)
+            m = pixel_line(full, prob, d.mask, cut)
             r.pixel_shape = pixel_shape(m)
             r.photo, r.pixel_crack = full, m
+            r.overlay = draw_overlay(work, _traced_mask(m, w, h, d.mask), r.statement, line)  # D111: as traced
             _keep_for_link(r, full, None if m is None else m.main_path_px, d.mask,
                            paths=None if m is None else m.branch_paths_px, width_px=
                            None if m is None else (m.width_max_mm, m.width_median_mm))  # pixels: no card
             r.views = _views(work, prob, k, None, False)
             _add_kinematics(r)
-        _add_anomaly(r, full, prob, d, None)
+        _add_anomaly(r, full, prob, d, None, spall)
         _steel_defects(r)
         return r
 
     r = MeasuredResult(d.statement, line, d.confidence, work, d, card)
+    traced_line = None  # the full-size line the cracks are traced from (D111: the red layer shows exactly it)
     r.scene = scene
     r.exposed_steel = steel
-    if seen_steel and d.statement == NO_CRACK:
+    r.spalling_close = spall
+    if (seen_steel or spall_only) and d.statement == NO_CRACK:
         r.statement = UNSURE
+    if spall_only and not seen_steel:
+        r.measure_note = SPALL_ONLY
     if seen_steel:  # D107: no width from lines that may follow the steel
         r.measure_note = STEEL_NOTE
     elif card.status == "retake":
@@ -500,7 +584,8 @@ def run_measured(photo: Image.Image, model, device: str = "cpu", scene_model=Non
     if d.statement in (CRACK, UNSURE) and r.measure_note is None:
         grey = np.asarray(full.convert("L"), dtype=float)
         exclude = reference_mask(grey.shape, card.corners_px, CARD_PAD * max(full.size))
-        unet = crack_line_mask(full, prob, d.mask) & ~exclude
+        unet = crack_line_mask(full, prob, d.mask, cut) & ~exclude
+        traced_line = unet
         scale = from_rectangle(card.corners_px, card_mod.CARD_MM, "bank card, ISO/IEC 7810 ID-1, 85.60 x 53.98 mm",
                                long_first=card.long_first)
         centre = scale.to_mm(np.mean(card.corners_px, axis=0))[0]
@@ -536,12 +621,12 @@ def run_measured(photo: Image.Image, model, device: str = "cpu", scene_model=Non
         if r.measure_note is None and r.crack.matrix_input() is not None:
             _add_kinematics(r)  # D99: in mm, before the 3D geometry, which draws it
         r.geometry = wall_geometry(r.crack, scale.to_mm, card.corners_px, r.kinematics)
-    elif d.statement == NO_CRACK and not seen_steel:
+    elif d.statement == NO_CRACK and not seen_steel and not spall_only:
         r.measure_note = "Bank card found; there is no crack to measure."
 
     if d.statement in (CRACK, UNSURE):
         found = r.crack is not None and r.crack.found
-        m = None if found else pixel_line(full, prob, d.mask)  # a tilted card spoils the mm, not the crack's place
+        m = None if found else pixel_line(full, prob, d.mask, cut)  # a tilted card spoils the mm, not the crack's place
         r.photo, r.pixel_crack = full, m
         traced = r.crack if found else m
         _keep_for_link(r, full, r.crack.main_path_px if found else (None if m is None else m.main_path_px), d.mask,
@@ -552,14 +637,20 @@ def run_measured(photo: Image.Image, model, device: str = "cpu", scene_model=Non
                 f"{c.width_uncertainty_mm:.2f} mm, length {c.length_main_mm:.0f} mm (bank card).")
     elif d.statement != NO_CRACK:
         line += " Width not measured: " + r.measure_note[0].lower() + r.measure_note[1:]
+    elif spall_only:
+        line = SPALL_ONLY
     r.reason = line
-    r.overlay = _draw_card_and_widest(draw_overlay(work, d.mask, r.statement, line), k, card,
+    if traced_line is not None and traced_line.any():
+        red = np.asarray(Image.fromarray(traced_line.astype(np.uint8) * 255).resize((w, h), Image.NEAREST)) > 0
+    else:
+        red = _traced_mask(r.pixel_crack, w, h, d.mask) if d.statement in (CRACK, UNSURE) else d.mask
+    r.overlay = _draw_card_and_widest(draw_overlay(work, red, r.statement, line), k, card,
                                       r.crack if r.measured else None, full)
     if d.statement in (CRACK, UNSURE):
         r.views = _views(work, prob, k, r.crack, r.measured)
         if r.kinematics is None:
             _add_kinematics(r)
-    _add_anomaly(r, full, prob, d, card)
+    _add_anomaly(r, full, prob, d, card, spall)
     _steel_defects(r)
     return r
 
@@ -786,7 +877,8 @@ def analyse_element(data: bytes, result: MeasuredResult, wall: Wall, model, devi
     if parts_model is not None:
         find_parts_for(result, photo, parts_model, gpu)
         frame_from_parts(result)
-    result.estimate = estimate_from_photo2(result) if result.test else None
+    # D62 for drawn test photos only; D113: never for real photos, where the damage on photo 2 is not the crack's width
+    result.estimate = estimate_from_photo2(result) if result.test and not result.real_photos else None
     if result.wall_number is not None and result.on_element is not None and result.on_element.overlay is not None:
         wall.set_photo2(result.wall_number, photo2_picture(result))
     if result.wall_number is not None and result.parts_preview is not None:
@@ -969,6 +1061,41 @@ def find_parts_for(result: MeasuredResult, photo: Image.Image, segment, gpu: thr
         result.warnings.append(f"Whole-element tracing not run ({type(e).__name__}).")
 
 
+def _photo1_inside_close_up(result: MeasuredResult, photo: Image.Image, nets: list, w: int, h: int) -> list:
+    """D114: where photo 1 was taken, photo 2 shows photo 1's own cracks (traced close, cut out of spalls), carried by
+    the link; photo 2's own tracing only outside that area. Unchanged when the photos are not linked."""
+    if result.link_map is None or result.link_grey is None or not result.link_network_px:
+        return nets
+    from element.locate import Location
+    lm = Location(True, "unknown", "")
+    lm.link_map = result.link_map
+    s = w / ImageOps.exif_transpose(photo).width  # element photo's own pixels -> photo 2 as analysed
+    gh, gw = result.link_grey.shape[:2]
+    box = lm.carry(np.array([[0, 0], [gw - 1, 0], [gw - 1, gh - 1], [0, gh - 1]], float))
+    if box is None:
+        return nets
+    inside = _poly_mask(box * s, w, h)
+    if not inside.any() or inside.mean() > 0.9:
+        return nets
+    carried = [c * s for c in (lm.carry(b) for b in result.link_network_px) if c is not None and len(c) >= 2]
+    return _cut_lines(nets, inside) + carried
+
+
+def _poly_mask(poly, w: int, h: int) -> np.ndarray:
+    import cv2
+    m = np.zeros((h, w), np.uint8)
+    cv2.fillPoly(m, [np.round(np.asarray(poly, float)).astype(np.int32)], 1)
+    return m > 0
+
+
+def _lines_mask(nets: list, w: int, h: int) -> np.ndarray:
+    m = np.zeros((h, w), bool)
+    for b in nets:
+        for q in np.asarray(b, float).astype(int):
+            m[min(h - 1, max(0, q[1])), min(w - 1, max(0, q[0]))] = True
+    return m
+
+
 def whole_element(result: MeasuredResult, photo: Image.Image, rgb: np.ndarray, p) -> None:
     """Every crack and spalled area on the whole element (D96), inside the outline of the part the crack lies on;
     the element photo and the parts view are both drawn from it, so they always show the same crack."""
@@ -1022,11 +1149,40 @@ def whole_element(result: MeasuredResult, photo: Image.Image, rgb: np.ndarray, p
     except Exception:
         spall = []
     on.spalling_px = [np.asarray(f["outline"], float) * (w, h) for f in spall]
+    steel_px = []
+    try:  # D112: exposed steel inside the element's outline (a window grille or railing outside it does not count)
+        import cv2
+        from element.steel import MIN_SHARE, find
+        st = find(work, keep_mask=True)
+        if st is not None:
+            m = st.get("mask")
+            m = (np.asarray(Image.fromarray(m.astype(np.uint8) * 255).resize((w, h))) > 0) if m is not None else None
+            inside = m & small if m is not None else None
+            seen = bool(inside is not None and inside.mean() >= MIN_SHARE and inside.sum() >= 0.5 * m.sum())
+            result.steel_element = {"seen": seen, "score": st.get("score") if seen else None,
+                                    "prompt": st.get("prompt") if seen else None}
+            if seen:
+                cs, _ = cv2.findContours(inside.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                steel_px = [c.reshape(-1, 2).astype(float) for c in cs if cv2.contourArea(c) >= 20]
+    except Exception:  # noqa: BLE001  never stops the triage
+        pass
+    cut = np.zeros((h, w), bool)
+    for poly in list(on.spalling_px) + steel_px:  # D111: no crack line drawn inside a spall or on the steel
+        cut |= _poly_mask(poly, w, h)
+    if cut.any():  # D114: nor along its rim
+        cut = ndimage.binary_dilation(cut, iterations=max(1, round(SPALL_CUT_SHARE * max(w, h))))
+    nets = _photo1_inside_close_up(result, photo, nets, w, h)  # D114: the two photos show the same cracks
+    near = ndimage.binary_dilation(_lines_mask(nets, w, h), iterations=max(2, round(0.02 * max(w, h))))
+    result.spalling_element = bool(any((_poly_mask(poly, w, h) & near).any() for poly in on.spalling_px))
+    if cut.any():
+        nets = _cut_lines(nets, cut)
     img = work.copy()
     d = ImageDraw.Draw(img)
     lw = max(3, img.width // 160)
     for poly in on.spalling_px:
         d.polygon([tuple(q) for q in poly], outline=(255, 92, 122), width=lw)
+    for poly in steel_px:
+        d.polygon([tuple(q) for q in poly], outline=(239, 68, 68), width=lw)
     for b in nets:
         d.line([tuple(q) for q in b], fill=(214, 39, 40), width=lw)
     on.overlay = img
@@ -1038,6 +1194,33 @@ def whole_element(result: MeasuredResult, photo: Image.Image, rgb: np.ndarray, p
         for poly in on.spalling_px:
             dd.polygon([tuple(q) for q in poly * s * k], outline=(255, 92, 122), width=max(2, pv.width // 250))
     result.parts_preview = pv
+
+
+def steel_seen(result: MeasuredResult) -> bool:
+    """Exposed steel on the close-up or inside the element's outline on photo 2 (D107, D112)."""
+    return bool((result.exposed_steel or {}).get("seen")) or bool((result.steel_element or {}).get("seen"))
+
+
+def _cut_lines(nets: list, cut: np.ndarray) -> list:
+    """The crack lines without their points inside a spalled area or on exposed steel (D111): split into the pieces
+    outside it; a piece of one point is dropped."""
+    h, w = cut.shape
+    out = []
+    for b in nets:
+        b = np.asarray(b, float)
+        q = np.clip(np.round(b).astype(int), 0, [w - 1, h - 1])
+        inside = cut[q[:, 1], q[:, 0]]
+        run = []
+        for pt, i in zip(b, inside):
+            if i:
+                if len(run) >= 2:
+                    out.append(np.asarray(run))
+                run = []
+            else:
+                run.append(pt)
+        if len(run) >= 2:
+            out.append(np.asarray(run))
+    return out
 
 
 def level_for(result: MeasuredResult, element: str | None, position: str, pattern: str | None,
@@ -1053,7 +1236,8 @@ def level_for(result: MeasuredResult, element: str | None, position: str, patter
         ("growing",) if (result.growth or {}).get("grown") is True else ())  # D103: grown beyond the error ([46], D23)
     return assess(pattern or "none", element or "unknown", c["width_mm"] if c else float("nan"), conf,
                   result.statement != "Retake", width_uncertainty_mm=c["width_uncertainty_mm"] if c else 0.0,
-                  escalators=signs, location=POSITIONS[position])
+                  escalators=signs, location=POSITIONS[position],
+                  exposed_steel=steel_seen(result))  # D112: steel on either photo is Category 3
 
 
 def where_on_element(result: MeasuredResult, element: str | None) -> tuple[str, str | None]:
@@ -1092,6 +1276,14 @@ def auto_triage(result: MeasuredResult, wall: Wall | None = None) -> LevelResult
     if on is not None and on.found:  # what photo 2 added (D61)
         why.append(f"From the photo of the element: the crack spans about {on.extent:.0%} of it, "
                    f"{POSITION_NAMES[position]}.")
+    if (result.exposed_steel or {}).get("seen"):
+        why.insert(0, "Exposed steel on the close-up (SAM 3.1): Category 3 straight away, the crack is not needed.")
+    elif (result.steel_element or {}).get("seen"):
+        why.insert(0, "Exposed steel on the element photo (SAM 3.1): Category 3 straight away, the crack is not needed.")
+    if result.spalling_element:
+        why.append("Spalling at the crack on the element photo: the crack is not drawn inside it.")
+    if result.spalling_close:
+        why.append("Spalling on the close-up: the crack is measured only outside it.")
     if result.spalling:
         why.append(f"Spalling or exposed bars seen on the photo of the element ({result.spalling_p:.0%}).")
     if (result.growth or {}).get("grown") is True:

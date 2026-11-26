@@ -28,6 +28,7 @@ def process_case(case: Path, wall, model, device, gpu, element_model, scene_mode
         meta = json.loads((case / "case.json").read_text(encoding="utf-8")) if (case / "case.json").exists() else {}
         r = analyse((case / "crack.jpg").read_bytes(), True, True, wall, model, device, gpu, scene_model,
                     bool(meta.get("card_placed")), test=True)
+        r.real_photos = str(meta.get("kind", "")).lower().startswith(("real", "field"))  # D113
         info.update(number=r.wall_number, statement=r.statement, measured=r.measured)
         if (case / "element.jpg").exists() and r.statement in ("Crack found", "Expert needed"):
             try:

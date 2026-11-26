@@ -31,8 +31,9 @@ def decide(sam_out: list) -> dict:
     return {"seen": True, "score": round(best[2], 2), "prompt": best[0], "mask": union}
 
 
-def find(photo: Image.Image) -> dict | None:
-    """Exposed steel on the photo, with its outline as shares of the photo for the crack viewer; None without SAM."""
+def find(photo: Image.Image, keep_mask: bool = False) -> dict | None:
+    """Exposed steel on the photo, with its outline as shares of the photo for the crack viewer; None without SAM.
+    keep_mask: also return the mask at the size SAM read (the element photo, D112)."""
     import cv2
     from element.parts import sam_segmenter, shared_predictor
     p = shared_predictor()
@@ -53,5 +54,6 @@ def find(photo: Image.Image) -> dict | None:
             out["defects"].append({"kind": "steel", "label": LABEL, "share": round(float(out["mask"].mean()), 4),
                                    "centre": [round(float(c[:, 0].mean()) / sw, 5), round(float(c[:, 1].mean()) / sh, 5)],
                                    "outline": [[round(float(x) / sw, 5), round(float(y) / sh, 5)] for x, y in c]})
-    out.pop("mask", None)
+    if not keep_mask:
+        out.pop("mask", None)
     return out
