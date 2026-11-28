@@ -296,3 +296,14 @@ def test_the_place_is_kept_only_when_the_sender_shares_it():
     shared = core.analyse(buf.getvalue(), True, True, wall, DEMO_MODEL, share_location=True)
     assert shared.place["source"] == "photo" and abs(shared.place["lat"] - 41.39681) < 1e-3
     assert shared.to_dict()["place"] == shared.place
+
+
+def test_category_3_is_sorted_by_waiting_time():
+    """Review 28 Nov: new within 3 days, look at urgently from 3 to 7 days, an urgent case after 7 days."""
+    src = (Path(__file__).resolve().parents[1] / "src" / "app" / "second_look.py").read_text()
+    ns = {}
+    exec(compile(src[src.index("AGE_BANDS ="):src.index("def _wo_row(")], "bands", "exec"), ns)
+    assert [ns["age_band"](d) for d in (0.2, 2.9, 3.0, 6.9, 7.0, 7.1, 30)] == \
+        ["new", "new", "soon", "soon", "soon", "overdue", "overdue"]
+    assert ns["age_days"]({"received_at": 1000.0}, now=1000.0 + 2 * 86400) == 2.0
+    assert ns["age_days"]({}) == 0.0  # not known: counted as new

@@ -84,6 +84,38 @@ footer, .stApp footer, [data-testid="stFooter"], [class*="viewerBadge"], a[href*
 .stApp .map-legend span { display: inline-flex; align-items: center; gap: 7px; }
 .stApp .map-legend i { width: 11px; height: 11px; border-radius: 50%; border: 2px solid #fff; display: inline-block; }
 .stApp .map-legend b { color: var(--gh-fg); font-weight: 600; }
+/* Category 3 by waiting time (review 28 Nov), a work-order list for a wide screen */
+.stApp .wo-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 4px 0 18px; }
+.stApp .wo-stat { position: relative; padding: 16px 18px; border-radius: 14px; background: var(--gh-canvas);
+    border: 1px solid var(--gh-border); overflow: hidden; }
+.stApp .wo-stat::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--band, var(--gh-accent)); }
+.stApp .wo-stat b { display: block; font-size: 34px; font-weight: 700; line-height: 1.05; color: var(--band, var(--gh-fg)); }
+.stApp .wo-stat span { display: block; font-size: 14px; font-weight: 600; color: var(--gh-fg); margin-top: 4px; }
+.stApp .wo-stat small { display: block; font-size: 12px; color: var(--gh-muted); margin-top: 2px; }
+.stApp .wo-head { display: flex; align-items: center; gap: 8px; margin: 18px 0 8px; font-size: 13px; font-weight: 700;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--band); }
+.stApp .wo-head::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--band); box-shadow: 0 0 10px var(--band); }
+.stApp .wo-head span { font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--gh-muted); }
+.stApp .wo-row { display: grid; grid-template-columns: 120px minmax(0, 1fr) 240px; gap: 18px; align-items: center;
+    padding: 12px 16px 12px 12px; border-radius: 14px; background: var(--gh-canvas); border: 1px solid var(--gh-border);
+    border-left: 4px solid var(--band); margin: 0 0 10px; transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease; }
+.stApp [class*="st-key-card-"]:hover .wo-row { transform: translateY(-2px); border-color: var(--band); box-shadow: 0 12px 28px rgba(0,0,0,.3); }
+.stApp .wo-row img { width: 120px; height: 84px; object-fit: cover; border-radius: 10px; display: block; }
+.stApp .wo-id { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; color: var(--gh-muted); display: flex; gap: 6px; align-items: center; }
+.stApp .wo-title { font-size: 17px; font-weight: 700; color: var(--gh-fg); margin: 2px 0 6px; }
+.stApp .wo-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.stApp .wo-pills .pill { font-size: 12px; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--gh-border-strong); color: var(--gh-fg);
+    max-width: 420px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stApp .wo-pills .pill.red { border-color: #f85149; color: #f85149; font-weight: 600; }
+.stApp .wo-meta { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12.5px; color: var(--gh-muted); }
+.stApp .wo-age { text-align: right; }
+.stApp .wo-age-t { display: block; font-size: 15px; font-weight: 700; color: var(--band); }
+.stApp .wo-bar { height: 4px; border-radius: 2px; background: var(--gh-border); margin: 8px 0 6px; overflow: hidden; }
+.stApp .wo-bar i { display: block; height: 100%; background: var(--band); border-radius: 2px; }
+.stApp .wo-age-s { font-size: 11.5px; color: var(--gh-muted); }
+@media (max-width: 900px) { .stApp .wo-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stApp .wo-row { grid-template-columns: 90px minmax(0, 1fr); } .stApp .wo-age { grid-column: span 2; text-align: left; }
+  .stApp .wo-row img { width: 90px; height: 70px; } }
 .stApp p.tab-desc { margin: -4px 12px 18px !important; font-size: 12.5px !important; line-height: 1.4 !important;
                     color: var(--gh-muted) !important; white-space: nowrap; }
 .stApp [class*="st-key-gh-tab-"] { gap: 0 !important; min-width: 250px; flex: 0 1 auto !important; }
@@ -106,14 +138,14 @@ footer, .stApp footer, [data-testid="stFooter"], [class*="viewerBadge"], a[href*
 .stApp [class*="st-key-card-"]:hover .wall-photo .pic::after { opacity: 1; transform: scale(1); }
 /* a result opened over the wall: the wall blurred and light, the crack sharp, a window beside it (D77) */
 .stApp .st-key-sl-overlay { position: fixed !important; inset: 0; z-index: 999990; display: flex !important;
-    align-items: center; justify-content: center; padding: 6vh 6vw; background: rgba(5, 7, 10, 0.6);
+    align-items: center; justify-content: center; padding: 4vh 3vw; background: rgba(5, 7, 10, 0.6);
     backdrop-filter: blur(14px) brightness(0.8); -webkit-backdrop-filter: blur(14px) brightness(0.8);
     animation: sl-fade .25s ease; }
 @keyframes sl-fade { from { opacity: 0; } to { opacity: 1; } }
 .stApp .st-key-sl-backdrop { position: absolute !important; inset: 0; margin: 0 !important; }
 .stApp .st-key-sl-backdrop .stButton, .stApp .st-key-sl-backdrop button { width: 100% !important;
     height: 100% !important; opacity: 0; cursor: zoom-out; }
-.stApp .st-key-sl-stage { position: relative; z-index: 1; width: min(1180px, 100%); flex-wrap: nowrap !important;
+.stApp .st-key-sl-stage { position: relative; z-index: 1; width: min(1600px, 100%); flex-wrap: nowrap !important;
     align-items: center !important; gap: 24px !important; }
 .stApp .st-key-sl-stage > [data-testid="stElementContainer"] { flex: 0 1 58%; min-width: 0; }
 .stApp iframe { border: none; color-scheme: dark; border-radius: 18px; background: #050607; }
@@ -189,7 +221,7 @@ footer, .stApp footer, [data-testid="stFooter"], [class*="viewerBadge"], a[href*
 
 DETAIL_STYLE = """<style>
 /* a result's own page: title with its number, a state pill, glass boxes */
-.block-container { max-width: 1280px; padding-top: 2rem !important; }
+.block-container { max-width: 100% !important; padding: 2rem clamp(16px, 3vw, 48px) 2rem !important; }
 .stApp a.d-back { font-size: 14px; }
 .stApp .d-title { font-size: 34px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; color: var(--gh-fg); margin: 8px 0; }
 .stApp .d-num { color: var(--gh-muted); font-weight: 400; margin-left: 10px; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.7em; }
@@ -605,6 +637,9 @@ def wall_grid() -> None:
     if not mine:
         st.markdown(f'<div class="gh-blank">No result in "{opened}" yet.</div>', unsafe_allow_html=True)
         return
+    if opened == "Category 3":  # by how long each case has waited (review 28 Nov)
+        category3_board(mine)
+        return
     with st.container(key="gh-cards"):  # each card opens its result over the wall, on the same page (D77)
         for e in mine:
             with st.container(key=f"card-{e.number}"):
@@ -618,6 +653,88 @@ def wall_grid() -> None:
                 if st.button(f"Open result {e.number}", key=f"open-item-{e.number}"):
                     st.session_state["item"] = e.number
                     st.rerun(scope="app")  # the overlay belongs to the page, not to this refreshing grid
+
+
+# Category 3 by how long each case has waited since it came in (review 28 Nov): new within 3 days, to look at
+# urgently from 3 to 7 days, an urgent case after 7 days. Layout after a work-order list, made for a wide screen.
+AGE_BANDS = (("overdue", "Urgent case", "waiting more than 7 days", 7.0, None),
+             ("soon", "Look at urgently", "waiting 3 to 7 days", 3.0, 7.0),
+             ("new", "New", "came in within the last 3 days", 0.0, 3.0))
+AGE_COLOURS = {"overdue": "#f85149", "soon": "#e5a50a", "new": "#8fd0ff"}
+
+
+def age_days(stats: dict, now: float | None = None) -> float:
+    """Days since the case came in (received_at); 0 when not known."""
+    import time
+    t = stats.get("received_at")
+    return 0.0 if not t else max(0.0, ((now or time.time()) - float(t)) / 86400.0)
+
+
+def age_band(days: float) -> str:
+    return "overdue" if days > 7 else "soon" if days >= 3 else "new"
+
+
+def _age_words(days: float) -> str:
+    if days < 1:
+        h = int(days * 24)
+        return "just now" if h < 1 else f"{h} h open"
+    return f"{int(days)} day{'s' if int(days) != 1 else ''} open"
+
+
+def _wo_row(e, days: float) -> str:
+    """One case as a wide row: photo, number and title, labels, when and where, and how long it has waited."""
+    d = e.stats
+    t, c = d.get("triage") or {}, d.get("crack") or {}
+    band = age_band(days)
+    col = AGE_COLOURS[band]
+    title = " · ".join(x for x in ((t.get("element_name") or "element not known").capitalize(),
+                                   (t.get("pattern_name") or "").capitalize()) if x)
+    width = (f'{c["width_max_mm"]:.2f} mm' if d.get("measured") and c.get("width_max_mm") is not None else
+             f'≈ {d["scale_estimate"]["crack"]["width_max_mm"]:.2f} mm'
+             if ((d.get("scale_estimate") or {}).get("crack") or {}).get("width_max_mm") is not None else "width not measured")
+    steel = (d.get("exposed_steel") or {}).get("seen") or (d.get("exposed_steel_on_element_photo") or {}).get("seen")
+    when = d.get("taken_at") or ""
+    import time as _t
+    got = _t.strftime("%d %b %H:%M", _t.localtime(d["received_at"])) if d.get("received_at") else "time not known"
+    place = d.get("place") or {}
+    where = f'{place["lat"]:.4f}, {place["lon"]:.4f}' if place.get("lat") is not None else "place not shared"
+    fill = min(100, max(4, days / 7 * 100))
+    return (f'<div class="wo-row" style="--band:{col}"><img src="data:image/jpeg;base64,{base64.b64encode(e.thumb).decode()}" '
+            f'alt="Result {e.number}"><div class="wo-main"><div class="wo-id">#{e.number:03d} · Category 3'
+            + (label("TEST", "severe") if d.get("test") else "") + f'</div><div class="wo-title">{title}</div>'
+            f'<div class="wo-pills">' + ('<span class="pill red">Exposed steel</span>' if steel else "")
+            + f'<span class="pill">{width}</span><span class="pill">{d.get("reason", "")[:70]}</span></div>'
+            f'<div class="wo-meta"><span>⏱ received {got}</span>' + (f'<span>📷 taken {when}</span>' if when else "")
+            + f'<span>📍 {where}</span></div></div><div class="wo-age"><span class="wo-age-t">{_age_words(days)}</span>'
+            f'<div class="wo-bar"><i style="width:{fill:.0f}%"></i></div><span class="wo-age-s">'
+            + (f"{max(1, int(days - 7))} day{'s' if int(days - 7) > 1 else ''} over the 7-day limit" if band == "overdue"
+               else f"{max(0, 7 - days):.0f} days to the 7-day limit")
+            + "</span></div></div>")
+
+
+def category3_board(mine: list) -> None:
+    """Category 3 by waiting time: counters on top, then the urgent cases first, each a wide row that opens."""
+    import time
+    now = time.time()
+    ages = {e.number: age_days(e.stats, now) for e in mine}
+    groups = {k: sorted([e for e in mine if age_band(ages[e.number]) == k], key=lambda e: -ages[e.number])
+              for k, *_ in AGE_BANDS}
+    st.markdown('<div class="wo-stats">'
+                f'<div class="wo-stat"><b>{len(mine)}</b><span>All Category 3</span></div>'
+                + "".join(f'<div class="wo-stat" style="--band:{AGE_COLOURS[k]}"><b>{len(groups[k])}</b><span>{name}'
+                          f'</span><small>{sub}</small></div>' for k, name, sub, *_ in AGE_BANDS)
+                + "</div>", unsafe_allow_html=True)
+    for k, name, sub, *_ in AGE_BANDS:
+        if not groups[k]:
+            continue
+        st.markdown(f'<p class="wo-head" style="--band:{AGE_COLOURS[k]}">{name} <span>({len(groups[k])}) · {sub}'
+                    '</span></p>', unsafe_allow_html=True)
+        for e in groups[k]:
+            with st.container(key=f"card-{e.number}"):
+                st.markdown(_wo_row(e, ages[e.number]), unsafe_allow_html=True)
+                if st.button(f"Open result {e.number}", key=f"open-item-{e.number}"):
+                    st.session_state["item"] = e.number
+                    st.rerun(scope="app")
 
 
 def _photo_badge(stats: dict) -> str:
@@ -920,7 +1037,7 @@ def waiting_for_3d(number: int) -> None:
 def wall_page() -> None:
     """GitHub's layout (D76): header with the logo, one tab per risk level with its counter (D78),
     the opened tab's cards, the model in the footer. No QR here (1 Nov): it has its own page, /?qr."""
-    st.markdown("<style>.block-container { max-width: 1280px; padding-top: 2rem !important; }</style>",
+    st.markdown("<style>.block-container { max-width: 100% !important; padding: 2rem clamp(16px, 3vw, 48px) 2rem !important; }</style>",  # the full width, as a website
                 unsafe_allow_html=True)
     st.markdown(wall_css(), unsafe_allow_html=True)  # the phone page's design, in VS Code's colours
     _mode_watcher()(key="sl_mode")  # light or dark, as chosen in the menu
@@ -967,7 +1084,7 @@ def wall_map() -> None:
                       get_line_color=[255, 255, 255], line_width_min_pixels=2, pickable=True)
     deck = pdk.Deck(layers=[layer], initial_view_state=pdk.ViewState(latitude=lat, longitude=lon, zoom=zoom),
                     map_style="light" if st.context.theme.type == "light" else "dark", tooltip={"html": "<b>#{number}</b> · {level}<br>{when}<br>place from the {source}"})
-    ev = st.pydeck_chart(deck, on_select="rerun", selection_mode="single-object", key="wall-map", height=380)
+    ev = st.pydeck_chart(deck, on_select="rerun", selection_mode="single-object", key="wall-map", height=460)
     picked = ((getattr(ev, "selection", None) or {}).get("objects") or {}).get("results") or []
     if picked and st.session_state.get("item") != picked[0]["number"]:
         st.session_state["item"] = picked[0]["number"]
